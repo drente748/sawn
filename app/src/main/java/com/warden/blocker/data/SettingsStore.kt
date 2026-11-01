@@ -77,6 +77,7 @@ class SettingsStore(private val context: Context) {
         val SAFE_SEARCH_FORCE = booleanPreferencesKey("safe_search_force")
         val ADULT_EXTRA_DOMAINS = stringSetPreferencesKey("adult_extra_domains")
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
+        val LOCKDOWN_UNTIL = longPreferencesKey("lockdown_until")
     }
 
     /** A PIN is only usable when both its hash and salt are present. */
@@ -349,6 +350,14 @@ class SettingsStore(private val context: Context) {
         val s = prefs[Keys.PIN_SALT]
         return if (h != null && s != null) h to s else null
     }
+
+    // --- القفل الزمني (Lockdown) -------------------------------------------------
+    /** 0 = بلا قفل؛ غير ذلك millis انتهاء المدة. القفل مطلق: يُرفع فقط بانتهائه. */
+    val lockdownUntil: Flow<Long> =
+        context.dataStore.data.map { it[Keys.LOCKDOWN_UNTIL] ?: 0L }.distinctUntilChanged()
+
+    suspend fun setLockdownUntil(endsAtMs: Long) =
+        context.dataStore.edit { it[Keys.LOCKDOWN_UNTIL] = endsAtMs }.let { }
 
     // --- Clock-tamper defense (Tempo's lastSeen high-water mark) ---
     // The only trusted "now": at least as late as any moment we've ever observed the system
