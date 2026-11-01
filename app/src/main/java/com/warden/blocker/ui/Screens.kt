@@ -90,6 +90,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.warden.blocker.block.AdultHosts
 import com.warden.blocker.data.BlockType
 import com.warden.blocker.data.BlockedItem
 import com.warden.blocker.data.InterceptMode
@@ -97,6 +98,9 @@ import com.warden.blocker.data.Schedule
 import com.warden.blocker.system.AdminManager
 import com.warden.blocker.ui.ads.AdSlot
 import com.warden.blocker.ui.ads.AdSlotBanner
+import com.warden.blocker.ui.status.CoverageLevel
+import com.warden.blocker.ui.status.CoverageState
+import com.warden.blocker.ui.status.coverageLevel
 import com.warden.blocker.ui.theme.WardenPalette
 import com.warden.blocker.usage.AppsHelper
 import com.warden.blocker.usage.UsageStatsHelper
@@ -138,7 +142,16 @@ fun HomeScreen(
     val settingsReady by vm.settingsReady.collectAsStateWithLifecycle()
     val items by vm.items.collectAsStateWithLifecycle()
     val pornGuard by vm.pornGuard.collectAsStateWithLifecycle()
+    val safeSearchForce by vm.safeSearchForce.collectAsStateWithLifecycle()
     val vpnRunning by WardenVpnService.runningFlow.collectAsStateWithLifecycle()
+    val a11yGranted = !needsSetup
+    val coverage = coverageLevel(
+        CoverageState(
+            vpn = vpnRunning,
+            accessibility = a11yGranted,
+            safeSearchDns = safeSearchForce && pornGuard,
+        ),
+    )
     val activeCount = items.count { it.enabled }
     var showVerify by remember { mutableStateOf(false) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -200,6 +213,7 @@ fun HomeScreen(
             needsSetup = needsSetup,
             activeCount = activeCount,
             pornGuard = pornGuard,
+            coverage = coverage,
             onClick = { if (needsSetup) onOpenSetup() },
         )
 
@@ -255,6 +269,37 @@ fun HomeScreen(
 
         // ── Focus session ────────────────────────────────────────────────────────
         FocusCard(focusEndsAt = focusEndsAt, strict = focusStrict, onStart = onStartFocus, onCancel = onCancelFocus)
+
+        // بطاقة حجم قائمة الحجب — رقم ثابت من القوائم المدمجة (قرار 2026-11-01: لا عدّاد حي).
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = WardenPalette.SurfaceSoft,
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Filled.Shield,
+                    contentDescription = null,
+                    tint = WardenPalette.Green,
+                    modifier = Modifier.size(24.dp),
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "${AdultHosts.includedCount()} نطاقاً في قائمة الحجب",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "يتم تحديث القائمة يومياً من مصادر مجتمعية",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WardenPalette.TextMuted,
+                    )
+                }
+            }
+        }
 
         // ── Everything you can guard: the whole feature map on one page ──────────
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -387,6 +432,7 @@ private fun ProtectionHero(
     needsSetup: Boolean,
     activeCount: Int,
     pornGuard: Boolean,
+    coverage: CoverageLevel,
     onClick: () -> Unit,
 ) {
     val gradient = if (blockingNow) {
@@ -452,6 +498,43 @@ private fun ProtectionHero(
                     }
                 }
             }
+            CoverageRing(coverage = coverage, onGradient = blockingNow)
+        }
+    }
+}
+
+/**
+ * حلقة التغطية: ثلاث نقاط من مصادر حقيقية (VPN / إمكانية الوصول / SafeSearch).
+ * أخضر: كل نقطة تعمل؛ كهرماني: نقطة ناقصة؛ رمادي: الحماية مطفأة.
+ */
+@Composable
+private fun CoverageRing(coverage: CoverageLevel, onGradient: Boolean) {
+    val on = coverage == CoverageLevel.Full
+    val off = coverage == CoverageLevel.Off
+    val dotColor = when {
+        off -> WardenPalette.TextMuted
+        on -> if (onGradient) Color.White else WardenPalette.Green
+        else -> WardenPalette.Amber
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        repeat(3) { i ->
+            val lit = when (coverage) {
+                CoverageLevel.Full -> true
+                CoverageLevel.Off -> false
+                CoverageLevel.Partial -> true
+            }
+            Box(
+                Modifier
+                    .size(9.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (lit && !off) {
+                            dotColor.copy(alpha = if (onGradient) 0.55f + 0.45f * (1 - i) else 1f - 0.25f * i)
+                        } else {
+                            dotColor.copy(alpha = 0.3f)
+                        }
+                    ),
+            )
         }
     }
 }

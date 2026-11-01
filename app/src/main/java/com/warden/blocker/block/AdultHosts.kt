@@ -73,4 +73,7 @@ object AdultHosts {
     val ALL: Set<String> = (CORE + EXTENDED).toSortedSet()
 
     fun isAdultDomain(domain: String): Boolean = domain != null && domain in ALL
+
+    /** عدد النطاقات المدمجة — يُعرض ثابتاً في بطاقة الرئيسية (قرار 2026-11-01). */
+    fun includedCount(): Int = ALL.size
 }
