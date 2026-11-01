@@ -120,7 +120,6 @@ fun HomeScreen(
     onCancelFocus: () -> Unit,
     onOpenSetup: () -> Unit,
     onOpenBlocklist: () -> Unit = {},
-    onOpenSocial: () -> Unit = {},
     onOpenFeatures: () -> Unit = {},
     onOpenSchedules: () -> Unit = {},
     onOpenStats: () -> Unit = {},
@@ -138,7 +137,6 @@ fun HomeScreen(
     val strictLocked by vm.strictLocked.collectAsStateWithLifecycle()
     val settingsReady by vm.settingsReady.collectAsStateWithLifecycle()
     val items by vm.items.collectAsStateWithLifecycle()
-    val socialGuard by vm.socialGuard.collectAsStateWithLifecycle()
     val pornGuard by vm.pornGuard.collectAsStateWithLifecycle()
     val vpnRunning by WardenVpnService.runningFlow.collectAsStateWithLifecycle()
     val activeCount = items.count { it.enabled }
@@ -201,7 +199,6 @@ fun HomeScreen(
             focusActive = focusActive,
             needsSetup = needsSetup,
             activeCount = activeCount,
-            socialGuard = socialGuard,
             pornGuard = pornGuard,
             onClick = { if (needsSetup) onOpenSetup() },
         )
@@ -282,15 +279,6 @@ fun HomeScreen(
                 strong = WardenPalette.Blue,
                 soft = WardenPalette.BlueSoft,
                 onClick = onOpenBlocklist,
-            )
-            FeatureTile(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Groups,
-                label = "Social shield",
-                detail = if (socialGuard) "On" else "Off",
-                strong = WardenPalette.Pink,
-                soft = WardenPalette.PinkSoft,
-                onClick = onOpenSocial,
             )
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -398,7 +386,6 @@ private fun ProtectionHero(
     focusActive: Boolean,
     needsSetup: Boolean,
     activeCount: Int,
-    socialGuard: Boolean,
     pornGuard: Boolean,
     onClick: () -> Unit,
 ) {
@@ -420,7 +407,6 @@ private fun ProtectionHero(
         focusActive -> "The guard runs until the session ends."
         blockingNow -> buildString {
             append("$activeCount blocked")
-            if (socialGuard) append(" · social shield")
             if (pornGuard) append(" · SafeSearch")
         }
         else -> "Tap the switch below to start guarding."
@@ -456,11 +442,6 @@ private fun ProtectionHero(
                         HeroChip(
                             icon = Icons.Filled.Shield,
                             label = if (pornGuard) "Porn Guard" else "No filter",
-                            onGradient = blockingNow,
-                        )
-                        HeroChip(
-                            icon = Icons.Filled.Groups,
-                            label = if (socialGuard) "Social" else "Apps only",
                             onGradient = blockingNow,
                         )
                         HeroChip(
@@ -798,7 +779,6 @@ fun BlocklistScreen(
     vm: WardenViewModel,
     onOpenAppPicker: () -> Unit,
     onOpenFeatures: () -> Unit,
-    onOpenSocial: () -> Unit,
     onBack: () -> Unit = {},
 ) {
     val items by vm.items.collectAsStateWithLifecycle()
@@ -820,8 +800,6 @@ fun BlocklistScreen(
         }
         Spacer(Modifier.height(10.dp))
         OutlinedButton(onClick = onOpenAppPicker, modifier = Modifier.fillMaxWidth()) { Text("+ Add apps to block") }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onOpenSocial, modifier = Modifier.fillMaxWidth()) { Text("Social media adult content") }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onOpenFeatures, modifier = Modifier.fillMaxWidth()) { Text("Block in-app feeds (Reels, Shorts…)") }
         Spacer(Modifier.height(16.dp))

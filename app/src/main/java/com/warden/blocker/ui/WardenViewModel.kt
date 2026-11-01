@@ -9,7 +9,6 @@ import com.warden.blocker.data.BlockedItem
 import com.warden.blocker.data.DisableOutcome
 import com.warden.blocker.data.InterceptMode
 import com.warden.blocker.data.Schedule
-import com.warden.blocker.feature.SocialPlatform
 import com.warden.blocker.security.AdultListFetcher
 import com.warden.blocker.security.PinHasher
 import com.warden.blocker.security.PinResult
@@ -113,12 +112,6 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
 
     val enabledFeatureKeys: StateFlow<Set<String>> =
         container.settings.enabledFeatureKeys.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
-    val socialGuard: StateFlow<Boolean> =
-        container.settings.socialGuard.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
-    val enabledSocialPlatforms: StateFlow<Set<String>> =
-        container.settings.enabledSocialPlatforms
-            .map { it ?: SocialPlatform.allKeys }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SocialPlatform.allKeys)
 
     val focusEndsAt: StateFlow<Long> =
         container.settings.focusEndsAt.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
@@ -163,18 +156,6 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setFeatureEnabled(key: String, enabled: Boolean) = viewModelScope.launch {
         container.settings.setFeatureEnabled(key, enabled)
-    }
-
-    fun setSocialGuard(enabled: Boolean) = viewModelScope.launch {
-        container.settings.setSocialGuard(enabled)
-    }
-
-    fun setSocialPlatformEnabled(key: String, enabled: Boolean) = viewModelScope.launch {
-        container.settings.setSocialPlatformEnabled(key, enabled, SocialPlatform.allKeys)
-    }
-
-    fun setAllSocialPlatforms(enabled: Boolean) = viewModelScope.launch {
-        container.settings.setEnabledSocialPlatforms(if (enabled) SocialPlatform.allKeys else emptySet())
     }
 
     /** Record a protected day for the focus streak, once per open while blocking is on. */

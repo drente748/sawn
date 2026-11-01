@@ -15,6 +15,7 @@ import com.warden.blocker.security.PinLockoutPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
@@ -54,6 +55,7 @@ class SettingsStore(private val context: Context) {
         val ENABLED_FEATURES = stringSetPreferencesKey("enabled_features")
         val SOCIAL_GUARD = booleanPreferencesKey("social_guard")
         val ENABLED_SOCIAL_PLATFORMS = stringSetPreferencesKey("enabled_social_platforms")
+        // ( social_guard / enabled_social_platforms مهجوران بعد 1.0.0 — لم يبق لهما تعريف)
         val FOCUS_ENDS_AT = longPreferencesKey("focus_ends_at")
         val FOCUS_STRICT = booleanPreferencesKey("focus_strict")
         val BLOCK_DOH = booleanPreferencesKey("block_doh")
@@ -135,12 +137,12 @@ class SettingsStore(private val context: Context) {
         context.dataStore.data.map { it[Keys.LONGEST_STREAK] ?: 0 }.distinctUntilChanged()
     val enabledFeatureKeys: Flow<Set<String>> =
         context.dataStore.data.map { it[Keys.ENABLED_FEATURES] ?: emptySet() }.distinctUntilChanged()
-    // Default ON, matching pornGuard: a fresh install protects social apps without
-    // visiting settings. All platform sub-toggles stay individually controllable.
-    val socialGuard: Flow<Boolean> =
-        context.dataStore.data.map { it[Keys.SOCIAL_GUARD] ?: true }.distinctUntilChanged()
-    val enabledSocialPlatforms: Flow<Set<String>?> =
-        context.dataStore.data.map { it[Keys.ENABLED_SOCIAL_PLATFORMS] }.distinctUntilChanged()
+    // socialGuard/enabledSocialPlatforms: أُزيلت الميزة من السطح في 1.0.0؛ المفتاحان
+    // يُتركان في DataStore دون هجرة (تنظيف عميق لاحقاً). الخدمة تصل صفر منطقها
+    // عبر التيار أدناه.
+    /** دائمة false بعد 1.0.0 — مسار منصات التواصل في الخدمة لن يعمل. */
+    val socialGuard: Flow<Boolean> = flowOf(false)
+    val enabledSocialPlatforms: Flow<Set<String>?> = flowOf(null)
 
     /** Epoch millis a focus session ends (0 = none), and whether it can be cancelled early. */
     val focusEndsAt: Flow<Long> =
@@ -166,19 +168,6 @@ class SettingsStore(private val context: Context) {
             if (enabled) current.add(key) else current.remove(key)
             p[Keys.ENABLED_FEATURES] = current
         }.let { }
-
-    suspend fun setSocialGuard(enabled: Boolean) =
-        context.dataStore.edit { it[Keys.SOCIAL_GUARD] = enabled }.let { }
-
-    suspend fun setSocialPlatformEnabled(key: String, enabled: Boolean, defaultKeys: Set<String>) =
-        context.dataStore.edit { p ->
-            val current = (p[Keys.ENABLED_SOCIAL_PLATFORMS] ?: defaultKeys).toMutableSet()
-            if (enabled) current.add(key) else current.remove(key)
-            p[Keys.ENABLED_SOCIAL_PLATFORMS] = current
-        }.let { }
-
-    suspend fun setEnabledSocialPlatforms(keys: Set<String>) =
-        context.dataStore.edit { it[Keys.ENABLED_SOCIAL_PLATFORMS] = keys }.let { }
 
     /**
      * Mark today as a protected day and update the focus streak. Called once per app open

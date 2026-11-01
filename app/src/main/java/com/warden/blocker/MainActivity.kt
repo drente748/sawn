@@ -33,7 +33,6 @@ import com.warden.blocker.ui.OnboardingScreen
 import com.warden.blocker.ui.SchedulesScreen
 import com.warden.blocker.ui.SettingsScreen
 import com.warden.blocker.ui.SetupScreen
-import com.warden.blocker.ui.SocialMediaScreen
 import com.warden.blocker.ui.StatsScreen
 import com.warden.blocker.ui.WardenViewModel
 import com.warden.blocker.ui.theme.WardenTheme
@@ -167,7 +166,6 @@ private fun WardenScaffold(
                     vm, onToggleBlocking, onStartFocus, onCancelFocus,
                     onOpenSetup = { navController.navigate("setup") },
                     onOpenBlocklist = { navController.navigate("blocklist") },
-                    onOpenSocial = { navController.navigate("social") },
                     onOpenFeatures = { navController.navigate("features") },
                     onOpenSchedules = { navController.navigate("schedules") },
                     onOpenStats = { navController.navigate("stats") },
@@ -183,7 +181,6 @@ private fun WardenScaffold(
                         vm,
                         onOpenAppPicker = { navController.navigate("apppicker") },
                         onOpenFeatures = { navController.navigate("features") },
-                        onOpenSocial = { navController.navigate("social") },
                         onBack = { navController.popBackStack() },
                     )
                 }
@@ -196,15 +193,6 @@ private fun WardenScaffold(
             composable("features") {
                 ManagementPinGate(vm, "Feed blocking") {
                     FeaturesScreen(vm, onBack = { navController.popBackStack() })
-                }
-            }
-            composable("social") {
-                ManagementPinGate(vm, "Social media protection") {
-                    SocialMediaScreen(
-                        vm,
-                        onOpenSetup = { navController.navigate("setup") },
-                        onBack = { navController.popBackStack() },
-                    )
                 }
             }
             composable("schedules") {
