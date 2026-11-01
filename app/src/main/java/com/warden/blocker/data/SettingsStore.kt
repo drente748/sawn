@@ -76,6 +76,7 @@ class SettingsStore(private val context: Context) {
         val PORN_GUARD = booleanPreferencesKey("porn_guard")
         val SAFE_SEARCH_FORCE = booleanPreferencesKey("safe_search_force")
         val ADULT_EXTRA_DOMAINS = stringSetPreferencesKey("adult_extra_domains")
+        val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
     }
 
     /** A PIN is only usable when both its hash and salt are present. */
@@ -120,6 +121,14 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setAdultExtraDomains(domains: Set<String>) =
         context.dataStore.edit { it[Keys.ADULT_EXTRA_DOMAINS] = domains }.let { }
+
+    // --- إمكانية الوصول الرسومي ---------------------------------------------
+    /** تقليل حركة واجهة (نبض الدرع). Default false: الحركة حيّة إفتراضياً. */
+    val reduceMotion: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.REDUCE_MOTION] ?: false }.distinctUntilChanged()
+
+    suspend fun setReduceMotion(value: Boolean) =
+        context.dataStore.edit { it[Keys.REDUCE_MOTION] = value }.let { }
 
     suspend fun setBlockDoh(value: Boolean) =
         context.dataStore.edit { it[Keys.BLOCK_DOH] = value }.let { }

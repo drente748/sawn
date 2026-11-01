@@ -49,6 +49,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.VideoLibrary
@@ -142,6 +144,7 @@ fun HomeScreen(
     val settingsReady by vm.settingsReady.collectAsStateWithLifecycle()
     val items by vm.items.collectAsStateWithLifecycle()
     val pornGuard by vm.pornGuard.collectAsStateWithLifecycle()
+    val reduceMotion by vm.reduceMotion.collectAsStateWithLifecycle()
     val safeSearchForce by vm.safeSearchForce.collectAsStateWithLifecycle()
     val vpnRunning by WardenVpnService.runningFlow.collectAsStateWithLifecycle()
     val a11yGranted = !needsSetup
@@ -214,6 +217,7 @@ fun HomeScreen(
             activeCount = activeCount,
             pornGuard = pornGuard,
             coverage = coverage,
+            reduceMotion = reduceMotion,
             onClick = { if (needsSetup) onOpenSetup() },
         )
 
@@ -433,6 +437,7 @@ private fun ProtectionHero(
     activeCount: Int,
     pornGuard: Boolean,
     coverage: CoverageLevel,
+    reduceMotion: Boolean,
     onClick: () -> Unit,
 ) {
     val gradient = if (blockingNow) {
@@ -468,8 +473,8 @@ private fun ProtectionHero(
             .padding(22.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ShieldBadge(active = blockingNow, onGradient = blockingNow)
-            Spacer(Modifier.width(18.dp))
+            ShieldBadge(active = blockingNow, onGradient = blockingNow, reduceMotion = reduceMotion)
+
             Column(Modifier.weight(1f)) {
                 Text(
                     title,
@@ -541,7 +546,7 @@ private fun CoverageRing(coverage: CoverageLevel, onGradient: Boolean) {
 
 /** The breathing shield mark, now a real icon instead of an emoji. */
 @Composable
-private fun ShieldBadge(active: Boolean, onGradient: Boolean) {
+private fun ShieldBadge(active: Boolean, onGradient: Boolean, reduceMotion: Boolean) {
     val infinite = rememberInfiniteTransition(label = "shieldPulse")
     val scale by infinite.animateFloat(
         initialValue = if (active) 0.94f else 1f,
@@ -555,7 +560,7 @@ private fun ShieldBadge(active: Boolean, onGradient: Boolean) {
     Box(
         Modifier
             .size(76.dp)
-            .scale(scale)
+            .scale(if (reduceMotion) 1f else scale)
             .clip(CircleShape)
             .background(
                 if (onGradient) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.85f),
@@ -1066,7 +1071,10 @@ fun ManagementPinGate(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> Unit = {}) {
+fun SettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> Unit = {},
+                   onOpenProtection: () -> Unit = {}, onOpenBrowser: () -> Unit = {}, onOpenPrivacy: () -> Unit = {},
+                   router: Boolean = true,
+                   content: @Composable () -> Unit = {}) {
     val context = LocalContext.current
     val strict by vm.strictMode.collectAsStateWithLifecycle()
     val alwaysOn by vm.alwaysOn.collectAsStateWithLifecycle()
@@ -1117,178 +1125,34 @@ fun SettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> U
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        BackHeader("Settings", onBack, "The levers behind the guard.")
+        BackHeader("Settings", onBack, "الأقسام خلف الحماية.")
 
-        // Blocking mode: always-on vs schedule-driven
-        Card(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Always on", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        if (alwaysOn) "Blocking is enforced whenever it's switched on." else "Blocking is enforced only during your schedules.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Switch(checked = alwaysOn, onCheckedChange = { vm.setAlwaysOn(it) })
+        if (router) {
+            // ── قائمة الأقسام ──────────────────────────────────────────────
+            SettingsSectionCard(
+                icon = Icons.Filled.Shield,
+                title = "الحماية",
+                subtitle = "فلتر الحجب، فرض SafeSearch، القوائم المخصصة",
+                onClick = onOpenProtection,
+            )
+            SettingsSectionCard(
+                icon = Icons.Filled.Search,
+                title = "المتصفح",
+                subtitle = "إذن إمكانية الوصول، المتصفحات المدعومة، تلميحات التلافي",
+                onClick = onOpenBrowser,
+            )
+            SettingsSectionCard(
+                icon = Icons.Filled.Info,
+                title = "الخصوصية والدعم",
+                subtitle = "لا نجمع بيانات، طلب مساعدة، الحركة، اللمسات الأخيرة",
+                onClick = onOpenPrivacy,
+            )
+            HorizontalDivider()
+            OutlinedButton(onClick = onOpenSetup, modifier = Modifier.fillMaxWidth()) {
+                Text("الإعداد والأذونات")
             }
-        }
-
-        // Strict mode
-        Card(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Strict mode", style = MaterialTheme.typography.titleMedium)
-                    Text("Locks the master switch while protection is on. Requires a PIN.", style = MaterialTheme.typography.bodySmall)
-                }
-                Switch(checked = strict, onCheckedChange = { on ->
-                    if (on && !hasPin) {
-                        // Remember the intent: the PIN dialog will enable strict afterwards.
-                        enableStrictAfterPin = true
-                        showSetPin = true
-                    } else {
-                        enableStrictAfterPin = false
-                        vm.setStrictMode(on)
-                        if (on && !adminActive) adminLauncher.launch(AdminManager.enableIntent(context))
-                    }
-                })
-            }
-        }
-
-        // Close the DNS-over-HTTPS bypass
-        Card(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Block DNS-over-HTTPS", style = MaterialTheme.typography.titleMedium)
-                    Text("Also blocks encrypted-DNS resolvers so browsers can't bypass website filtering. Applies next time blocking starts.", style = MaterialTheme.typography.bodySmall)
-                }
-                Switch(checked = blockDoh, onCheckedChange = { vm.setBlockDoh(it) })
-            }
-        }
-
-        Card(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Block ads & trackers", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Blocks common third-party ad and analytics hosts. Sponsored content served by the site itself can still appear.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Switch(checked = blockAds, onCheckedChange = { vm.setBlockAds(it) })
-            }
-        }
-
-        // Porn Guard: block adult content everywhere, plus refresh from open lists
-        var adultRefreshMsg by remember { mutableStateOf<String?>(null) }
-        var adultRefreshFailed by remember { mutableStateOf(false) }
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Porn Guard", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Blocks adult sites in every browser and app, forces SafeSearch on " +
-                                "Google/Bing/YouTube/DuckDuckGo, and watches the browser address bar " +
-                                "even when a site dodges DNS.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Switch(checked = pornGuard, onCheckedChange = { vm.setPornGuard(it) })
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Force SafeSearch", style = MaterialTheme.typography.titleSmall)
-                        Text("Search engines are locked to their restricted mode.", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Switch(checked = safeSearchForce, onCheckedChange = { vm.setSafeSearchForce(it) })
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = {
-                        vm.refreshAdultLists { result ->
-                            adultRefreshFailed = result.error != null
-                            adultRefreshMsg = when {
-                                result.error != null -> "Update failed — keeping the previous lists."
-                                result.skippedSameContent -> "Lists are already current."
-                                else -> "Updated — ${result.added} new domains added."
-                            }
-                        }
-                    }) { Text("Refresh blocklists") }
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "$adultExtraCount extra domains",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                adultRefreshMsg?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (adultRefreshFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-        }
-
-        // Notification blocking
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Block notifications", style = MaterialTheme.typography.titleMedium)
-                        Text("Silences notifications from blocked apps while blocking is active.", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Switch(checked = blockNotifications, onCheckedChange = { vm.setBlockNotifications(it) })
-                }
-                if (blockNotifications) {
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }) {
-                        Text("Grant notification access")
-                    }
-                }
-            }
-        }
-
-        // Uninstall protection (device admin)
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Text("Uninstall protection", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    if (adminActive) "On — Warden can't be uninstalled until you turn this off." else "Off — Warden can be uninstalled anytime.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Spacer(Modifier.height(8.dp))
-                if (adminActive) {
-                    OutlinedButton(
-                        onClick = { if (!strict) { AdminManager.disable(context); adminActive = AdminManager.isActive(context) } },
-                        enabled = !strict,
-                    ) { Text(if (strict) "Turn off strict mode first" else "Turn off protection") }
-                } else {
-                    Button(onClick = { adminLauncher.launch(AdminManager.enableIntent(context)) }) { Text("Turn on protection") }
-                }
-            }
-        }
-
-        // PIN
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Text("PIN lock", style = MaterialTheme.typography.titleMedium)
-                Text(if (hasPin) "A PIN is required to change settings or stop blocking." else "Protect settings and disabling with a 4-digit PIN.", style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { showSetPin = true }) { Text(if (hasPin) "Change PIN" else "Set PIN") }
-                    if (hasPin) {
-                        OutlinedButton(
-                            onClick = { showRemovePin = true },
-                            enabled = !strict,
-                        ) { Text(if (strict) "Turn off strict mode first" else "Remove PIN") }
-                    }
-                }
-            }
-        }
-
-        HorizontalDivider()
-        OutlinedButton(onClick = onOpenSetup, modifier = Modifier.fillMaxWidth()) {
-            Text("Setup & permissions")
+        } else {
+            content()
         }
     }
 
@@ -1308,6 +1172,31 @@ fun SettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> U
     }
     if (showRemovePin) {
         VerifyPinDialog("Enter PIN to remove", vm::verifyPin, onSuccess = { vm.clearPin(); showRemovePin = false }, onDismiss = { showRemovePin = false })
+    }
+}
+
+/** بطاقة قسم في قائمة الإعدادات الرئيسية. */
+@Composable
+private fun SettingsSectionCard(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth().clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = WardenPalette.Card),
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(WardenPalette.GreenSoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = WardenPalette.GreenDark, modifier = Modifier.size(24.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = WardenPalette.TextPrimary)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = WardenPalette.TextMuted)
+            }
+            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = WardenPalette.TextMuted)
+        }
     }
 }
 

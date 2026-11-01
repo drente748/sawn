@@ -35,6 +35,9 @@ import com.warden.blocker.ui.SettingsScreen
 import com.warden.blocker.ui.SetupScreen
 import com.warden.blocker.ui.StatsScreen
 import com.warden.blocker.ui.WardenViewModel
+import com.warden.blocker.ui.settings.BrowserSettingsScreen
+import com.warden.blocker.ui.settings.PrivacySupportSettingsScreen
+import com.warden.blocker.ui.settings.ProtectionSettingsScreen
 import com.warden.blocker.ui.theme.WardenTheme
 import com.warden.blocker.vpn.VpnController
 import com.warden.blocker.vpn.WardenVpnService
@@ -208,7 +211,37 @@ private fun WardenScaffold(
                     vm,
                     onOpenSetup = { navController.navigate("setup") },
                     onBack = { navController.popBackStack() },
+                    onOpenProtection = { navController.navigate("settings/protection") },
+                    onOpenBrowser = { navController.navigate("settings/browser") },
+                    onOpenPrivacy = { navController.navigate("settings/privacy") },
                 )
+            }
+            composable("settings/protection") {
+                ManagementPinGate(vm, "حماية الإعدادات") {
+                    ProtectionSettingsScreen(
+                        vm,
+                        onOpenSetup = { navController.navigate("setup") },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+            }
+            composable("settings/browser") {
+                ManagementPinGate(vm, "إعدادات المتصفح") {
+                    BrowserSettingsScreen(
+                        vm,
+                        onOpenSetup = { navController.navigate("setup") },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+            }
+            composable("settings/privacy") {
+                ManagementPinGate(vm, "الخصوصية والدعم") {
+                    PrivacySupportSettingsScreen(
+                        vm,
+                        onOpenSetup = { navController.navigate("setup") },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
         }
     }

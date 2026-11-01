@@ -87,8 +87,13 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
             .map { it.size }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    // --- Accessibility (graphics) ---
+    val reduceMotion: StateFlow<Boolean> =
+        container.settings.reduceMotion.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setPornGuard(value: Boolean) = viewModelScope.launch { container.settings.setPornGuard(value) }
     fun setSafeSearchForce(value: Boolean) = viewModelScope.launch { container.settings.setSafeSearchForce(value) }
+    fun setReduceMotion(value: Boolean) = viewModelScope.launch { container.settings.setReduceMotion(value) }
 
     /** Pull open blocklist updates while preserving the last valid list on failure. */
     fun refreshAdultLists(onResult: (AdultListFetcher.FetchResult) -> Unit = {}) = viewModelScope.launch {
