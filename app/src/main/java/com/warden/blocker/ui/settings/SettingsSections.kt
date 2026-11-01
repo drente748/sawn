@@ -118,6 +118,7 @@ fun ProtectionSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBac
                 })
             }
         }
+        com.warden.blocker.ui.SettingsControls.LockdownCard(vm = vm)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text("قوائم الحجب الجماعية", style = MaterialTheme.typography.titleMedium)

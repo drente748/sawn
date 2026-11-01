@@ -95,6 +95,39 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
     fun setSafeSearchForce(value: Boolean) = viewModelScope.launch { container.settings.setSafeSearchForce(value) }
     fun setReduceMotion(value: Boolean) = viewModelScope.launch { container.settings.setReduceMotion(value) }
 
+    // --- القفل الزمني (Lockdown) ---
+    val lockdownUntil: StateFlow<Long> =
+        container.settings.lockdownUntil.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    /** قيد الطلب — لعبور بوابة admin: أول كتابة بعد موافقة المستخدم على Device Admin. */
+    private var pendingLockdown: Long? = null
+
+    /** المرحلة 1: كتب القرار في الذاكرة فقط.=admin سيُطلب قبل أي كتابة. */
+    fun stageLockdown(endsAtMs: Long) {
+        pendingLockdown = endsAtMs
+    }
+
+    fun hasStagedLockdown(): Boolean = pendingLockdown != null
+
+    fun stageLockdownValue(): Long? = pendingLockdown
+
+    /** المرحلة 2 (بعد موافقة admin): يكتب القفل ويفرض تشغيل الحماية. */
+    fun commitLockdown(onDone: () -> Unit = {}) = viewModelScope.launch {
+        val endsAt = pendingLockdown ?: return@launch
+        pendingLockdown = null
+        container.settings.setLockdownUntil(endsAt)
+        // القفل يفرض الحماية قائمة (قرار التصميم): master on + best-effort VPN.
+        if (!container.settings.masterEnabled.first()) {
+            container.settings.setMasterEnabled(true)
+            com.warden.blocker.vpn.VpnController.start(getApplication())
+        }
+        onDone()
+    }
+
+    fun discardStagedLockdown() {
+        pendingLockdown = null
+    }
+
     /** Pull open blocklist updates while preserving the last valid list on failure. */
     fun refreshAdultLists(onResult: (AdultListFetcher.FetchResult) -> Unit = {}) = viewModelScope.launch {
         val result = AdultListFetcher(getApplication()).refreshIfDue(force = true)

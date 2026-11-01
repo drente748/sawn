@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import com.warden.blocker.system.AdminManager
+import com.warden.blocker.block.LockdownPolicy
 import com.warden.blocker.ui.theme.WardenPalette
 
 /**
@@ -95,5 +97,115 @@ object SettingsControls {
                 }
             }
         }
+    }
+
+    /**
+     * بطاقة القفل الزمني (قسم الحماية). القفل مطلق: لا رفع قبل الانتهاء.
+     * التفعيل بخطوتين: بطاقة داعمة → شاشة Device Admin → الكتابة عند العودة الناجحة.
+     */
+    @Composable
+    fun LockdownCard(vm: WardenViewModel) {
+        val context = LocalContext.current
+        val lockdownUntil by vm.lockdownUntil.collectAsState()
+        val now = remember { mutableStateOf(System.currentTimeMillis()) }
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            while (true) {
+                now.value = System.currentTimeMillis()
+                kotlinx.coroutines.delay(1000)
+            }
+        }
+        val active = LockdownPolicy.isActive(lockdownUntil, now.value)
+        val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            // موافقة admin (أو موجود سلفاً) → اكتب القفل؛ رفض/تراجع → أهدر القرار.
+            if (AdminManager.isActive(context) && vm.hasStagedLockdown()) {
+                vm.commitLockdown()
+            } else {
+                vm.discardStagedLockdown()
+            }
+        }
+
+        var pendingEndsAt by remember { mutableStateOf<Long?>(null) }
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("قفل الحماية", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (active) {
+                    val remaining = lockdownUntil - now.value
+                    Text(
+                        formatRemaining(remaining),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = WardenPalette.GreenDark,
+                    )
+                    Text(
+                        "القفل مطلق: لا يمكن إيقاف الحماية أو إزالة التطبيق قبل انتهاء المدة.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WardenPalette.TextMuted,
+                    )
+                } else {
+                    Text(
+                        "اختر مدة تُقفل فيها الحماية: لا إيقاف ولا حذف طوالها.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WardenPalette.TextMuted,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    FlowRowQuick {
+                        listOf(
+                            "30 دقيقة" to (30L to LockdownPolicy.DurationUnit.MINUTES),
+                            "ساعة" to (1L to LockdownPolicy.DurationUnit.HOURS),
+                            "6 ساعات" to (6L to LockdownPolicy.DurationUnit.HOURS),
+                            "يوم" to (1L to LockdownPolicy.DurationUnit.DAYS),
+                            "3 أيام" to (3L to LockdownPolicy.DurationUnit.DAYS),
+                            "أسبوع" to (1L to LockdownPolicy.DurationUnit.WEEKS),
+                            "أسبوعان" to (2L to LockdownPolicy.DurationUnit.WEEKS),
+                            "شهر" to (1L to LockdownPolicy.DurationUnit.MONTHS),
+                            "3 شهور" to (3L to LockdownPolicy.DurationUnit.MONTHS),
+                            "6 شهور" to (6L to LockdownPolicy.DurationUnit.MONTHS),
+                        ).forEach { (label, pair) ->
+                            OutlinedButton(onClick = {
+                                pendingEndsAt = System.currentTimeMillis() + pair.first * unitMillis(pair.second)
+                            }) { Text(label) }
+                        }
+                    }
+                }
+            }
+        }
+        pendingEndsAt?.let { endsAt ->
+            SupportiveConfirmDialog(
+                vm = vm,
+                endsAtMs = endsAt,
+                onConfirmed = { confirmed ->
+                    pendingEndsAt = null
+                    vm.stageLockdown(confirmed)
+                    if (AdminManager.isActive(context)) {
+                        vm.commitLockdown()
+                    } else {
+                        adminLauncher.launch(AdminManager.enableIntent(context))
+                    }
+                },
+            )
+        }
+    }
+
+    private fun unitMillis(unit: LockdownPolicy.DurationUnit): Long = when (unit) {
+        LockdownPolicy.DurationUnit.MINUTES -> 60_000L
+        LockdownPolicy.DurationUnit.HOURS -> 3_600_000L
+        LockdownPolicy.DurationUnit.DAYS -> 86_400_000L
+        LockdownPolicy.DurationUnit.WEEKS -> 7 * 86_400_000L
+        LockdownPolicy.DurationUnit.MONTHS -> 30L * 86_400_000L
+    }
+
+    fun formatRemaining(ms: Long): String {
+        val totalSec = (ms / 1000).coerceAtLeast(0)
+        val days = totalSec / 86_400
+        val hours = totalSec % 86_400 / 3_600
+        val minutes = totalSec % 3_600 / 60
+        val seconds = totalSec % 60
+        return if (days > 0) "متبقٍ ${days}ي ${hours}س" else "متبقٍ ${hours}س ${minutes}د ${seconds}ث"
+    }
+
+    /** أزرار المدة في صفّين تلقائيين. */
+    @Composable
+    private fun FlowRowQuick(content: @Composable () -> Unit) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }
 }
