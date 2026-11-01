@@ -33,8 +33,8 @@ android {
         applicationId = "com.warden.blocker"
         minSdk = 26
         targetSdk = 34
-        versionCode = 11
-        versionName = "0.6.1"
+        versionCode = 12
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

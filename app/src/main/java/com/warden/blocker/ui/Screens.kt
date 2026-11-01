@@ -297,7 +297,7 @@ fun HomeScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        "يتم تحديث القائمة يومياً من مصادر مجتمعية",
+                        "تُحدَّث من مصادر مجتمعية — حدّثها يدوياً من الإعدادات",
                         style = MaterialTheme.typography.bodySmall,
                         color = WardenPalette.TextMuted,
                     )
@@ -1076,27 +1076,11 @@ fun SettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> U
                    router: Boolean = true,
                    content: @Composable () -> Unit = {}) {
     val context = LocalContext.current
-    val strict by vm.strictMode.collectAsStateWithLifecycle()
-    val alwaysOn by vm.alwaysOn.collectAsStateWithLifecycle()
-    val blockDoh by vm.blockDoh.collectAsStateWithLifecycle()
-    val blockAds by vm.blockAds.collectAsStateWithLifecycle()
-    val blockNotifications by vm.blockNotifications.collectAsStateWithLifecycle()
-    val pornGuard by vm.pornGuard.collectAsStateWithLifecycle()
-    val safeSearchForce by vm.safeSearchForce.collectAsStateWithLifecycle()
-    val adultExtraCount by vm.adultExtraCount.collectAsStateWithLifecycle()
     val pinConfigured by vm.pinConfigured.collectAsStateWithLifecycle()
     val settingsReady by vm.settingsReady.collectAsStateWithLifecycle()
 
     var unlocked by remember { mutableStateOf(false) }
     var showUnlock by remember { mutableStateOf(false) }
-    var showSetPin by remember { mutableStateOf(false) }
-    var showRemovePin by remember { mutableStateOf(false) }
-    var enableStrictAfterPin by remember { mutableStateOf(false) }
-    var adminActive by remember { mutableStateOf(AdminManager.isActive(context)) }
-
-    val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        adminActive = AdminManager.isActive(context)
-    }
 
     // Until DataStore delivers its first snapshot we do not know whether a PIN/strict lock
     // exists, so render no controls at all rather than an unlocked-looking screen.
@@ -1156,23 +1140,7 @@ fun SettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> U
         }
     }
 
-    if (showSetPin) {
-        SetPinDialog(
-            onDone = { pin ->
-                val enableStrict = enableStrictAfterPin
-                enableStrictAfterPin = false
-                vm.setPin(pin, enableStrict = enableStrict) {
-                    if (enableStrict && !adminActive) {
-                        adminLauncher.launch(AdminManager.enableIntent(context))
-                    }
-                }
-            },
-            onDismiss = { showSetPin = false; enableStrictAfterPin = false },
-        )
-    }
-    if (showRemovePin) {
-        VerifyPinDialog("Enter PIN to remove", vm::verifyPin, onSuccess = { vm.clearPin(); showRemovePin = false }, onDismiss = { showRemovePin = false })
-    }
+    // (إدارة PIN انتقلت إلى قسم «الخصوصية والدعم» — SettingsControls.PinCard.)
 }
 
 /** بطاقة قسم في قائمة الإعدادات الرئيسية. */

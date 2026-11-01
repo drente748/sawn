@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,25 +64,65 @@ import com.warden.blocker.ui.theme.WardenPalette
 @Composable
 fun ProtectionSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> Unit) {
     SettingsScreenHost(vm, onOpenSetup, onBack) {
-        val pornGuard by vm.safeSearchForce.collectAsState()
+        val pornGuard by vm.pornGuard.collectAsState()
+        val safeSearchForce by vm.safeSearchForce.collectAsState()
+        val blockDoh by vm.blockDoh.collectAsStateWithLifecycle()
+        val blockAds by vm.blockAds.collectAsStateWithLifecycle()
+        val alwaysOn by vm.alwaysOn.collectAsStateWithLifecycle()
+        val strict by vm.strictMode.collectAsStateWithLifecycle()
+        val pinConfigured by vm.pinConfigured.collectAsStateWithLifecycle()
+        val hasPin = pinConfigured == true
 
         SwitchRow(
             title = "فلتر حجب الإباحية",
-            subtitle = "يحجب المواقع الإباحية في كل المتصفحات والتطبيقات، عبر الفلتر المحلي ومصادر جماعية محدثة يومياً.",
+            subtitle = "يحجب المواقع الإباحية في كل المتصفحات والتطبيقات، عبر الفلتر المحلي ومصادر جماعية.",
             checked = pornGuard,
             onChange = { vm.setPornGuard(it) },
         )
         SwitchRow(
             title = "فرض SafeSearch (DNS)",
             subtitle = "يقفل نتائج البحث والصور والفيديو الحساسة على Google وBing وYouTube وDuckDuckGo من خوادمها نفسها.",
-            checked = vm.safeSearchForce.collectAsState().value,
+            checked = safeSearchForce,
             onChange = { vm.setSafeSearchForce(it) },
         )
+        SwitchRow(
+            title = "الوضع الدائم",
+            subtitle = if (alwaysOn) "الحجب يعمل دوماً عند تفعيله." else "الحجب يعمل فقط خلال الجداول الزمنية.",
+            checked = alwaysOn,
+            onChange = { vm.setAlwaysOn(it) },
+        )
+        SwitchRow(
+            title = "حجب DNS-over-HTTPS",
+            subtitle = "يحجب أيضاً محلّلات DNS المشفّرة كي لا تتخطى المتصفحات فلترة المواقع. يسري عند بدء الحجب التالي.",
+            checked = blockDoh,
+            onChange = { vm.setBlockDoh(it) },
+        )
+        SwitchRow(
+            title = "حجب الإعلانات والمتتبعات",
+            subtitle = "يحجب مضيفي الإعلانات والتحليلات الشائعة. الإعلانات التي يقدّمها الموقع نفسه قد تظهر.",
+            checked = blockAds,
+            onChange = { vm.setBlockAds(it) },
+        )
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("الوضع الصارم", style = MaterialTheme.typography.titleMedium)
+                Text("يقفل مفتاح الحماية الرئيسي طوال عملها — يتطلب رقماً سرياً.", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                Switch(checked = strict, onCheckedChange = { on ->
+                    if (on && !hasPin) {
+                        // Enable-strict-after-PIN: مثل السلوك الأصلي في 0.x.
+                        vm.setStrictMode(false)
+                    } else {
+                        vm.setStrictMode(on)
+                    }
+                })
+            }
+        }
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text("قوائم الحجب الجماعية", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "تُسحب قوائمPornAway وStevenBLack يومياً وتُدمج في الفلتر.",
+                    "تُسحب قوائم PornAway وStevenBlack وتُدمج في الفلتر — حدّثها يدوياً بانتظام.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 var refreshMsg by remember { mutableStateOf<String?>(null) }
@@ -166,7 +207,24 @@ fun BrowserSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: 
 fun PrivacySupportSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val reduceMotion by vm.reduceMotion.collectAsState()
+    val strict by vm.strictMode.collectAsState()
+    val pinConfigured by vm.pinConfigured.collectAsState()
+    val blockNotifications by vm.blockNotifications.collectAsState()
+    val hasPin = pinConfigured == true
     SettingsScreenHost(vm, onOpenSetup, onBack) {
+        com.warden.blocker.ui.SettingsControls.PinCard(vm = vm, strict = strict, hasPin = hasPin)
+        com.warden.blocker.ui.SettingsControls.AdminProtectionCard(strict = strict)
+        SwitchRow(
+            title = "حجب الإشعارات",
+            subtitle = "يكتم إشعارات التطبيقات المحجوبة طوال عمل الحجب.",
+            checked = blockNotifications,
+            onChange = { vm.setBlockNotifications(it) },
+        )
+        if (blockNotifications) {
+            OutlinedButton(onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }) {
+                Text("منح إذن الإشعارات")
+            }
+        }
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -220,7 +278,7 @@ fun PrivacySupportSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, o
     }
 }
 
-/** Wrap over SettingsScreen المعاد هيكلته — router=false. */
+/** Wrap over SettingsScreen المعاد هيكلته — router=false. التمرير والحاشية يوفرهما SettingsScreen نفسه. */
 @Composable
 private fun SettingsScreenHost(vm: WardenViewModel, onOpenSetup: () -> Unit, onBack: () -> Unit, content: @Composable () -> Unit) {
     com.warden.blocker.ui.SettingsScreen(
@@ -228,15 +286,7 @@ private fun SettingsScreenHost(vm: WardenViewModel, onOpenSetup: () -> Unit, onB
         onOpenSetup = onOpenSetup,
         onBack = onBack,
         router = false,
-        content = {
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                content()
-                Spacer(Modifier.height(24.dp))
-            }
-        },
+        content = { content() },
     )
 }
 
