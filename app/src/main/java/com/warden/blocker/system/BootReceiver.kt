@@ -7,6 +7,7 @@ import com.warden.blocker.vpn.VpnController
 import com.warden.blocker.wardenContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Re-arms the DNS filter after a reboot if the user had blocking enabled. */
@@ -24,6 +25,19 @@ class BootReceiver : BroadcastReceiver() {
                 val active = context.wardenContainer.blockEngine.isBlockingActiveNow()
                 if (active && VpnController.consentIntent(context) == null) {
                     VpnController.start(context)
+                }
+                // القفل الزمني: إن كان نشطاً بعد الإقلاع، الحماية تُفرض قائمة (قرار التصميم) —
+                // قيمة ends_at تبقى كما هي في DataStore، ونعد تسليح الفلتر إن لزم.
+                val settings = context.wardenContainer.settings
+                val until = settings.lockdownUntil.first()
+                val now = settings.trustedNow()
+                if (com.warden.blocker.block.LockdownPolicy.isActive(until, now)) {
+                    if (!context.wardenContainer.blockEngine.isBlockingActiveNow()) {
+                        settings.setMasterEnabled(true)
+                    }
+                    if (VpnController.consentIntent(context) == null) {
+                        VpnController.start(context)
+                    }
                 }
             } finally {
                 pending.finish()
