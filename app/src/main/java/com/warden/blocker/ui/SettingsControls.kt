@@ -35,6 +35,8 @@ import com.warden.blocker.ui.theme.WardenPalette
 object SettingsControls {
     @Composable
     fun PinCard(vm: WardenViewModel, strict: Boolean, hasPin: Boolean) {
+        val lockdownUntil by vm.lockdownUntil.collectAsState()
+        val lockdownActive = LockdownPolicy.isActive(lockdownUntil, System.currentTimeMillis())
         var showSetPin by remember { mutableStateOf(false) }
         var showRemovePin by remember { mutableStateOf(false) }
         Card(Modifier.fillMaxWidth()) {
@@ -50,8 +52,14 @@ object SettingsControls {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { showSetPin = true }) { Text(if (hasPin) "تغيير الرقم" else "وضع رقماً") }
                     if (hasPin) {
-                        OutlinedButton(onClick = { showRemovePin = true }, enabled = !strict) {
-                            Text(if (strict) "أطفئ الوضع الصارم أولاً" else "إزالة الرقم")
+                        OutlinedButton(onClick = { showRemovePin = true }, enabled = !strict && !lockdownActive) {
+                            Text(
+                                when {
+                                    lockdownActive -> "القفل الزمني نشط"
+                                    strict -> "أطفئ الوضع الصارم أولاً"
+                                    else -> "إزالة الرقم"
+                                }
+                            )
                         }
                     }
                 }
@@ -71,8 +79,10 @@ object SettingsControls {
     }
 
     @Composable
-    fun AdminProtectionCard(strict: Boolean) {
+    fun AdminProtectionCard(strict: Boolean, vm: WardenViewModel) {
         val context = LocalContext.current
+        val lockdownUntil by vm.lockdownUntil.collectAsState()
+        val lockdownActive = LockdownPolicy.isActive(lockdownUntil, System.currentTimeMillis())
         var adminActive by remember { mutableStateOf(AdminManager.isActive(context)) }
         val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             adminActive = AdminManager.isActive(context)
@@ -90,8 +100,16 @@ object SettingsControls {
                 if (adminActive) {
                     OutlinedButton(
                         onClick = { if (!strict) { AdminManager.disable(context); adminActive = AdminManager.isActive(context) } },
-                        enabled = !strict,
-                    ) { Text(if (strict) "أطفئ الوضع الصارم أولاً" else "إطفاء الحماية") }
+                        enabled = !strict && !lockdownActive,
+                    ) {
+                        Text(
+                            when {
+                                lockdownActive -> "القفل الزمني نشط"
+                                strict -> "أطفئ الوضع الصارم أولاً"
+                                else -> "إطفاء الحماية"
+                            }
+                        )
+                    }
                 } else {
                     Button(onClick = { adminLauncher.launch(AdminManager.enableIntent(context)) }) { Text("تفعيل الحماية") }
                 }

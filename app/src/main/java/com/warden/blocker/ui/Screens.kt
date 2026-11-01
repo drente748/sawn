@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
@@ -93,6 +94,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.warden.blocker.block.AdultHosts
+import com.warden.blocker.block.LockdownPolicy
 import com.warden.blocker.data.BlockType
 import com.warden.blocker.data.BlockedItem
 import com.warden.blocker.data.InterceptMode
@@ -145,6 +147,8 @@ fun HomeScreen(
     val items by vm.items.collectAsStateWithLifecycle()
     val pornGuard by vm.pornGuard.collectAsStateWithLifecycle()
     val reduceMotion by vm.reduceMotion.collectAsStateWithLifecycle()
+    val lockdownUntil by vm.lockdownUntil.collectAsStateWithLifecycle()
+    val lockdownActive = LockdownPolicy.isActive(lockdownUntil, System.currentTimeMillis())
     val safeSearchForce by vm.safeSearchForce.collectAsStateWithLifecycle()
     val vpnRunning by WardenVpnService.runningFlow.collectAsStateWithLifecycle()
     val a11yGranted = !needsSetup
@@ -265,9 +269,37 @@ fun HomeScreen(
                     hasPin = hasPin,
                     locked = lockedNow,
                     lockLabel = lockLabel,
+                    lockdownActive = lockdownActive,
                     onToggle = onToggleBlocking,
                     onPinRequired = { showVerify = true },
                 )
+            }
+        }
+
+        // ── حالة القفل الزمني ───────────────────────────────────────────────────
+        if (lockdownActive) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = WardenPalette.GreenSoft,
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = WardenPalette.GreenDark,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "قفل الحماية نشط — الحماية والحذف ممنوعان حتى انتهاء المدة",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WardenPalette.GreenDark,
+                    )
+                }
             }
         }
 
@@ -781,9 +813,19 @@ private fun HoldToGuardSwitch(
     hasPin: Boolean,
     locked: Boolean,
     lockLabel: String,
+    lockdownActive: Boolean = false,
     onToggle: (Boolean) -> Unit,
     onPinRequired: () -> Unit,
 ) {
+    if (lockdownActive) {
+        Text(
+            "🔒 مقفل بالقفل الزمني",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = WardenPalette.GreenDark,
+        )
+        return
+    }
     if (locked) {
         Text(
             lockLabel,

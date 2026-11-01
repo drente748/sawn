@@ -214,7 +214,7 @@ fun PrivacySupportSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, o
     val hasPin = pinConfigured == true
     SettingsScreenHost(vm, onOpenSetup, onBack) {
         com.warden.blocker.ui.SettingsControls.PinCard(vm = vm, strict = strict, hasPin = hasPin)
-        com.warden.blocker.ui.SettingsControls.AdminProtectionCard(strict = strict)
+        com.warden.blocker.ui.SettingsControls.AdminProtectionCard(strict = strict, vm = vm)
         SwitchRow(
             title = "حجب الإشعارات",
             subtitle = "يكتم إشعارات التطبيقات المحجوبة طوال عمل الحجب.",
