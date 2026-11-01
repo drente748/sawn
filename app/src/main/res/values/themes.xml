@@ -4,6 +4,6 @@
     <style name="Theme.Warden" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowBackground">@android:color/background_dark</item>
+        <item name="android:windowBackground">@android:color/white</item>
     </style>
 </resources>

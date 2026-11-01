@@ -12,81 +12,81 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Warden "Sunrise" palette — the bright redesign.
+ * Warden palette 1.0.0 — قاتم/pressing light design.
  *
- * Brand intent: a guard you *want* to open. Vivid azure is the anchor (calm, trustworthy),
- * fresh green confirms safety, warm orange adds energy, and the feature tiles each carry
- * their own bright hue so every capability is recognisable at a glance.
- *
- * The app is deliberately single-scheme: always light, never grey. Airy blue-tinted
- * neutrals keep surfaces clean while saturated accents carry the personality. Dynamic
- * color is disabled so the brand reads identically on every device.
+ * Brand intent (المواصفة 2026-11-01): هادئ وملهم — أبيض نقي + أخضر أمان، طابع عافية وسلام
+ * داخلي. لا ثيم داكن إطلاقاً؛ أحادي السكيمة على كل الأجهزة.
  */
 object WardenPalette {
-    // Anchors
-    val Blue = Color(0xFF2563EB)
-    val BlueDeep = Color(0xFF1D4FD7)
-    val BlueSoft = Color(0xFFE3ECFF)
-    val Green = Color(0xFF059669)
-    val GreenSoft = Color(0xFFD9F7E8)
-    val Orange = Color(0xFFF97316)
-    val OrangeSoft = Color(0xFFFFE8D6)
-
-    // Feature-tile hues
-    val Pink = Color(0xFFEC4899)
-    val PinkSoft = Color(0xFFFCE7F3)
-    val Violet = Color(0xFF8B5CF6)
-    val VioletSoft = Color(0xFFF1EAFE)
-    val Teal = Color(0xFF0D9488)
-    val TealSoft = Color(0xFFD7F5F1)
-    val Indigo = Color(0xFF4F46E5)
-    val IndigoSoft = Color(0xFFE7E9FE)
-    val Amber = Color(0xFFF59E0B)
-    val AmberSoft = Color(0xFFFFF3DB)
-
-    // Neutrals — airy, blue-tinted, never plain grey
-    val Ink = Color(0xFF0F172A)
-    val Muted = Color(0xFF51607A)
-    val Canvas = Color(0xFFF7F9FF)
+    // الأساسيات من المواصفة (tokens فقط، الاستهلاك في الشاشات)
+    val Bg = Color(0xFFFFFFFF)
+    val SurfaceSoft = Color(0xFFF6F8F7)
+    val Green = Color(0xFF3DDC97)
+    val GreenDark = Color(0xFF0B3B2A)
+    val TextPrimary = Color(0xFF1A1F1C)
+    val TextMuted = Color(0xFF5C6B63)
+    val Amber = Color(0xFFF2A93B)
     val Card = Color(0xFFFFFFFF)
-    val Line = Color(0xFFA9BAE0)
-    val LineSoft = Color(0xFFDDE5F5)
+    val Line = Color(0xFFE6EDE8)
 
-    // Hero gradient — azure into indigo-violet; both stops keep white text legible.
-    val HeroStart = Color(0xFF2563EB)
-    val HeroMid = Color(0xFF4F46E5)
-    val HeroEnd = Color(0xFF7C3AED)
+    // Secondary containers derived from brand tones for M3 (light scheme calls for containers)
+    val GreenSoft = Color(0xFFE2F7ED)   // light green container, text on it GreenDark
+    val AmberSoft = Color(0xFFFFF1DC)   // light amber container, warning surfaces only
+    val LineSoft = Color(0xFFEFF3F0)
+
+    // Legacy aliases (0.x era) — الشاشات القديمة لا تزال تشير إليها؛ تُلجم في إعادة
+    // كتابة الشاشات (مهام 2–3) ثم تُحذف في تنظيف لاحق.
+    val Ink = TextPrimary
+    val Muted = TextMuted
+    val Canvas = Bg
+    val Blue = Green
+    val BlueDeep = GreenDark
+    val BlueSoft = GreenSoft
+    val GreenDarkSoft = GreenSoft
+    val Orange = Amber
+    val OrangeSoft = AmberSoft
+    val Pink = Green
+    val PinkSoft = GreenSoft
+    val Violet = Green
+    val VioletSoft = GreenSoft
+    val Teal = Green
+    val TealSoft = GreenSoft
+    val Indigo = Green
+    val IndigoSoft = GreenSoft
+    val HeroStart = Green
+    val HeroMid = Green
+    val HeroEnd = GreenDark
 }
 
 private val SunriseColors = lightColorScheme(
-    primary = WardenPalette.Blue,
-    onPrimary = Color.White,
-    primaryContainer = WardenPalette.BlueSoft,
-    onPrimaryContainer = Color(0xFF0A2B7A),
-    secondary = WardenPalette.Green,
-    onSecondary = Color.White,
+    primary = WardenPalette.Green,
+    onPrimary = WardenPalette.GreenDark,
+    primaryContainer = WardenPalette.GreenSoft,
+    onPrimaryContainer = WardenPalette.GreenDark,
+    secondary = WardenPalette.GreenDark,
+    onSecondary = WardenPalette.Bg,
     secondaryContainer = WardenPalette.GreenSoft,
-    onSecondaryContainer = Color(0xFF024E36),
-    tertiary = WardenPalette.Orange,
-    onTertiary = Color.White,
-    tertiaryContainer = WardenPalette.OrangeSoft,
-    onTertiaryContainer = Color(0xFF6A2E00),
-    background = WardenPalette.Canvas,
-    onBackground = WardenPalette.Ink,
+    onSecondaryContainer = WardenPalette.GreenDark,
+    tertiary = WardenPalette.Amber,
+    onTertiary = Color(0xFF3D2A05),
+    tertiaryContainer = WardenPalette.AmberSoft,
+    onTertiaryContainer = Color(0xFF3D2A05),
+    background = WardenPalette.Bg,
+    onBackground = WardenPalette.TextPrimary,
     surface = WardenPalette.Card,
-    onSurface = WardenPalette.Ink,
-    surfaceVariant = Color(0xFFEDF2FE),
-    onSurfaceVariant = WardenPalette.Muted,
-    surfaceTint = WardenPalette.Blue,
-    surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color(0xFFF9FBFF),
-    surfaceContainer = Color(0xFFF2F6FF),
-    surfaceContainerHigh = Color(0xFFEDF2FE),
-    surfaceContainerHighest = Color(0xFFE6EDFC),
+    onSurface = WardenPalette.TextPrimary,
+    surfaceVariant = WardenPalette.SurfaceSoft,
+    onSurfaceVariant = WardenPalette.TextMuted,
+    surfaceTint = WardenPalette.Green,
+    surfaceContainerLowest = WardenPalette.Bg,
+    surfaceContainerLow = WardenPalette.SurfaceSoft,
+    surfaceContainer = WardenPalette.SurfaceSoft,
+    surfaceContainerHigh = WardenPalette.SurfaceSoft,
+    surfaceContainerHighest = WardenPalette.LineSoft,
     outline = WardenPalette.Line,
     outlineVariant = WardenPalette.LineSoft,
     error = Color(0xFFDC2626),
-    onError = Color.White,
+    onError = WardenPalette.Bg,
     errorContainer = Color(0xFFFFE4E4),
     onErrorContainer = Color(0xFF5C0F0F),
 )
