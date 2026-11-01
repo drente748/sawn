@@ -4,6 +4,8 @@
 
     <!-- Required to create the upstream DNS socket that forwards non-blocked queries. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Re-reads the underlying network's DNS servers when Wi-Fi/mobile data changes. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

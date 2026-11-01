@@ -24,16 +24,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.warden.blocker.feature.FeatureCatalog
 
 @Composable
-fun FeaturesScreen(vm: WardenViewModel) {
+fun FeaturesScreen(vm: WardenViewModel, onBack: () -> Unit = {}) {
     val enabled by vm.enabledFeatureKeys.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Block in-app feeds", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
+        BackHeader("Block in-app feeds", onBack)
+        Spacer(Modifier.height(4.dp))
         Text(
             "Block just the endless-scroll parts of apps you still want to use — Reels, Shorts, " +
-                "For You — while the rest keeps working. Needs the accessibility permission and " +
-                "blocking switched on.",
+                "the TikTok feed — while the rest keeps working. Needs the accessibility " +
+                "permission and blocking switched on.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Spacer(Modifier.height(16.dp))

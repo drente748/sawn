@@ -27,6 +27,21 @@ object CriticalApps {
         return packageName == defaultLauncher(context)
     }
 
+    /**
+     * Narrower than [isCritical]: surfaces where an intercept may still be shown after an
+     * escape action (launcher / System UI). A call, the emergency dialer, or Settings is a
+     * user-facing app in its own right and must never be covered by the wall. Pure overload
+     * is unit-tested; a null launcher resolves to false (suppress rather than cover).
+     */
+    fun isSystemSurface(context: Context, packageName: String): Boolean =
+        isSystemSurface(packageName, defaultLauncher(context))
+
+    fun isSystemSurface(packageName: String?, launcherPackage: String?): Boolean {
+        if (packageName.isNullOrBlank()) return false
+        if (packageName == "com.android.systemui") return true
+        return launcherPackage != null && packageName == launcherPackage
+    }
+
     private fun defaultLauncher(context: Context): String? = runCatching {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         context.packageManager

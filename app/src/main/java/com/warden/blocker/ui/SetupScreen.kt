@@ -1,7 +1,11 @@
 package com.warden.blocker.ui
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,7 +39,7 @@ import androidx.compose.runtime.DisposableEffect
 import com.warden.blocker.util.PermissionsHelper
 
 @Composable
-fun SetupScreen() {
+fun SetupScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     // Re-check statuses whenever we come back to the foreground (e.g. from system settings).
     var refresh by remember { mutableIntStateOf(0) }
@@ -52,10 +56,17 @@ fun SetupScreen() {
     val accessibility = PermissionsHelper.isAccessibilityEnabled(context)
     val usage = PermissionsHelper.hasUsageAccess(context)
     val notifications = PermissionsHelper.hasNotifications(context)
+    val alwaysOnVpn = PermissionsHelper.isAlwaysOnVpnConfigured(context)
+    val batteryFree = PermissionsHelper.isBatteryOptimizationIgnored(context)
+    val privateDnsStrict =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && PermissionsHelper.isPrivateDnsStrict(context)
+    val showRestrictedSettings =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !accessibility && PermissionsHelper.isSideloaded(context)
 
-    Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Setup", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
+    Column(Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
+        BackHeader("Setup", onBack)
+        Spacer(Modifier.height(4.dp))
         Text("Grant these so Warden can do its job. Only accessibility is required.", style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(16.dp))
 
@@ -65,6 +76,23 @@ fun SetupScreen() {
             granted = accessibility,
             actionLabel = "Open",
         ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+
+        if (showRestrictedSettings) {
+            SetupRow(
+                title = "Allow restricted settings",
+                subtitle = "Android 13+ blocks special access for sideloaded apps. In App info, " +
+                    "tap ⋮ → Allow restricted settings, then enable Accessibility.",
+                granted = false,
+                actionLabel = "App info",
+            ) {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            }
+        }
 
         SetupRow(
             title = "Usage access",
@@ -84,7 +112,63 @@ fun SetupScreen() {
                     .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
             )
         }
+
+        SectionLabel("Keep protection alive")
+        SetupRow(
+            title = "Always-on VPN",
+            subtitle = "Lets Android restart Warden's filter by itself after reboots and crashes. " +
+                "Turn on Always-on for Warden — but leave 'Block connections without VPN' off; " +
+                "Warden only filters DNS.",
+            granted = alwaysOnVpn,
+            actionLabel = "Open",
+        ) {
+            runCatching { context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS)) }
+        }
+
+        SetupRow(
+            title = "Battery optimization",
+            subtitle = "Choose Warden → No restrictions so your phone can't kill the filter in the background.",
+            granted = batteryFree,
+            actionLabel = "Open",
+        ) {
+            runCatching { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+                .onFailure {
+                    context.startActivity(
+                        Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:${context.packageName}"),
+                        ),
+                    )
+                }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            SetupRow(
+                title = "Private DNS",
+                subtitle = if (privateDnsStrict) {
+                    "Strict Private DNS (DoT) bypasses Warden's DNS filter completely. Set it to Off."
+                } else {
+                    "Off is safest — Automatic may still use DoT on some carriers and skip the filter."
+                },
+                granted = !privateDnsStrict,
+                actionLabel = "Open",
+            ) {
+                runCatching {
+                    context.startActivity(Intent("android.settings.PRIVATE_DNS_SETTINGS"))
+                }.onFailure { context.startActivity(Intent(Settings.ACTION_SETTINGS)) }
+            }
+        }
     }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
+    )
 }
 
 @Composable

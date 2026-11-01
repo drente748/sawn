@@ -4,6 +4,10 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -11,14 +15,27 @@ import androidx.core.app.NotificationCompat
 import com.warden.blocker.MainActivity
 import com.warden.blocker.R
 import com.warden.blocker.WardenApp
+import com.warden.blocker.block.DomainMatcher
+import com.warden.blocker.block.SafeSearchHosts
 import com.warden.blocker.wardenContainer
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.DatagramPacket
@@ -34,10 +51,44 @@ import java.nio.ByteBuffer
 class WardenVpnService : VpnService() {
 
     private var tunnel: ParcelFileDescriptor? = null
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, error ->
+            // A dead background coroutine must not take the tunnel down with it.
+            Log.w(TAG, "Background VPN task failed: ${error.javaClass.simpleName}")
+        },
+    )
     private var loopJob: Job? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val refreshMutex = Mutex()
+    private val forwardPermits = Semaphore(MAX_CONCURRENT_DNS)
 
     @Volatile private var blockedDomains: Set<String> = emptySet()
+
+    /** When true, search/video queries are rewritten to safe-mode anchors. */
+    @Volatile private var safeSearchOn: Boolean = false
+
+    /** Safe-host hostname → resolved IPv4 (as Int), cached for the tunnel's lifetime. */
+    private val safeHostIps = HashMap<String, Int>()
+
+    /** Resolve [host] once and cache; returns null on failure (caller falls back). */
+    private fun safeHostIp(host: String): Int? = synchronized(safeHostIps) {
+        safeHostIps[host]
+    } ?: run {
+        val ip = resolveA(host)
+        if (ip != null) synchronized(safeHostIps) { safeHostIps[host] = ip }
+        ip
+    }
+
+    /** Plain system-resolver lookup of an A record for [host]. */
+    private fun resolveA(host: String): Int? = runCatching {
+        val addr = InetAddress.getByName(host)
+        if (addr.address.size == 4) {
+            ((addr.address[0].toInt() and 0xFF) shl 24) or
+                ((addr.address[1].toInt() and 0xFF) shl 16) or
+                ((addr.address[2].toInt() and 0xFF) shl 8) or
+                (addr.address[3].toInt() and 0xFF)
+        } else null
+    }.getOrNull()
 
     /** The device's real DNS resolvers, captured before the tunnel takes over the active
      *  network. We forward non-blocked queries here so Warden never redirects your DNS to a
@@ -48,13 +99,17 @@ class WardenVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> { stopTunnel(); stopSelf(); return START_NOT_STICKY }
-            else -> startTunnel()
+            else -> runCatching { startTunnel() }.onFailure {
+                Log.e(TAG, "VPN start failed: ${it.javaClass.simpleName}")
+                stopTunnel()
+                stopSelf()
+            }
         }
         return START_STICKY
     }
 
     private fun startTunnel() {
-        if (tunnel != null) { scope.launch { refreshBlocklist() }; return }
+        if (tunnel != null) { scope.launch { safeRefreshBlocklist() }; return }
         startForeground(NOTIF_ID, buildNotification())
 
         // Capture the real resolvers BEFORE establish() — afterwards the active network is us.
@@ -64,29 +119,150 @@ class WardenVpnService : VpnService() {
             .setSession("Warden")
             .addAddress(VIRTUAL_ADDRESS, 24)
             .addDnsServer(VIRTUAL_DNS)
-            .addRoute(VIRTUAL_DNS, 32) // only DNS to our virtual resolver enters the tunnel
+            // Route BOTH families' resolver space into the tunnel: even though we only
+            // terminate v4 DNS inside, claiming the v6 route stops the OS from sending
+            // DNS-over-IPv6 around our filter (a complete interception bypass otherwise).
+            .addRoute(VIRTUAL_DNS, 32)
+            .addRoute(IPV6_DNS, 128)
             .setBlocking(true)
         runCatching { builder.addDisallowedApplication(packageName) } // never filter ourselves
 
-        tunnel = builder.establish() ?: run {
+        val established = try {
+            builder.establish()
+        } catch (e: Exception) {
+            Log.e(TAG, "VPN establish() failed: ${e.javaClass.simpleName}")
+            null
+        } ?: run {
             Log.e(TAG, "VPN establish() returned null (consent not granted?)")
-            stopSelf(); return
+            _running.value = false
+            stopSelf()
+            return
         }
 
-        running = true
+        tunnel = established
+        _running.value = true
+        registerUpstreamWatcher()
         loopJob = scope.launch {
-            refreshBlocklist()
-            runPacketLoop(tunnel!!)
+            safeRefreshBlocklist()
+            runPacketLoop(established)
         }
+        watchBlocklistChanges()
+    }
+
+    /**
+     * Track the underlying (non-VPN) network so a Wi-Fi ↔ mobile switch does not leave the
+     * forwarder sending every allowed query to a resolver that is no longer reachable.
+     */
+    private fun registerUpstreamWatcher() {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) = refreshNetworkDns(cm, network)
+            override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) =
+                applyUpstreamDns(linkProperties.dnsServers)
+        }
+        runCatching { cm.registerNetworkCallback(request, callback) }
+            .onSuccess { networkCallback = callback }
+            .onFailure { Log.w(TAG, "DNS watcher unavailable: ${it.javaClass.simpleName}") }
+    }
+
+    private fun refreshNetworkDns(cm: ConnectivityManager, network: Network) {
+        runCatching { cm.getLinkProperties(network) }
+            .getOrNull()
+            ?.let { applyUpstreamDns(it.dnsServers) }
+    }
+
+    private fun applyUpstreamDns(servers: List<InetAddress>) {
+        val usable = servers.filterNot { it.isLoopbackAddress }
+        if (usable.isEmpty() || usable == upstreamDns) return
+        upstreamDns = usable
+        synchronized(safeHostIps) { safeHostIps.clear() }
+    }
+
+    private fun unregisterUpstreamWatcher() {
+        val callback = networkCallback ?: return
+        networkCallback = null
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return
+        runCatching { cm.unregisterNetworkCallback(callback) }
+    }
+
+    suspend fun refreshBlocklistLocked() {
+        val settings = wardenContainer.settings
+        val snapshot = settings.protectionSnapshot()
+        val blockingActive = wardenContainer.blockEngine.isBlockingActiveNow(peekOnly = true)
+        safeSearchOn = blockingActive && snapshot.safeSearchForce && snapshot.pornGuard
+        val domains = wardenContainer.blockEngine.blockedDomains(readOnly = true).toSet()
+        // The adult extra set (fetched sources) rides outside BlockEngine's gate so a
+        // source refresh while blocking is already on reaches the filter immediately.
+        val extras = if (blockingActive && snapshot.pornGuard) settings.adultExtraDomains.first() else emptySet()
+        blockedDomains = domains + extras
     }
 
     private suspend fun refreshBlocklist() {
-        blockedDomains = wardenContainer.blockEngine.blockedDomains().toSet()
+        refreshMutex.withLock { refreshBlocklistLocked() }
+    }
+
+    /**
+     * A refresh must never kill the packet loop or the watcher. If the DB/DataStore is
+     * temporarily unavailable, keep the last known set and try again on the next tick.
+     */
+    private suspend fun safeRefreshBlocklist() {
+        try {
+            refreshBlocklist()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Blocklist refresh failed: ${e.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * Keep the tunnel's blocked set current: any change to the blocklist, schedules, master
+     * switch, or DoH toggle must reach the running filter at once — no "add a site while
+     * blocking is on and it stays reachable until you toggle" hole.
+     */
+    private fun watchBlocklistChanges() {
+        val container = wardenContainer
+        val repo = container.repository
+        val settings = container.settings
+        // combine() overloads cap at 5 flows; pair the last two to stay within it.
+        val changes = combine(
+            repo.items, repo.schedules,
+            settings.masterEnabled, settings.alwaysOn, settings.blockDoh,
+        ) { _, _, _, _, _ -> Unit }
+            .combine(settings.pornGuard) { _, _ -> Unit }
+            .combine(settings.adultExtraDomains) { _, _ -> Unit }
+            .combine(settings.blockAds) { _, _ -> Unit }
+            .combine(settings.safeSearchForce) { _, _ -> Unit }
+
+        scope.launch {
+            while (isActive) {
+                try {
+                    combine(changes, settings.focusEndsAt) { _, _ -> Unit }
+                        .collect { safeRefreshBlocklist() }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // A dead collector would silently stop filtering; restart it.
+                    Log.w(TAG, "Blocklist watcher failed; restarting", e)
+                    delay(WATCH_RETRY_MS)
+                }
+            }
+        }
+        // Schedules activate by wall-clock time, not by a data change; tick so a window
+        // boundary reaches the running filter even when nothing else emits.
+        scope.launch {
+            while (isActive) {
+                delay(BLOCKLIST_TICK_MS)
+                safeRefreshBlocklist()
+            }
+        }
     }
 
     private fun runPacketLoop(pfd: ParcelFileDescriptor) {
-        // Guard the whole loop: a malformed packet or transient socket error must never
-        // crash the app — it just stops filtering until blocking is toggled again.
         val input = FileInputStream(pfd.fileDescriptor)
         val output = FileOutputStream(pfd.fileDescriptor)
         val packet = ByteArray(MTU)
@@ -95,25 +271,71 @@ class WardenVpnService : VpnService() {
             while (scope.isActive) {
                 val read = try { input.read(packet) } catch (e: Exception) { break }
                 if (read <= 0) continue
-                val parsed = try { DnsPacket.parse(packet, read) } catch (e: Exception) { null } ?: continue
-                if (parsed.dstPort != DnsPacket.DNS_PORT) continue
-
-                val name = parsed.qname ?: continue
-                if (isBlocked(name)) {
-                    // Never log the domain — that would leak browsing history into logcat.
-                    runCatching { output.write(DnsPacket.buildSinkholeResponse(packet, read, parsed)) }
-                } else {
-                    forward(packet, parsed, output)
+                try {
+                    handleDnsPacket(packet, read, output)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // One malformed/edge-case query must never stop the whole filter.
+                    Log.w(TAG, "Dropped malformed packet: ${e.javaClass.simpleName}")
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Packet loop terminated unexpectedly", e)
+        } finally {
+            stopTunnel()
+            stopSelf()
         }
     }
 
+    private fun handleDnsPacket(packet: ByteArray, read: Int, output: FileOutputStream) {
+        val parsed = try { DnsPacket.parse(packet, read) } catch (e: Exception) { null } ?: return
+        if (parsed.dstPort != DnsPacket.DNS_PORT) return
+
+        val name = parsed.qname ?: return
+        val safeOverride = if (safeSearchOn) SafeSearchHosts.safeHostFor(name) else null
+        if (safeOverride != null) {
+            // Rewrite: answer with the safe host's A record (resolved+cached). If we
+            // don't have it yet, resolve once on this thread then serve from cache.
+            val ip = safeHostIp(safeOverride)
+            if (ip != null) {
+                val reply = DnsPacket.buildSinkholeIpResponse(packet, read, parsed, ip)
+                runCatching { writeResponse(output, reply) }
+                return
+            }
+            // resolve failed → fall through to normal forward (never brick a host)
+        }
+        if (isBlocked(name)) {
+            // Never log the domain — that would leak browsing history into logcat.
+            // AAAA gets an empty (NOERROR, 0-answer) reply: the domain has no v6
+            // address, so clients stop probing IPv6 instead of leaking past us.
+            val reply = if (parsed.queryType == DnsPacket.TYPE_AAAA)
+                DnsPacket.buildNullResponse(packet, read, parsed)
+            else
+                DnsPacket.buildSinkholeResponse(packet, read, parsed)
+            runCatching { writeResponse(output, reply) }
+        } else {
+            // Bound in-flight queries; overload drops a query so the client retries
+            // instead of growing an unlimited coroutine/socket backlog.
+            val swap = packet.copyOf(read)
+            if (forwardPermits.tryAcquire()) {
+                scope.launch {
+                    try {
+                        forward(swap, parsed, output)
+                    } finally {
+                        forwardPermits.release()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun writeResponse(output: FileOutputStream, response: ByteArray) {
+        synchronized(output) { output.write(response) }
+    }
+
     /** A domain is blocked if it equals or is a subdomain of any blocked entry. */
-    private fun isBlocked(host: String): Boolean =
-        blockedDomains.any { host == it || host.endsWith(".$it") }
+    private fun isBlocked(host: String): Boolean = DomainMatcher.matches(host, blockedDomains)
 
     /**
      * Forward one DNS query to the device's resolver and write the reply back into the tun.
@@ -138,7 +360,7 @@ class WardenVpnService : VpnService() {
             val replyLen = replyPacket.length
             // Transaction-ID must match the query, else it's a spoofed / stray reply — drop it.
             if (replyLen < 2 || buf[0] != query[0] || buf[1] != query[1]) return
-            output.write(wrapReply(packet, parsed, buf.copyOf(replyLen)))
+            writeResponse(output, wrapReply(packet, parsed, buf.copyOf(replyLen)))
         } catch (e: Exception) {
             // Don't log the domain (privacy); the exception class is enough to diagnose.
             Log.w(TAG, "DNS forward failed: ${e.javaClass.simpleName}")
@@ -190,8 +412,10 @@ class WardenVpnService : VpnService() {
     }
 
     private fun stopTunnel() {
-        running = false
+        _running.value = false
         loopJob?.cancel()
+        loopJob = null
+        unregisterUpstreamWatcher()
         runCatching { tunnel?.close() }
         tunnel = null
     }
@@ -210,24 +434,35 @@ class WardenVpnService : VpnService() {
             .build()
     }
 
+    override fun onRevoke() {
+        stopTunnel()
+        stopSelf()
+        super.onRevoke()
+    }
+
     override fun onDestroy() {
-        running = false
+        stopTunnel()
         scope.cancel()
-        runCatching { tunnel?.close() }
         super.onDestroy()
     }
 
     companion object {
         /** Whether the filtering tunnel is currently up — read by the Home health indicator so
          *  users are never *silently* unblocked when the OS kills the service. */
-        @Volatile var running = false
-            private set
+        private val _running = MutableStateFlow(false)
+        val runningFlow: StateFlow<Boolean> = _running.asStateFlow()
+        val running: Boolean get() = _running.value
 
         private const val TAG = "WardenVpn"
         const val ACTION_START = "com.warden.blocker.VPN_START"
         const val ACTION_STOP = "com.warden.blocker.VPN_STOP"
+        private const val BLOCKLIST_TICK_MS = 30_000L
+        private const val WATCH_RETRY_MS = 5_000L
+        private const val MAX_CONCURRENT_DNS = 32
         private const val VIRTUAL_ADDRESS = "10.111.222.1"
         private const val VIRTUAL_DNS = "10.111.222.2"
+        /** Synthetic v6 route so the OS never sends DNS past us over IPv6 (bypass hole). */
+        private const val IPV6_DNS = "fd00:2024:1111:2222::1"
         // Used only if the OS exposes no resolver (rare); prefer the device's own DNS.
         private const val FALLBACK_DNS = "1.1.1.1"
         private const val MTU = 32767

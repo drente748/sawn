@@ -6,6 +6,7 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.warden.blocker.MainActivity
+import com.warden.blocker.block.StrictPolicy
 import com.warden.blocker.vpn.VpnController
 import com.warden.blocker.wardenContainer
 import kotlinx.coroutines.CoroutineScope
@@ -51,12 +52,20 @@ class WardenTileService : TileService() {
     }
 
     private suspend fun turnOff() {
-        if (applicationContext.wardenContainer.settings.hasPin.first()) {
-            openApp() // let the in-app PIN gate handle disabling
+        val settings = applicationContext.wardenContainer.settings
+        // Any PIN means the in-app gate must authorize the disable.
+        if (settings.protectionSnapshot().hasPin) {
+            openApp()
             return
         }
-        VpnController.stop(this)
-        applicationContext.wardenContainer.settings.setMasterEnabled(false)
+        // The lock check and the write happen in one DataStore transaction.
+        val outcome = settings.disableProtection(settings.trustedNow())
+        if (!outcome.disabled) {
+            openApp() // strict mode or a strict focus session is holding the switch
+            return
+        }
+        // A live focus session keeps forcing blocking on; leave its tunnel up.
+        if (!outcome.focusActive) VpnController.stop(this)
     }
 
     private fun openApp() {
@@ -71,12 +80,21 @@ class WardenTileService : TileService() {
     }
 
     private suspend fun refreshTile() {
-        val enabled = applicationContext.wardenContainer.settings.masterEnabled.first()
+        val settings = applicationContext.wardenContainer.settings
+        val snapshot = settings.protectionSnapshot()
+        val now = settings.peekNow()
+        val focusActive = StrictPolicy.isFocusActive(snapshot.focusEndsAt, now)
         qsTile?.apply {
-            state = if (enabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+            state = if (snapshot.masterEnabled || focusActive) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
             label = "Warden"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                subtitle = if (enabled) "Blocking on" else "Off"
+                subtitle = when {
+                    focusActive && snapshot.focusStrict -> "Strict focus"
+                    focusActive -> "Focus lock"
+                    snapshot.strictMode && snapshot.masterEnabled -> "Strict lock"
+                    snapshot.masterEnabled -> "Blocking on"
+                    else -> "Off"
+                }
             }
             updateTile()
         }

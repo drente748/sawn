@@ -1,3 +1,9 @@
 # Copy to local.properties and point at your Android SDK.
 # Android Studio writes this automatically on first open.
 sdk.dir=/Users/YOU/Library/Android/sdk
+
+# Optional release signing. Use the same WARDEN_* names for CI environment variables.
+WARDEN_STORE_FILE=warden-release.keystore
+WARDEN_STORE_PASSWORD=replace-me
+WARDEN_KEY_ALIAS=replace-me
+WARDEN_KEY_PASSWORD=replace-me

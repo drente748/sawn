@@ -13,32 +13,62 @@ these once on your device.
 
 ### 1. In-app feed detection (highest priority — signals need tuning)
 The `viewId` signals in `FeatureCatalog.kt` are best-effort guesses; real app versions may
-differ. For each feed you care about:
+differ. Each feature has three signal classes:
+- `viewIdContains` — ids that exist only on the blocked screen.
+- `selectedViewIdContains` — always-present tab bar items (`clips_tab`, `search_tab`,
+  `shorts_`, `reels_`, `ngs_*_icon_container`) that count **only while selected**. Never
+  move these into the unconditional list: the app home screen would be blocked.
+- `textContains` — visible text/content-description fallback.
+
+For each feed you care about:
 - Enable it in **Blocklist → Block in-app feeds**.
 - Open the real app and navigate to the feed (e.g. Instagram → Reels).
-- ✅ Expect the "off-limits" screen. ❌ If nothing happens, the signal needs updating.
+- ✅ Expect the "off-limits" screen **after** Warden presses BACK once (navigateAwayTo).
+
+**Mandatory false-positive checks — every case must NOT block:**
+- Instagram/Facebook home feed, with the Reels/Search tabs visible but not selected.
+- YouTube Home and Subscriptions, including a horizontal **Shorts shelf** (the `reel_recycler`
+  id appears there, which is why it is no longer an unconditional Shorts signal).
+- Snapchat camera/home with the Spotlight/Community icons visible but not selected.
+- Facebook home feed showing a "View reels" card (generic CTA, not the Reels viewer), and
+  the Facebook bottom bar with the Reels tab visible but not selected.
+- Any launcher/system surface after BACK exits the blocked app. The wall must still appear
+  on the launcher (it explains the block), but must **not** cover another user app the user
+  switched to during the settle delay — including a call, the dialer, emergency, or Settings.
+- TikTok: the toggle is labelled **TikTok Feed** and intentionally covers both For You and
+  Following (they share the same recycler). Confirm both feeds block and that profile/inbox
+  do not.
+
+The service now also receives click/long-click/focus/selected view events, so a tab change
+must be detected without waiting for the next content change. If a tab press is missed,
+capture a dump showing whether the tab node reports `selected="true"`.
 
 **To capture the real signals** (with the phone connected):
 ```bash
 adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
-# open the feed first, then run the dump; grep the resource-ids:
-grep -oE 'resource-id="[^"]*"' ui.xml | sort -u
+# open the feed first, then run the dump; grep the resource-ids and selected state:
+grep -oE 'resource-id="[^"]*"|selected="[^"]*"' ui.xml | sort -u
 ```
-Add the distinctive id fragment (e.g. `clips_viewer`) to that feature's `viewIdContains`.
-Do this per app; expect to revisit when apps update.
+Add a screen-exclusive id fragment (e.g. `clips_viewer`) to `viewIdContains`; add a tab id
+to `selectedViewIdContains` only if it is also `selected="true"` on the blocked screen.
+Do this per app; expect to revisit when apps update. If a feed is not detected, also capture
+a dump of the app home screen to confirm the new signal does not leak there.
 
 ### 2. Quick Settings tile
 - Pull down the shade → edit (pencil) → drag the **Warden** tile into the active set.
 - Tap it. ✅ Blocking toggles on/off (tile shows active/inactive).
-- With a PIN set, tapping to turn **off** should open the app for the PIN — the tile must not
-  bypass strict mode.
+- With a PIN set, tapping to turn **off** should open the app for the PIN.
+- With strict mode on and protection on, tapping **off** should open the app and must not
+  disable protection — the tile cannot bypass strict mode.
   *(Not verifiable on a headless emulator — `cmd statusbar click-tile` doesn't invoke it.)*
 
 ### 3. DNS-over-HTTPS reality check
 - Block a site (e.g. `example.com`), turn blocking on, open it in **Chrome**.
-- ✅ It should fail to load. ⚠️ If Chrome has "Secure DNS" (DoH) on, it may bypass the
-  sinkhole — confirm whether your browser does, and note it. Mitigation (blocking known DoH
-  endpoints) is on the roadmap.
+- ✅ It should fail to load with Chrome's normal DNS.
+- In **Settings → Block DNS-over-HTTPS**, enable the option, restart blocking, and retry with
+  Chrome "Secure DNS" set to a known provider such as Cloudflare or Google.
+- ✅ The known DoH provider should be blocked too. ⚠️ A custom/hardcoded resolver IP can still
+  bypass DNS filtering; note what you observe.
 
 ### 4. Device-admin uninstall protection
 - Settings → turn on **Uninstall protection**.
@@ -46,14 +76,82 @@ Do this per app; expect to revisit when apps update.
 - ✅ Android should refuse until you turn protection off first.
 
 ### 5. Strict mode + PIN
-- Set a PIN, enable strict mode, turn blocking on.
-- ✅ Turning blocking off (app switch or tile) requires the PIN.
+- Set a PIN, enable strict mode, turn protection on.
+- ✅ Home shows "Strict lock on"; the master switch cannot be turned off.
+- ✅ The tile opens Warden instead of turning protection off.
+- Start a focus session with strict unchecked. ✅ It is stored strict and there is no early exit.
+- ✅ Blocklist, Schedules, app picker, and feed blocking all ask for the PIN when one exists,
+  and no management controls flash before the lock screen appears.
+- ✅ Turning strict mode off requires unlocking Settings with the PIN.
+- ✅ Remove PIN is disabled while strict mode is on.
+- ✅ In-app "Turn off protection" (device admin) is disabled while strict mode is on.
+- ✅ From Android system Settings, deactivating device admin still works (the emergency exit).
 
 ### 6. Reboot persistence
 - With blocking on, reboot the phone.
 - ✅ The DNS filter should re-arm automatically (BootReceiver).
 
+### 7. Schedule / focus filter refresh
+- Block `example.com`. In **Settings → Always on**, turn **Always on OFF** (otherwise blocking
+  is always active and a schedule boundary is invisible). Turn protection ON and keep the VPN
+  running, then create a schedule that starts one minute from now and covers that site.
+- ✅ At the start time, the site must fail to load within 30 seconds without toggling Warden.
+- Start and cancel a focus session. ✅ The same domain must become blocked/unblocked immediately.
+
+### 8. Timed access expiry
+- Open a PAUSE app, wait out the pause, choose "1 min", and stay in the app.
+- ✅ After ~1 minute, the intercept screen must appear again over the app.
+- Choose "1 min" again. ✅ A second expiry must fire after that minute.
+- While a grant is active, go Home and wait past expiry. ✅ No intercept should appear in the
+  background.
+
+### 9. Strict-mode bypass attempts
+- With strict mode on, try the Home switch and the Quick Settings tile. ✅ Both must refuse
+  without stopping the VPN.
+- Start a focus session with "Strict" unchecked while strict mode is on, then try to end it
+  early. ✅ It is stored strict and has no early exit.
+- Open Settings with the PIN and try to remove the PIN. ✅ The control is disabled.
+- Open Settings and try to disable uninstall protection. ✅ The control is disabled until
+  strict mode is turned off.
+
+### 10. PIN lockout versus clock changes
+- Set a PIN, then enter a wrong PIN five times. ✅ A lockout is shown.
+- While locked, move the device clock forward by an hour. ✅ The same-boot lockout must remain
+  until its real elapsed duration ends; it must not be shortened by changing wall time.
+- Reboot once the lockout has fully expired and confirm the correct PIN unlocks normally.
+
+### 11. Ad/tracker blocking and list refresh
+- With **Block ads & trackers** on, open a site/app that normally loads third-party ads.
+  ✅ Common ad requests should fail; first-party sponsored cards may still appear (expected).
+- Disable the setting and toggle blocking off/on once. ✅ The ad hosts must stop being blocked.
+- Turn off Wi-Fi/data and tap **Refresh blocklists**. ✅ Warden must say the update failed and
+  keep the previous extra-domain count; it must not claim the lists are current.
+
+### 12. Browser fallback repeat and tunnel failure
+- In a browser, visit an adult host that dodges DNS, leave the browser, then return to the
+  same host. ✅ The intercept must appear again rather than only on the first visit.
+- With blocking active, revoke Warden's VPN from Android system settings. ✅ Warden's health
+  indicator must report protection off and a re-arm action must start a fresh tunnel.
+- Switch Wi-Fi ↔ mobile data while blocking. ✅ DNS filtering must continue after the network
+  change; note any failure and the Android version/device.
+
+### 13. Social media protection
+- In **Blocklist → Social media adult content**, enable Social Guard and keep all six platforms
+  selected (if every switch is off, the screen correctly reports no selected apps).
+- Reddit: open a known 18+ community or a post carrying an NSFW/18+ badge. ✅ Warden's social
+  intercept appears and names Reddit; open **r/NoFap** or **r/programming**. ✅ No intercept.
+- Search inside a supported app for an explicit term. ✅ The search surface is intercepted;
+  searching "sex education" must not trigger it.
+- Toggle one platform off, leave and re-enter that app on an NSFW screen. ✅ It is not
+  intercepted, while a still-enabled platform remains covered.
+- In a supported app, open the **sensitive-content settings** screen. ✅ It is intercepted when
+  protection is on; confirm the built-in filter guidance is readable under "Strengthen the
+  apps' own filters".
+- Set the device language to Arabic (if available) and open NSFW content with an Arabic
+  warning. ✅ The Arabic warning is detected.
+
 ## Report back
 Note which feeds detected correctly (and paste any `resource-id`s that need adding), whether
 DoH bypassed the block in your browser, and anything that didn't behave — those become the
-next fixes.
+next fixes. For social protection, also report the app version and the exact warning label
+shown, since those are the signals Warden relies on.

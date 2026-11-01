@@ -38,7 +38,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-fun AppPickerScreen(vm: WardenViewModel) {
+fun AppPickerScreen(vm: WardenViewModel, onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val items by vm.items.collectAsStateWithLifecycle()
     val blockedPackages = items.filter { it.type == BlockType.APP }.map { it.value }.toSet()
@@ -49,7 +49,7 @@ fun AppPickerScreen(vm: WardenViewModel) {
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Add apps", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        BackHeader("Add apps", onBack)
         Text("Tap an app to block it. New apps start in mindful-pause mode — tune it in Blocklist.", style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(

@@ -3,6 +3,8 @@ package com.warden.blocker
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import com.warden.blocker.billing.Entitlements
+import com.warden.blocker.billing.FreeEntitlements
 import com.warden.blocker.block.AccessController
 import com.warden.blocker.block.BlockEngine
 import com.warden.blocker.data.BlockRepository
@@ -22,8 +24,13 @@ class WardenApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         container = AppContainer(this)
         createNotificationChannel()
+        // NetGuard-style watchdog: periodic backstop that posts/clears the health
+        // notification when the accessibility service dies silently. 15-minute minimum
+        // is WorkManager's floor; the real-time signal is the service's onUnbind.
+        com.warden.blocker.system.GuardHealthWorker.schedule(this)
     }
 
     private fun createNotificationChannel() {
@@ -37,6 +44,10 @@ class WardenApp : Application() {
 
     companion object {
         const val VPN_CHANNEL_ID = "warden_blocking"
+
+        /** App-scoped reference for notifiers that run outside an Activity context. */
+        lateinit var instance: WardenApp
+            private set
     }
 }
 
@@ -44,9 +55,13 @@ class AppContainer(app: Application) {
     val settings = SettingsStore(app)
     val repository = BlockRepository(WardenDatabase.get(app).blockDao())
     val blockEngine = BlockEngine(repository, settings)
-    val accessController = AccessController(repository, blockEngine) { pkg ->
-        UsageStatsHelper.todayUsageMinutesFor(app, pkg)
-    }
+    val entitlements: Entitlements = FreeEntitlements() // paid tier arrives later; ads check this first
+    val accessController = AccessController(
+        repository, blockEngine,
+        usageMinutesToday = { pkg -> UsageStatsHelper.todayUsageMinutesFor(app, pkg) },
+        trustedNow = { settings.trustedNow() },
+        pauseDefeatsToday = { settings.pauseDefeatsToday(settings.trustedNow()) },
+    )
 }
 
 /** Convenience accessor from any Context. */

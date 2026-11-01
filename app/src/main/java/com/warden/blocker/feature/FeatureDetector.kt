@@ -10,6 +10,25 @@ interface UiNode {
     val contentDesc: String?
     val childCount: Int
     fun child(index: Int): UiNode?
+
+    /** True while the user is editing this node (address bar being typed into). */
+    val isFocused: Boolean get() = false
+
+    /**
+     * Block's detection gate (decompiled `kr0.q`): only nodes actually shown to the user
+     * may trigger a feature block. Recycled views stay attached to the tree off-screen;
+     * without this check, scrolling past a Reels container would block the home feed.
+     */
+    val isVisibleToUser: Boolean get() = true
+
+    /** True for the active tab; selected-only signals (e.g. Instagram's search_tab) use it. */
+    val isSelected: Boolean get() = false
+
+    /** First child matching a fully-qualified resource id, e.g. "com.android.chrome:id/url_bar". */
+    fun findByViewId(id: String): UiNode? = null
+
+    /** Presses this node; used by `click:<viewId>` navigate-away actions. */
+    fun performClick(): Boolean = false
 }
 
 /**
@@ -34,11 +53,20 @@ object FeatureDetector {
     }
 
     fun nodeMatches(feature: AppFeature, node: UiNode): Boolean {
+        if (!node.isVisibleToUser) return false
         val vid = node.viewId
-        if (vid != null && feature.viewIdContains.any { vid.contains(it, ignoreCase = true) }) return true
+        if (vid != null) {
+            if (feature.viewIdContains.any { it.isNotBlank() && vid.contains(it, ignoreCase = true) }) return true
+            // Always-present tab bar items (clips_tab, search_tab) only count while selected.
+            if (node.isSelected &&
+                feature.selectedViewIdContains.any { it.isNotBlank() && vid.contains(it, ignoreCase = true) }
+            ) {
+                return true
+            }
+        }
         if (feature.textContains.isNotEmpty()) {
-            val haystack = "${node.text.orEmpty()}${node.contentDesc.orEmpty()}"
-            if (feature.textContains.any { it.isNotEmpty() && haystack.contains(it, ignoreCase = true) }) return true
+            val haystack = listOfNotNull(node.text, node.contentDesc).joinToString(" ")
+            if (feature.textContains.any { it.isNotBlank() && haystack.contains(it, ignoreCase = true) }) return true
         }
         return false
     }

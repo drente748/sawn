@@ -1,8 +1,28 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun signingValue(name: String): String? =
+    System.getenv(name)?.takeIf { it.isNotBlank() }
+        ?: localProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+
+val wardenStoreFile = signingValue("WARDEN_STORE_FILE")
+val wardenStorePassword = signingValue("WARDEN_STORE_PASSWORD")
+val wardenKeyAlias = signingValue("WARDEN_KEY_ALIAS")
+val wardenKeyPassword = signingValue("WARDEN_KEY_PASSWORD")
+val wardenSigningValues = listOf(wardenStoreFile, wardenStorePassword, wardenKeyAlias, wardenKeyPassword)
+require(wardenSigningValues.all { it == null } || wardenSigningValues.all { it != null }) {
+    "Set all WARDEN_* signing values in local.properties or the environment, or none of them."
 }
 
 android {
@@ -13,18 +33,47 @@ android {
         applicationId = "com.warden.blocker"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 11
+        versionName = "0.6.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (wardenSigningValues.all { it != null }) {
+            create("release") {
+                storeFile = rootProject.file(wardenStoreFile!!)
+                storePassword = wardenStorePassword!!
+                keyAlias = wardenKeyAlias!!
+                keyPassword = wardenKeyPassword!!
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            isDebuggable = false
+            if (wardenSigningValues.all { it != null }) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    // Sign with every scheme Android can verify, not just v2:
+    //  - v1 keeps sideloads verifiable by older tools/AV checkers, reducing the
+    //    "unknown signature" path that feeds Play Protect's first-run hesitation.
+    //  - v3 lets a future Play Store upload rotate keys without breaking updates.
+    signingConfigs {
+        if (wardenSigningValues.all { it != null }) {
+            getByName("release") {
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
         }
     }
     compileOptions {
@@ -66,6 +115,11 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
+
+    // On-device NSFW image screening: official TF Lite Task Vision runtime. The model
+    // file (MobileNet AutoML, ~5.8MB) ships in assets/nsfw/ so nothing is fetched at
+    // runtime and classification never leaves the device.
+    implementation("org.tensorflow:tensorflow-lite-task-vision:0.4.4")
 
     debugImplementation(libs.androidx.ui.tooling)
 

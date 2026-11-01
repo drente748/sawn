@@ -14,7 +14,7 @@ class DnsPacketTest {
     private val dnsId = 0xABCD
 
     /** Build a minimal IPv4/UDP/DNS 'A' query for [host] destined for the virtual resolver. */
-    private fun buildQuery(host: String): ByteArray {
+    private fun buildQuery(host: String, queryType: Int = 1): ByteArray {
         val labels = host.split(".")
         val question = ArrayList<Byte>()
         labels.forEach { label ->
@@ -22,7 +22,7 @@ class DnsPacketTest {
             label.forEach { question.add(it.code.toByte()) }
         }
         question.add(0) // root
-        question.addAll(listOf(0x00, 0x01).map { it.toByte() }) // type A
+        question.addAll(listOf((queryType ushr 8).toByte(), (queryType and 0xFF).toByte())) // type
         question.addAll(listOf(0x00, 0x01).map { it.toByte() }) // class IN
 
         val dns = ArrayList<Byte>()
@@ -60,6 +60,21 @@ class DnsPacketTest {
         assertEquals("example.com", parsed!!.qname)
         assertEquals(53, parsed.dstPort)
         assertEquals(srcPort, parsed.srcPort)
+        assertEquals(DnsPacket.TYPE_A, parsed.queryType)
+    }
+
+    @Test fun nullResponseForAaaaOnBlockedDomain() {
+        // Same query but TYPE=28 (AAAA): the sinkhole returns NOERROR with zero answers,
+        // so clients don't chase IPv6 paths for a blocked domain.
+        val packet = buildQuery("tracker.example.com", queryType = 28)
+        val parsed = DnsPacket.parse(packet, packet.size)!!
+        val resp = DnsPacket.buildNullResponse(packet, packet.size, parsed)
+        val d = 20 + 8
+        assertTrue("QR bit not set", resp[d + 2].toInt() and 0x80 != 0)
+        val ancount = ((resp[d + 6].toInt() and 0xFF) shl 8) or (resp[d + 7].toInt() and 0xFF)
+        assertEquals(0, ancount)
+        val declaredLen = ((resp[2].toInt() and 0xFF) shl 8) or (resp[3].toInt() and 0xFF)
+        assertEquals(resp.size, declaredLen)
     }
 
     @Test fun ignoresNonUdpAndTooShort() {

@@ -16,6 +16,9 @@ class BootReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
+                // Watchdog backstop runs after every boot so a stale "protection stopped"
+                // notification from an accessibility loss during shutdown gets resolved.
+                GuardHealthWorker.schedule(context)
                 // Re-arm if blocking is active for any reason — master, schedule, or an
                 // in-progress focus session. Consent must have been granted previously.
                 val active = context.wardenContainer.blockEngine.isBlockingActiveNow()
