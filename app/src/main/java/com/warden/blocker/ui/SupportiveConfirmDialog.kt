@@ -38,6 +38,7 @@ fun SupportiveConfirmDialog(
     sessions: Int = 0,
     endsAtMs: Long = 0L, // القفل: الأزرار تحسبها قبل الاستدعاء
     onExceptionalConfirmLabel: String = "",
+    onDismiss: () -> Unit = {},
     onConfirmed: (Long) -> Unit,
 ) {
     // سبب القفل: الأزرار تمرر endsAtMs أما الإيقاف فلا يلزم قيمة.
@@ -49,7 +50,7 @@ fun SupportiveConfirmDialog(
         }
     }
     AlertDialog(
-        onDismissRequest = {},
+        onDismissRequest = onDismiss,
         title = { Text(title, fontWeight = FontWeight.ExtraBold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -89,7 +90,7 @@ fun SupportiveConfirmDialog(
             ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = { /* لا شيء: البقاء محمياً هو الافتراضي */ }) { Text("بقي محمياً") }
+            TextButton(onClick = onDismiss) { Text("بقي محمياً") }
         },
     )
 }

@@ -99,22 +99,26 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
     val lockdownUntil: StateFlow<Long> =
         container.settings.lockdownUntil.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
-    /** قيد الطلب — لعبور بوابة admin: أول كتابة بعد موافقة المستخدم على Device Admin. */
-    private var pendingLockdown: Long? = null
+    /** المدة المنتظرة — لا تُكتب أي قيمة قبل موافقة Device Admin. */
+    private var pendingLockdownDurationMs: Long? = null
 
-    /** المرحلة 1: كتب القرار في الذاكرة فقط.=admin سيُطلب قبل أي كتابة. */
-    fun stageLockdown(endsAtMs: Long) {
-        pendingLockdown = endsAtMs
+    /**
+     * المرحلة 1: احتفظ بالمدة في الذاكرة فقط. تُحسب النهاية عند [commitLockdown] من
+     * الساعة الموثوقة (anti-tamper) حتى لا يقصّر زمن شاشة الموافقة القفل، وحتى لا
+     * يسمح إرجاع ساعة الجهاز بقفل منتهٍ منذ لحظته الأولى.
+     */
+    fun stageLockdownForDuration(durationMs: Long, onStaged: () -> Unit = {}) {
+        pendingLockdownDurationMs = durationMs
+        onStaged()
     }
 
-    fun hasStagedLockdown(): Boolean = pendingLockdown != null
-
-    fun stageLockdownValue(): Long? = pendingLockdown
+    fun hasStagedLockdown(): Boolean = pendingLockdownDurationMs != null
 
     /** المرحلة 2 (بعد موافقة admin): يكتب القفل ويفرض تشغيل الحماية. */
     fun commitLockdown(onDone: () -> Unit = {}) = viewModelScope.launch {
-        val endsAt = pendingLockdown ?: return@launch
-        pendingLockdown = null
+        val durationMs = pendingLockdownDurationMs ?: return@launch
+        pendingLockdownDurationMs = null
+        val endsAt = container.settings.trustedNow() + durationMs
         container.settings.setLockdownUntil(endsAt)
         // القفل يفرض الحماية قائمة (قرار التصميم): master on + best-effort VPN.
         if (!container.settings.masterEnabled.first()) {
@@ -125,7 +129,7 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun discardStagedLockdown() {
-        pendingLockdown = null
+        pendingLockdownDurationMs = null
     }
 
     /** Pull open blocklist updates while preserving the last valid list on failure. */

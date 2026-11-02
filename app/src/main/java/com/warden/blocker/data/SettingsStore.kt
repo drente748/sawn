@@ -84,6 +84,13 @@ class SettingsStore(private val context: Context) {
     private fun pinPresent(p: Preferences): Boolean =
         p[Keys.PIN_HASH] != null && p[Keys.PIN_SALT] != null
 
+    /**
+     * Clock trusted inside a DataStore edit: never behind the persisted anti-tamper
+     * high-water mark. Rolls the wall clock back cannot shorten a live lockdown.
+     */
+    private fun guardNow(p: Preferences, now: Long = System.currentTimeMillis()): Long =
+        maxOf(now, p[Keys.SEEN_TIME_HIGHWAT] ?: 0L)
+
     val masterEnabled: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.MASTER_ENABLED] ?: false }.distinctUntilChanged()
     val onboardingDone: Flow<Boolean> =
@@ -196,17 +203,38 @@ class SettingsStore(private val context: Context) {
         }
     }
 
-    suspend fun setMasterEnabled(value: Boolean) =
-        context.dataStore.edit { it[Keys.MASTER_ENABLED] = value }.let { }
+    suspend fun setMasterEnabled(value: Boolean) {
+        context.dataStore.edit { p ->
+            // The store is the enforcement point, not the UI: any caller trying to turn
+            // protection off during a live lockdown is refused atomically.
+            if (!value && LockdownGuardPolicy.blocksDisable(
+                    p[Keys.LOCKDOWN_UNTIL] ?: 0L,
+                    guardNow(p),
+                )
+            ) {
+                return@edit
+            }
+            p[Keys.MASTER_ENABLED] = value
+        }
+    }
 
     suspend fun setAlwaysOn(value: Boolean) =
         context.dataStore.edit { it[Keys.ALWAYS_ON] = value }.let { }
 
     /** Returns true when the change was applied; enabling requires a usable PIN. */
     suspend fun setStrictMode(value: Boolean): Boolean {
+        // Only a shutdown needs the trusted clock; enabling strict is always allowed.
+        val now = if (!value) trustedNow() else 0L
         var applied = false
         context.dataStore.edit { p ->
             if (value && !StrictPolicy.canEnableStrictMode(pinPresent(p))) return@edit
+            if (!value && LockdownGuardPolicy.blocksStrictChange(
+                    p[Keys.LOCKDOWN_UNTIL] ?: 0L,
+                    guardNow(p, now),
+                )
+            ) {
+                return@edit
+            }
             p[Keys.STRICT_MODE] = value
             applied = true
         }
@@ -242,6 +270,7 @@ class SettingsStore(private val context: Context) {
 
     /** Returns true when the PIN was removed; strict mode keeps its credential in place. */
     suspend fun clearPin(): Boolean {
+        val now = trustedNow()
         var cleared = false
         context.dataStore.edit { p ->
             val pin = pinPresent(p)
@@ -250,6 +279,13 @@ class SettingsStore(private val context: Context) {
                 pin,
             )
             if (!StrictPolicy.canClearPin(effectiveStrict, pin)) return@edit
+            if (LockdownGuardPolicy.blocksPinRemoval(
+                    p[Keys.LOCKDOWN_UNTIL] ?: 0L,
+                    guardNow(p, now),
+                )
+            ) {
+                return@edit
+            }
             p.remove(Keys.PIN_HASH)
             p.remove(Keys.PIN_SALT)
             cleared = true
@@ -290,7 +326,12 @@ class SettingsStore(private val context: Context) {
             val focusStrict = p[Keys.FOCUS_STRICT] ?: false
             val focusEndsAt = p[Keys.FOCUS_ENDS_AT] ?: 0L
             val focusActive = StrictPolicy.isFocusActive(focusEndsAt, now)
-            val locked = StrictPolicy.isMasterLocked(strict, master, focusStrict, focusEndsAt, now)
+            val lockdownActive = LockdownGuardPolicy.blocksDisable(
+                p[Keys.LOCKDOWN_UNTIL] ?: 0L,
+                guardNow(p, now),
+            )
+            val locked = lockdownActive ||
+                StrictPolicy.isMasterLocked(strict, master, focusStrict, focusEndsAt, now)
             if (!locked) p[Keys.MASTER_ENABLED] = false
             outcome = DisableOutcome(disabled = !locked, focusActive = focusActive)
         }
@@ -356,8 +397,19 @@ class SettingsStore(private val context: Context) {
     val lockdownUntil: Flow<Long> =
         context.dataStore.data.map { it[Keys.LOCKDOWN_UNTIL] ?: 0L }.distinctUntilChanged()
 
-    suspend fun setLockdownUntil(endsAtMs: Long) =
-        context.dataStore.edit { it[Keys.LOCKDOWN_UNTIL] = endsAtMs }.let { }
+    suspend fun setLockdownUntil(endsAtMs: Long) {
+        context.dataStore.edit { p ->
+            // Never let a caller clear or pre-date a live lockdown with a raw write.
+            // Replacing it with a future value is allowed (the user confirmed a new lock).
+            val activeUntil = p[Keys.LOCKDOWN_UNTIL] ?: 0L
+            if (LockdownGuardPolicy.blocksDisable(activeUntil, guardNow(p)) &&
+                endsAtMs <= guardNow(p)
+            ) {
+                return@edit
+            }
+            p[Keys.LOCKDOWN_UNTIL] = endsAtMs
+        }
+    }
 
     // --- Clock-tamper defense (Tempo's lastSeen high-water mark) ---
     // The only trusted "now": at least as late as any moment we've ever observed the system

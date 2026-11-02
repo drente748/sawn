@@ -2,6 +2,7 @@ package com.warden.blocker.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,9 +10,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,9 +24,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import com.warden.blocker.system.AdminManager
@@ -125,6 +132,8 @@ object SettingsControls {
     fun LockdownCard(vm: WardenViewModel) {
         val context = LocalContext.current
         val lockdownUntil by vm.lockdownUntil.collectAsState()
+        val streak by vm.currentStreak.collectAsState()
+        val sessions by vm.focusSessionsDone.collectAsState()
         val now = remember { mutableStateOf(System.currentTimeMillis()) }
         androidx.compose.runtime.LaunchedEffect(Unit) {
             while (true) {
@@ -142,7 +151,11 @@ object SettingsControls {
             }
         }
 
-        var pendingEndsAt by remember { mutableStateOf<Long?>(null) }
+        var pendingDurationMs by remember { mutableStateOf<Long?>(null) }
+        var manualAmount by remember { mutableStateOf("") }
+        var manualUnit by remember { mutableStateOf(LockdownPolicy.DurationUnit.MINUTES) }
+        var manualError by remember { mutableStateOf(false) }
+
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text("قفل الحماية", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -166,38 +179,81 @@ object SettingsControls {
                         color = WardenPalette.TextMuted,
                     )
                     Spacer(Modifier.height(10.dp))
-                    FlowRowQuick {
-                        listOf(
-                            "30 دقيقة" to (30L to LockdownPolicy.DurationUnit.MINUTES),
-                            "ساعة" to (1L to LockdownPolicy.DurationUnit.HOURS),
-                            "6 ساعات" to (6L to LockdownPolicy.DurationUnit.HOURS),
-                            "يوم" to (1L to LockdownPolicy.DurationUnit.DAYS),
-                            "3 أيام" to (3L to LockdownPolicy.DurationUnit.DAYS),
-                            "أسبوع" to (1L to LockdownPolicy.DurationUnit.WEEKS),
-                            "أسبوعان" to (2L to LockdownPolicy.DurationUnit.WEEKS),
-                            "شهر" to (1L to LockdownPolicy.DurationUnit.MONTHS),
-                            "3 شهور" to (3L to LockdownPolicy.DurationUnit.MONTHS),
-                            "6 شهور" to (6L to LockdownPolicy.DurationUnit.MONTHS),
-                        ).forEach { (label, pair) ->
-                            OutlinedButton(onClick = {
-                                pendingEndsAt = System.currentTimeMillis() + pair.first * unitMillis(pair.second)
-                            }) { Text(label) }
+                    QuickDurationGrid { durationMs -> pendingDurationMs = durationMs }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "أو مدة مخصصة (1 دقيقة – 12 شهراً)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WardenPalette.TextMuted,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = manualAmount,
+                        onValueChange = {
+                            if (it.length <= 5 && it.all(Char::isDigit)) {
+                                manualAmount = it
+                                manualError = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        isError = manualError,
+                        label = { Text("المدة") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        LockdownPolicy.DurationUnit.entries.forEach { unit ->
+                            FilterChip(
+                                selected = manualUnit == unit,
+                                onClick = { manualUnit = unit },
+                                label = { Text(unitLabel(unit)) },
+                            )
                         }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Button(
+                        onClick = {
+                            val millis = LockdownPolicy.validateManual(
+                                manualAmount.toLongOrNull() ?: 0L,
+                                manualUnit,
+                            )
+                            if (millis == null) {
+                                manualError = true
+                            } else {
+                                manualError = false
+                                pendingDurationMs = millis
+                            }
+                        },
+                        enabled = manualAmount.isNotBlank(),
+                    ) { Text("تثبيت المدة المخصصة") }
+                    if (manualError) {
+                        Text(
+                            "المدة يجب أن تكون بين دقيقة و12 شهراً.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
                     }
                 }
             }
         }
-        pendingEndsAt?.let { endsAt ->
+        pendingDurationMs?.let { durationMs ->
             SupportiveConfirmDialog(
                 vm = vm,
-                endsAtMs = endsAt,
-                onConfirmed = { confirmed ->
-                    pendingEndsAt = null
-                    vm.stageLockdown(confirmed)
-                    if (AdminManager.isActive(context)) {
-                        vm.commitLockdown()
-                    } else {
-                        adminLauncher.launch(AdminManager.enableIntent(context))
+                streak = streak,
+                sessions = sessions,
+                onDismiss = { pendingDurationMs = null },
+                onConfirmed = {
+                    pendingDurationMs = null
+                    vm.stageLockdownForDuration(durationMs) {
+                        if (AdminManager.isActive(context)) {
+                            vm.commitLockdown()
+                        } else {
+                            adminLauncher.launch(AdminManager.enableIntent(context))
+                        }
                     }
                 },
             )
@@ -212,6 +268,51 @@ object SettingsControls {
         LockdownPolicy.DurationUnit.MONTHS -> 30L * 86_400_000L
     }
 
+    private fun unitLabel(unit: LockdownPolicy.DurationUnit): String = when (unit) {
+        LockdownPolicy.DurationUnit.MINUTES -> "دقائق"
+        LockdownPolicy.DurationUnit.HOURS -> "ساعات"
+        LockdownPolicy.DurationUnit.DAYS -> "أيام"
+        LockdownPolicy.DurationUnit.WEEKS -> "أسابيع"
+        LockdownPolicy.DurationUnit.MONTHS -> "شهور"
+    }
+
+    private data class QuickDuration(
+        val label: String,
+        val amount: Long,
+        val unit: LockdownPolicy.DurationUnit,
+    )
+
+    private val quickDurations = listOf(
+        QuickDuration("30 دقيقة", 30L, LockdownPolicy.DurationUnit.MINUTES),
+        QuickDuration("ساعة", 1L, LockdownPolicy.DurationUnit.HOURS),
+        QuickDuration("6 ساعات", 6L, LockdownPolicy.DurationUnit.HOURS),
+        QuickDuration("يوم", 1L, LockdownPolicy.DurationUnit.DAYS),
+        QuickDuration("3 أيام", 3L, LockdownPolicy.DurationUnit.DAYS),
+        QuickDuration("أسبوع", 1L, LockdownPolicy.DurationUnit.WEEKS),
+        QuickDuration("أسبوعان", 2L, LockdownPolicy.DurationUnit.WEEKS),
+        QuickDuration("شهر", 1L, LockdownPolicy.DurationUnit.MONTHS),
+        QuickDuration("3 شهور", 3L, LockdownPolicy.DurationUnit.MONTHS),
+        QuickDuration("6 شهور", 6L, LockdownPolicy.DurationUnit.MONTHS),
+    )
+
+    /** أزرار المدة في شبكة عمودين. */
+    @Composable
+    private fun QuickDurationGrid(onPick: (Long) -> Unit) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            quickDurations.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { item ->
+                        OutlinedButton(
+                            onClick = { onPick(item.amount * unitMillis(item.unit)) },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(item.label) }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+
     fun formatRemaining(ms: Long): String {
         val totalSec = (ms / 1000).coerceAtLeast(0)
         val days = totalSec / 86_400
@@ -219,11 +320,5 @@ object SettingsControls {
         val minutes = totalSec % 3_600 / 60
         val seconds = totalSec % 60
         return if (days > 0) "متبقٍ ${days}ي ${hours}س" else "متبقٍ ${hours}س ${minutes}د ${seconds}ث"
-    }
-
-    /** أزرار المدة في صفّين تلقائيين. */
-    @Composable
-    private fun FlowRowQuick(content: @Composable () -> Unit) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }
 }
