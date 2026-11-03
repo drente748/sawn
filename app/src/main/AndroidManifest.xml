@@ -59,10 +59,12 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Warden" />
 
-        <!-- Local VPN that filters DNS to block domains across all apps/browsers. -->
+        <!-- Local VPN that filters DNS to block domains across all apps/browsers.
+             stopWithTask=false: swiping the app out of recents never kills the filter. -->
         <service
             android:name=".vpn.WardenVpnService"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse"
             android:permission="android.permission.BIND_VPN_SERVICE">
             <intent-filter>

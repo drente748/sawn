@@ -16,6 +16,7 @@ import com.warden.blocker.security.PinResult
 import com.warden.blocker.system.FocusEndWorker
 import com.warden.blocker.vpn.VpnController
 import com.warden.blocker.wardenContainer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class WardenViewModel(app: Application) : AndroidViewModel(app) {
     private val container = app.wardenContainer
@@ -300,13 +302,17 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
         pin: String,
         enableStrict: Boolean = false,
         onDone: () -> Unit = {},
-    ) = viewModelScope.launch {
+    ) = viewModelScope.launch(Dispatchers.Default) {
+        // PBKDF2 بـ310k تكرار لا يجوز على الخيط الرئيسي — كان يجمّد الواجهة/يسقطها.
         val salt = PinHasher.newSalt()
-        container.settings.setPin(PinHasher.hash(pin, salt), salt)
-        if (enableStrict) {
-            container.settings.enableStrictMode(container.settings.trustedNow())
+        val hash = PinHasher.hash(pin, salt)
+        withContext(Dispatchers.Main.immediate) {
+            container.settings.setPin(hash, salt)
+            if (enableStrict) {
+                container.settings.enableStrictMode(container.settings.trustedNow())
+            }
+            onDone()
         }
-        onDone()
     }
 
     /** Refused atomically by the store while strict mode is effective. */

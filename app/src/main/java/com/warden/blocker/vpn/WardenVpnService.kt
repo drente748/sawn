@@ -454,7 +454,15 @@ class WardenVpnService : VpnService() {
         super.onRevoke()
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // مسح التطبيق من الخلفية (swipe in recents) لا يسقط الحماية: الترنل خدمة
+        // نظام مستقلة عن مهمة الواجهة — يبقى يعمل ما دام blocking مطلوباً.
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
+        // الاستدعاء الحقيقي الوحيد للتدمير: إما ACTION_STOP الصريح أو النظام
+        // (uninstall/disable). لمسح التطبيق من الخلفية لا نصل هنا.
         stopTunnel()
         scope.cancel()
         super.onDestroy()

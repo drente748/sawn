@@ -6,8 +6,11 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -115,10 +118,15 @@ private val WardenTypography = Typography(
  */
 @Composable
 fun WardenTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = SunriseColors,
-        shapes = SunriseShapes,
-        typography = WardenTypography,
-        content = content,
-    )
+    // Warden عربي بالكامل (كل النصوص فارسيّة-عربية inline) — فرض اتجاه RTL
+    // مستقل عن لغة النظام كي لا تختلط الفقرات داخل حاوية LTR عند من يملك
+    // لغة إنجليزية على الهاتف. القياس يظل يعمل في كلا الاتجاهين.
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        MaterialTheme(
+            colorScheme = SunriseColors,
+            shapes = SunriseShapes,
+            typography = WardenTypography,
+            content = content,
+        )
+    }
 }
