@@ -26,7 +26,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.warden.blocker.ui.AppPickerScreen
 import com.warden.blocker.ui.BlocklistScreen
-import com.warden.blocker.ui.FeaturesScreen
 import com.warden.blocker.ui.HomeScreen
 import com.warden.blocker.ui.ManagementPinGate
 import com.warden.blocker.ui.OnboardingScreen
@@ -170,7 +169,6 @@ private fun WardenScaffold(
                     vm, onToggleBlocking, onStartFocus, onCancelFocus,
                     onOpenSetup = { navController.navigate("setup") },
                     onOpenBlocklist = { navController.navigate("blocklist") },
-                    onOpenFeatures = { navController.navigate("features") },
                     onOpenSchedules = { navController.navigate("schedules") },
                     onOpenStats = { navController.navigate("stats") },
                     onOpenSettings = { navController.navigate("settings") },
@@ -184,7 +182,6 @@ private fun WardenScaffold(
                     BlocklistScreen(
                         vm,
                         onOpenAppPicker = { navController.navigate("apppicker") },
-                        onOpenFeatures = { navController.navigate("features") },
                         onBack = { navController.popBackStack() },
                     )
                 }
@@ -192,11 +189,6 @@ private fun WardenScaffold(
             composable("apppicker") {
                 ManagementPinGate(vm, "App blocking") {
                     AppPickerScreen(vm, onBack = { navController.popBackStack() })
-                }
-            }
-            composable("features") {
-                ManagementPinGate(vm, "Feed blocking") {
-                    FeaturesScreen(vm, onBack = { navController.popBackStack() })
                 }
             }
             composable("schedules") {

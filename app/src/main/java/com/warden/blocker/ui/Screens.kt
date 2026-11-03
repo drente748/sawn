@@ -127,7 +127,6 @@ fun HomeScreen(
     onCancelFocus: () -> Unit,
     onOpenSetup: () -> Unit,
     onOpenBlocklist: () -> Unit = {},
-    onOpenFeatures: () -> Unit = {},
     onOpenSchedules: () -> Unit = {},
     onOpenStats: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
@@ -362,15 +361,6 @@ fun HomeScreen(
             )
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FeatureTile(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.VideoLibrary,
-                label = "Feed blocks",
-                detail = "Reels, Shorts…",
-                strong = WardenPalette.Violet,
-                soft = WardenPalette.VioletSoft,
-                onClick = onOpenFeatures,
-            )
             FeatureTile(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Filled.Schedule,
@@ -907,7 +897,6 @@ private fun HoldToGuardSwitch(
 fun BlocklistScreen(
     vm: WardenViewModel,
     onOpenAppPicker: () -> Unit,
-    onOpenFeatures: () -> Unit,
     onBack: () -> Unit = {},
 ) {
     val items by vm.items.collectAsStateWithLifecycle()
@@ -929,8 +918,6 @@ fun BlocklistScreen(
         }
         Spacer(Modifier.height(10.dp))
         OutlinedButton(onClick = onOpenAppPicker, modifier = Modifier.fillMaxWidth()) { Text("+ Add apps to block") }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onOpenFeatures, modifier = Modifier.fillMaxWidth()) { Text("Block in-app feeds (Reels, Shorts…)") }
         Spacer(Modifier.height(16.dp))
         if (items.isEmpty()) {
             Text("Nothing blocked yet — add a website above or tap “Add apps”.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
