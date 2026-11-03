@@ -12,4 +12,9 @@
     <string name="guard_health_title">Warden protection stopped</string>
     <string name="guard_health_text">App screening is no longer active — adult-content blocking is off. Tap to re-enable it.</string>
     <string name="guard_health_fix">Fix now</string>
+    <string name="guard_admin_title">Uninstall protection is off</string>
+    <string name="guard_admin_text">A time lock is active, but Warden\'s uninstall protection was turned off. Re-enable it so the app cannot be removed before the lock ends.</string>
+    <string name="guard_admin_fix">Re-enable</string>
+    <string name="guard_vpn_title">The filter is not running</string>
+    <string name="guard_vpn_text">A time lock is active, but the DNS filter stopped. Open Warden and restart protection.</string>
 </resources>

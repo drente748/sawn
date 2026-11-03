@@ -7,6 +7,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.warden.blocker.util.PermissionsHelper
+import com.warden.blocker.vpn.WardenVpnService
 import com.warden.blocker.wardenContainer
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
@@ -25,17 +26,40 @@ class GuardHealthWorker(context: Context, params: WorkerParameters) : CoroutineW
 
     override suspend fun doWork(): Result {
         val container = applicationContext.wardenContainer
-        val needsScreening = container.settings.masterEnabled.first() &&
-            (
-                container.settings.socialGuard.first() ||
-                    container.settings.enabledFeatureKeys.first().isNotEmpty() ||
-                    container.settings.pornGuard.first()
-                )
+        val settings = container.settings
+        val lockdownActive = settings.isLockdownActiveNow()
+        val needsScreening = lockdownActive || (
+            settings.masterEnabled.first() &&
+                (
+                    settings.socialGuard.first() ||
+                        settings.enabledFeatureKeys.first().isNotEmpty() ||
+                        settings.pornGuard.first()
+                    )
+            )
         val accessibilityOn = PermissionsHelper.isAccessibilityEnabled(applicationContext)
-        when {
-            needsScreening && !accessibilityOn -> GuardHealthNotifier.notifyAccessibilityDown(applicationContext)
-            accessibilityOn -> GuardHealthNotifier.clear(applicationContext)
+        if (needsScreening && !accessibilityOn) {
+            GuardHealthNotifier.notifyAccessibilityDown(applicationContext)
+        } else {
+            GuardHealthNotifier.clearAccessibility(applicationContext)
         }
+
+        // A lockdown is only meaningful if the uninstall guard and the filter are both live.
+        // Android gives no API to force them back, so surface the loss loudly instead of
+        // pretending the lock is intact.
+        val adminMissing = lockdownActive && !AdminManager.isActive(applicationContext)
+        if (adminMissing) {
+            GuardHealthNotifier.notifyAdminDown(applicationContext)
+        } else {
+            GuardHealthNotifier.clearAdmin(applicationContext)
+        }
+
+        val vpnMissing = lockdownActive && !WardenVpnService.running
+        if (vpnMissing) {
+            GuardHealthNotifier.notifyVpnDown(applicationContext)
+        } else {
+            GuardHealthNotifier.clearVpn(applicationContext)
+        }
+
         return Result.success()
     }
 

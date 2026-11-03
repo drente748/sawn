@@ -12,6 +12,7 @@ import android.content.Intent
  */
 class WardenDeviceAdminReceiver : DeviceAdminReceiver() {
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence =
-        "Turning this off removes Warden's uninstall protection. If you're trying to quit " +
-            "during a block, consider waiting out the urge instead."
+        "Turning this off removes Warden's uninstall protection. If a time lock is active it " +
+            "still blocks protection changes until it ends — but the app can then be uninstalled " +
+            "early. Wait out the urge instead."
 }

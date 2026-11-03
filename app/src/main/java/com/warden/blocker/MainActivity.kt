@@ -147,9 +147,10 @@ private fun WardenScaffold(
     val context = LocalContext.current
     val master by vm.masterEnabled.collectAsStateWithLifecycle()
     val focusEndsAt by vm.focusEndsAt.collectAsStateWithLifecycle()
+    val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
     val vpnRunning by WardenVpnService.runningFlow.collectAsStateWithLifecycle()
-    val shouldBlock = master || focusEndsAt > System.currentTimeMillis()
-    LaunchedEffect(shouldBlock, vpnRunning, focusEndsAt) {
+    val shouldBlock = master || focusEndsAt > System.currentTimeMillis() || lockdownActive
+    LaunchedEffect(shouldBlock, vpnRunning, focusEndsAt, lockdownActive) {
         if (!shouldBlock || vpnRunning) return@LaunchedEffect
         if (VpnController.consentIntent(context) != null) return@LaunchedEffect
         repeat(3) {

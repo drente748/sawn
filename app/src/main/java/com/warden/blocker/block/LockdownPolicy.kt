@@ -28,4 +28,49 @@ object LockdownPolicy {
         val max = MAX_MONTHS * 30L * 86_400_000L
         return if (millis in 60_000L..max) millis else null
     }
+
+    /** يحوّل الأرقام العربية-الهندية/الفارسية إلى ASCII حتى يقبلها toLongOrNull. */
+    fun normalizeDigits(input: String): String = buildString(input.length) {
+        for (c in input) {
+            append(
+                when (c) {
+                    in '\u0660'..'\u0669' -> '0' + (c - '\u0660')
+                    in '\u06F0'..'\u06F9' -> '0' + (c - '\u06F0')
+                    else -> c
+                },
+            )
+        }
+    }
+
+    /** مدة يدوية من نص المستخدم (بأي أرقام عربية أو لاتينية)، أو null إن لم تكن رقماً. */
+    fun parseManualAmount(input: String): Long? =
+        normalizeDigits(input.trim()).toLongOrNull()
+}
+
+/**
+ * اللحظة التي يقاس منها القفل. داخل الإقلاع نفسه يكون `elapsedRealtime` هو المرجع:
+ * تقديم ساعة الجهاز لا ينهي القفل. بعد إعادة الإقلاع لا يوجد مرجع أحادي متاح،
+ * فنعود إلى وقت الجدار المحمي بـ high-water (قيود أندرويد العادي).
+ */
+data class LockdownWindow(
+    val wallUntil: Long,
+    val elapsedEnd: Long,
+    val startBootCount: Int,
+    val currentBootCount: Int,
+    val elapsedNow: Long,
+    val wallNow: Long,
+) {
+    /** العداد عند لحظة محددة. يُستخدم لتحديث الواجهة كل ثانية دون إعادة قراءة المخزن. */
+    fun remainingAt(elapsedAt: Long, wallAt: Long): Long {
+        if (wallUntil <= 0L) return 0L
+        if (elapsedEnd > 0L && startBootCount >= 0 && startBootCount == currentBootCount) {
+            return (elapsedEnd - elapsedAt).coerceAtLeast(0L)
+        }
+        return (wallUntil - maxOf(wallAt, wallNow)).coerceAtLeast(0L)
+    }
+
+    val remainingMillis: Long
+        get() = remainingAt(elapsedAt = elapsedNow, wallAt = wallNow)
+
+    val isActive: Boolean get() = remainingMillis > 0L
 }

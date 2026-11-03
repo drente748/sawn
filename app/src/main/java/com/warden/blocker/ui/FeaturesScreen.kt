@@ -26,6 +26,7 @@ import com.warden.blocker.feature.FeatureCatalog
 @Composable
 fun FeaturesScreen(vm: WardenViewModel, onBack: () -> Unit = {}) {
     val enabled by vm.enabledFeatureKeys.collectAsStateWithLifecycle()
+    val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         BackHeader("Block in-app feeds", onBack)
@@ -36,6 +37,15 @@ fun FeaturesScreen(vm: WardenViewModel, onBack: () -> Unit = {}) {
                 "permission and blocking switched on.",
             style = MaterialTheme.typography.bodyMedium,
         )
+        if (lockdownActive) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "A time lock is active — feed blocking cannot be turned off until it ends.",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
         Spacer(Modifier.height(16.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(FeatureCatalog.ALL, key = { it.key }) { feature ->
@@ -47,6 +57,7 @@ fun FeaturesScreen(vm: WardenViewModel, onBack: () -> Unit = {}) {
                         }
                         Switch(
                             checked = feature.key in enabled,
+                            enabled = !lockdownActive,
                             onCheckedChange = { vm.setFeatureEnabled(feature.key, it) },
                         )
                     }

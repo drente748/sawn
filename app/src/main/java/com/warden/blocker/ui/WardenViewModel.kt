@@ -1,6 +1,7 @@
 package com.warden.blocker.ui
 
 import android.app.Application
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.warden.blocker.block.StrictPolicy
@@ -13,11 +14,15 @@ import com.warden.blocker.security.AdultListFetcher
 import com.warden.blocker.security.PinHasher
 import com.warden.blocker.security.PinResult
 import com.warden.blocker.system.FocusEndWorker
+import com.warden.blocker.vpn.VpnController
 import com.warden.blocker.wardenContainer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -99,6 +104,28 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
     val lockdownUntil: StateFlow<Long> =
         container.settings.lockdownUntil.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
+    /**
+     * عدّاد حي مشتق من النافذة الموثوقة (elapsedRealtime داخل الإقلاع، ووقت الجدار
+     * المحمي بـ high-water بعده). لا نستخدم System.currentTimeMillis مباشرة في الواجهة
+     * لأنه يسمح بتقديم الساعة لإنهاء القفل.
+     */
+    private val oneSecondTicker: Flow<Unit> = flow {
+        while (true) {
+            emit(Unit)
+            delay(1_000L)
+        }
+    }
+
+    val lockdownRemaining: StateFlow<Long> = combine(
+        container.settings.lockdownWindowState,
+        oneSecondTicker,
+    ) { window, _ -> window.remainingAt(SystemClock.elapsedRealtime(), System.currentTimeMillis()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    val lockdownActive: StateFlow<Boolean> = lockdownRemaining
+        .map { it > 0L }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     /** المدة المنتظرة — لا تُكتب أي قيمة قبل موافقة Device Admin. */
     private var pendingLockdownDurationMs: Long? = null
 
@@ -114,18 +141,29 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
 
     fun hasStagedLockdown(): Boolean = pendingLockdownDurationMs != null
 
-    /** المرحلة 2 (بعد موافقة admin): يكتب القفل ويفرض تشغيل الحماية. */
-    fun commitLockdown(onDone: () -> Unit = {}) = viewModelScope.launch {
-        val durationMs = pendingLockdownDurationMs ?: return@launch
-        pendingLockdownDurationMs = null
-        val endsAt = container.settings.trustedNow() + durationMs
-        container.settings.setLockdownUntil(endsAt)
-        // القفل يفرض الحماية قائمة (قرار التصميم): master on + best-effort VPN.
-        if (!container.settings.masterEnabled.first()) {
-            container.settings.setMasterEnabled(true)
-            com.warden.blocker.vpn.VpnController.start(getApplication())
+    /**
+     * المرحلة 2 (بعد موافقة admin): لا يُكتب القفل إلا بعد تشغيل الفلتر فعلياً.
+     * قفل بلا حجب حقيقي ليس قفلاً — لذلك يفشل التفعيل إن لم يعمل الـ VPN.
+     */
+    fun commitLockdown(onResult: (Boolean) -> Unit = {}) = viewModelScope.launch {
+        val durationMs = pendingLockdownDurationMs
+        if (durationMs == null) {
+            onResult(false)
+            return@launch
         }
-        onDone()
+        pendingLockdownDurationMs = null
+        val app = getApplication<Application>()
+        if (VpnController.consentIntent(app) != null) {
+            // The UI requests consent before staging; this is a defensive backstop.
+            onResult(false)
+            return@launch
+        }
+        if (!VpnController.startAndAwait(app)) {
+            onResult(false)
+            return@launch
+        }
+        val endsAt = container.settings.trustedNow() + durationMs
+        onResult(container.settings.setLockdownUntil(endsAt))
     }
 
     fun discardStagedLockdown() {

@@ -22,40 +22,103 @@ import com.warden.blocker.R
 object GuardHealthNotifier {
 
     private const val CHANNEL_ID = "warden_guard_health"
-    private const val NOTIF_ID = 1002
+    private const val NOTIF_ACCESSIBILITY = 1002
+    private const val NOTIF_ADMIN = 1003
+    private const val NOTIF_VPN = 1004
 
     fun notifyAccessibilityDown(context: Context) {
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        ensureChannel(nm)
-
-        val openApp = PendingIntent.getActivity(
-            context, 0, Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
         val settings = PendingIntent.getActivity(
             context, 1, PermissionsHelperAccessibility.openIntent(context),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        post(
+            context = context,
+            id = NOTIF_ACCESSIBILITY,
+            title = context.getString(R.string.guard_health_title),
+            text = context.getString(R.string.guard_health_text),
+            actionLabel = context.getString(R.string.guard_health_fix),
+            action = settings,
+        )
+    }
+
+    /** A live lockdown lost the uninstall guard: the app can now be removed early. */
+    fun notifyAdminDown(context: Context) {
+        val enable = PendingIntent.getActivity(
+            context, 2, AdminManager.enableIntent(context),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        post(
+            context = context,
+            id = NOTIF_ADMIN,
+            title = context.getString(R.string.guard_admin_title),
+            text = context.getString(R.string.guard_admin_text),
+            actionLabel = context.getString(R.string.guard_admin_fix),
+            action = enable,
+        )
+    }
+
+    /** A live lockdown lost its tunnel: sites are no longer being filtered. */
+    fun notifyVpnDown(context: Context) {
+        val openApp = PendingIntent.getActivity(
+            context, 3, Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        post(
+            context = context,
+            id = NOTIF_VPN,
+            title = context.getString(R.string.guard_vpn_title),
+            text = context.getString(R.string.guard_vpn_text),
+            actionLabel = context.getString(R.string.guard_health_fix),
+            action = openApp,
+        )
+    }
+
+    private fun post(
+        context: Context,
+        id: Int,
+        title: String,
+        text: String,
+        actionLabel: String,
+        action: PendingIntent,
+    ) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        ensureChannel(nm)
+        val openApp = PendingIntent.getActivity(
+            context, 0, Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val notification: Notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle(context.getString(R.string.guard_health_title))
-            .setContentText(context.getString(R.string.guard_health_text))
-            .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(context.getString(R.string.guard_health_text)))
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ERROR)
             .setContentIntent(openApp)
-            .addAction(0, context.getString(R.string.guard_health_fix), settings)
-            .setOngoing(true) // cannot be swiped away — only re-enabling clears it
+            .addAction(0, actionLabel, action)
+            .setOngoing(true) // cannot be swiped away — only fixing the loss clears it
             .setAutoCancel(false)
             .build()
-        runCatching { nm.notify(NOTIF_ID, notification) }
+        runCatching { nm.notify(id, notification) }
     }
 
     /** Called when the boot/re-arm worker confirms Accessibility is back. */
+    fun clearAccessibility(context: Context) = cancel(context, NOTIF_ACCESSIBILITY)
+
+    fun clearAdmin(context: Context) = cancel(context, NOTIF_ADMIN)
+
+    fun clearVpn(context: Context) = cancel(context, NOTIF_VPN)
+
+    /** Clears every health notification once all signals are healthy. */
     fun clear(context: Context) {
+        clearAccessibility(context)
+        clearAdmin(context)
+        clearVpn(context)
+    }
+
+    private fun cancel(context: Context, id: Int) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        runCatching { nm.cancel(NOTIF_ID) }
+        runCatching { nm.cancel(id) }
     }
 
     private fun ensureChannel(nm: NotificationManager) {

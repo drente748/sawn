@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.warden.blocker.BuildConfig
 import com.warden.blocker.util.PermissionsHelper
 import com.warden.blocker.block.web.BrowserConfig
 import com.warden.blocker.ui.BackHeader
@@ -71,36 +72,60 @@ fun ProtectionSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBac
         val alwaysOn by vm.alwaysOn.collectAsStateWithLifecycle()
         val strict by vm.strictMode.collectAsStateWithLifecycle()
         val pinConfigured by vm.pinConfigured.collectAsStateWithLifecycle()
+        val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
         val hasPin = pinConfigured == true
+
+        if (lockdownActive) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = WardenPalette.GreenSoft)) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "القفل الزمني نشط",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WardenPalette.GreenDark,
+                    )
+                    Text(
+                        "لا يمكن إضعاف مفاتيح الحماية قبل انتهاء المدة. القفل لا يُرفع برقم سري.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WardenPalette.GreenDark,
+                    )
+                }
+            }
+        }
 
         SwitchRow(
             title = "فلتر حجب الإباحية",
             subtitle = "يحجب المواقع الإباحية في كل المتصفحات والتطبيقات، عبر الفلتر المحلي ومصادر جماعية.",
             checked = pornGuard,
+            enabled = !lockdownActive,
             onChange = { vm.setPornGuard(it) },
         )
         SwitchRow(
             title = "فرض SafeSearch (DNS)",
             subtitle = "يقفل نتائج البحث والصور والفيديو الحساسة على Google وBing وYouTube وDuckDuckGo من خوادمها نفسها.",
             checked = safeSearchForce,
+            enabled = !lockdownActive,
             onChange = { vm.setSafeSearchForce(it) },
         )
         SwitchRow(
             title = "الوضع الدائم",
             subtitle = if (alwaysOn) "الحجب يعمل دوماً عند تفعيله." else "الحجب يعمل فقط خلال الجداول الزمنية.",
             checked = alwaysOn,
+            enabled = !lockdownActive,
             onChange = { vm.setAlwaysOn(it) },
         )
         SwitchRow(
             title = "حجب DNS-over-HTTPS",
             subtitle = "يحجب أيضاً محلّلات DNS المشفّرة كي لا تتخطى المتصفحات فلترة المواقع. يسري عند بدء الحجب التالي.",
             checked = blockDoh,
+            enabled = !lockdownActive,
             onChange = { vm.setBlockDoh(it) },
         )
         SwitchRow(
             title = "حجب الإعلانات والمتتبعات",
             subtitle = "يحجب مضيفي الإعلانات والتحليلات الشائعة. الإعلانات التي يقدّمها الموقع نفسه قد تظهر.",
             checked = blockAds,
+            enabled = !lockdownActive,
             onChange = { vm.setBlockAds(it) },
         )
         Card(Modifier.fillMaxWidth()) {
@@ -108,14 +133,18 @@ fun ProtectionSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, onBac
                 Text("الوضع الصارم", style = MaterialTheme.typography.titleMedium)
                 Text("يقفل مفتاح الحماية الرئيسي طوال عملها — يتطلب رقماً سرياً.", style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
-                Switch(checked = strict, onCheckedChange = { on ->
-                    if (on && !hasPin) {
-                        // Enable-strict-after-PIN: مثل السلوك الأصلي في 0.x.
-                        vm.setStrictMode(false)
-                    } else {
-                        vm.setStrictMode(on)
-                    }
-                })
+                Switch(
+                    checked = strict,
+                    enabled = !lockdownActive || !strict,
+                    onCheckedChange = { on ->
+                        if (on && !hasPin) {
+                            // Enable-strict-after-PIN: مثل السلوك الأصلي في 0.x.
+                            vm.setStrictMode(false)
+                        } else {
+                            vm.setStrictMode(on)
+                        }
+                    },
+                )
             }
         }
         com.warden.blocker.ui.SettingsControls.LockdownCard(vm = vm)
@@ -211,6 +240,7 @@ fun PrivacySupportSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, o
     val strict by vm.strictMode.collectAsState()
     val pinConfigured by vm.pinConfigured.collectAsState()
     val blockNotifications by vm.blockNotifications.collectAsState()
+    val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
     val hasPin = pinConfigured == true
     SettingsScreenHost(vm, onOpenSetup, onBack) {
         com.warden.blocker.ui.SettingsControls.PinCard(vm = vm, strict = strict, hasPin = hasPin)
@@ -219,6 +249,7 @@ fun PrivacySupportSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, o
             title = "حجب الإشعارات",
             subtitle = "يكتم إشعارات التطبيقات المحجوبة طوال عمل الحجب.",
             checked = blockNotifications,
+            enabled = !lockdownActive,
             onChange = { vm.setBlockNotifications(it) },
         )
         if (blockNotifications) {
@@ -272,7 +303,7 @@ fun PrivacySupportSettingsScreen(vm: WardenViewModel, onOpenSetup: () -> Unit, o
 
         HorizontalDivider()
         Text(
-            "Warden 1.0.0 (12)",
+            "Warden ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
             style = MaterialTheme.typography.bodySmall,
             color = WardenPalette.TextMuted,
         )
@@ -292,14 +323,20 @@ private fun SettingsScreenHost(vm: WardenViewModel, onOpenSetup: () -> Unit, onB
 }
 
 @Composable
-private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onChange: (Boolean) -> Unit,
+) {
     Card(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = WardenPalette.TextMuted)
             }
-            Switch(checked = checked, onCheckedChange = onChange)
+            Switch(checked = checked, enabled = enabled, onCheckedChange = onChange)
         }
     }
 }

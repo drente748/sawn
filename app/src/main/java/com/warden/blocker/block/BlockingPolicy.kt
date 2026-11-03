@@ -8,6 +8,8 @@ object BlockingPolicy {
         focusEndsAt: Long,
         now: Long,
         anyScheduleActive: Boolean,
-    ): Boolean = focusEndsAt > now ||
+        lockdownActive: Boolean = false,
+    ): Boolean = lockdownActive ||
+        focusEndsAt > now ||
         (masterEnabled && (alwaysOn || anyScheduleActive))
 }

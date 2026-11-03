@@ -3,6 +3,7 @@ package com.warden.blocker.data
 import android.content.Context
 import android.os.SystemClock
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -10,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.warden.blocker.block.LockdownWindow
 import com.warden.blocker.block.StrictPolicy
 import com.warden.blocker.security.PinLockoutPolicy
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +35,9 @@ data class ProtectionSnapshot(
     val hasPin: Boolean,
     val pornGuard: Boolean,
     val safeSearchForce: Boolean,
+    val lockdownUntil: Long,
+    val lockdownElapsedEnd: Long,
+    val lockdownBootAtStart: Int,
 )
 
 /** Result of an atomic "turn protection off" request. */
@@ -78,6 +83,8 @@ class SettingsStore(private val context: Context) {
         val ADULT_EXTRA_DOMAINS = stringSetPreferencesKey("adult_extra_domains")
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
         val LOCKDOWN_UNTIL = longPreferencesKey("lockdown_until")
+        val LOCKDOWN_ELAPSED_END = longPreferencesKey("lockdown_elapsed_end")
+        val LOCKDOWN_BOOT_AT_START = intPreferencesKey("lockdown_boot_at_start")
     }
 
     /** A PIN is only usable when both its hash and salt are present. */
@@ -85,11 +92,28 @@ class SettingsStore(private val context: Context) {
         p[Keys.PIN_HASH] != null && p[Keys.PIN_SALT] != null
 
     /**
-     * Clock trusted inside a DataStore edit: never behind the persisted anti-tamper
-     * high-water mark. Rolls the wall clock back cannot shorten a live lockdown.
+     * The authoritative lockdown window. Within one boot the elapsed anchor is used, so a
+     * forward wall-clock change cannot end an active lock; across a boot it falls back to
+     * the wall deadline protected by the high-water mark.
      */
-    private fun guardNow(p: Preferences, now: Long = System.currentTimeMillis()): Long =
-        maxOf(now, p[Keys.SEEN_TIME_HIGHWAT] ?: 0L)
+    private fun lockdownWindow(p: Preferences, wallNow: Long = System.currentTimeMillis()): LockdownWindow =
+        LockdownWindow(
+            wallUntil = p[Keys.LOCKDOWN_UNTIL] ?: 0L,
+            elapsedEnd = p[Keys.LOCKDOWN_ELAPSED_END] ?: 0L,
+            startBootCount = p[Keys.LOCKDOWN_BOOT_AT_START] ?: -1,
+            currentBootCount = currentBootCount(),
+            elapsedNow = SystemClock.elapsedRealtime(),
+            wallNow = maxOf(wallNow, p[Keys.SEEN_TIME_HIGHWAT] ?: 0L),
+        )
+
+    /** A lockdown that leaves the core filter weak is meaningless: force it on atomically. */
+    private fun forceLockdownCore(p: MutablePreferences) {
+        p[Keys.MASTER_ENABLED] = true
+        p[Keys.ALWAYS_ON] = true
+        p[Keys.PORN_GUARD] = true
+        p[Keys.SAFE_SEARCH_FORCE] = true
+        p[Keys.BLOCK_DOH] = true
+    }
 
     val masterEnabled: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.MASTER_ENABLED] ?: false }.distinctUntilChanged()
@@ -121,11 +145,19 @@ class SettingsStore(private val context: Context) {
     val adultExtraDomains: Flow<Set<String>> =
         context.dataStore.data.map { it[Keys.ADULT_EXTRA_DOMAINS] ?: emptySet() }.distinctUntilChanged()
 
-    suspend fun setPornGuard(value: Boolean) =
-        context.dataStore.edit { it[Keys.PORN_GUARD] = value }.let { }
+    suspend fun setPornGuard(value: Boolean) {
+        context.dataStore.edit { p ->
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.PORN_GUARD] = value
+        }
+    }
 
-    suspend fun setSafeSearchForce(value: Boolean) =
-        context.dataStore.edit { it[Keys.SAFE_SEARCH_FORCE] = value }.let { }
+    suspend fun setSafeSearchForce(value: Boolean) {
+        context.dataStore.edit { p ->
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.SAFE_SEARCH_FORCE] = value
+        }
+    }
 
     suspend fun setAdultExtraDomains(domains: Set<String>) =
         context.dataStore.edit { it[Keys.ADULT_EXTRA_DOMAINS] = domains }.let { }
@@ -138,14 +170,26 @@ class SettingsStore(private val context: Context) {
     suspend fun setReduceMotion(value: Boolean) =
         context.dataStore.edit { it[Keys.REDUCE_MOTION] = value }.let { }
 
-    suspend fun setBlockDoh(value: Boolean) =
-        context.dataStore.edit { it[Keys.BLOCK_DOH] = value }.let { }
+    suspend fun setBlockDoh(value: Boolean) {
+        context.dataStore.edit { p ->
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.BLOCK_DOH] = value
+        }
+    }
 
-    suspend fun setBlockAds(value: Boolean) =
-        context.dataStore.edit { it[Keys.BLOCK_ADS] = value }.let { }
+    suspend fun setBlockAds(value: Boolean) {
+        context.dataStore.edit { p ->
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.BLOCK_ADS] = value
+        }
+    }
 
-    suspend fun setBlockNotifications(value: Boolean) =
-        context.dataStore.edit { it[Keys.BLOCK_NOTIFICATIONS] = value }.let { }
+    suspend fun setBlockNotifications(value: Boolean) {
+        context.dataStore.edit { p ->
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.BLOCK_NOTIFICATIONS] = value
+        }
+    }
     val hasPin: Flow<Boolean> =
         context.dataStore.data.map { pinPresent(it) }.distinctUntilChanged()
     val currentStreak: Flow<Int> =
@@ -179,12 +223,14 @@ class SettingsStore(private val context: Context) {
     suspend fun incrementFocusSessions() =
         context.dataStore.edit { it[Keys.FOCUS_SESSIONS_DONE] = (it[Keys.FOCUS_SESSIONS_DONE] ?: 0) + 1 }.let { }
 
-    suspend fun setFeatureEnabled(key: String, enabled: Boolean) =
+    suspend fun setFeatureEnabled(key: String, enabled: Boolean) {
         context.dataStore.edit { p ->
+            if (!enabled && lockdownWindow(p).isActive) return@edit
             val current = (p[Keys.ENABLED_FEATURES] ?: emptySet()).toMutableSet()
             if (enabled) current.add(key) else current.remove(key)
             p[Keys.ENABLED_FEATURES] = current
-        }.let { }
+        }
+    }
 
     /**
      * Mark today as a protected day and update the focus streak. Called once per app open
@@ -207,34 +253,24 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { p ->
             // The store is the enforcement point, not the UI: any caller trying to turn
             // protection off during a live lockdown is refused atomically.
-            if (!value && LockdownGuardPolicy.blocksDisable(
-                    p[Keys.LOCKDOWN_UNTIL] ?: 0L,
-                    guardNow(p),
-                )
-            ) {
-                return@edit
-            }
+            if (!value && lockdownWindow(p).isActive) return@edit
             p[Keys.MASTER_ENABLED] = value
         }
     }
 
-    suspend fun setAlwaysOn(value: Boolean) =
-        context.dataStore.edit { it[Keys.ALWAYS_ON] = value }.let { }
+    suspend fun setAlwaysOn(value: Boolean) {
+        context.dataStore.edit { p ->
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.ALWAYS_ON] = value
+        }
+    }
 
     /** Returns true when the change was applied; enabling requires a usable PIN. */
     suspend fun setStrictMode(value: Boolean): Boolean {
-        // Only a shutdown needs the trusted clock; enabling strict is always allowed.
-        val now = if (!value) trustedNow() else 0L
         var applied = false
         context.dataStore.edit { p ->
             if (value && !StrictPolicy.canEnableStrictMode(pinPresent(p))) return@edit
-            if (!value && LockdownGuardPolicy.blocksStrictChange(
-                    p[Keys.LOCKDOWN_UNTIL] ?: 0L,
-                    guardNow(p, now),
-                )
-            ) {
-                return@edit
-            }
+            if (!value && lockdownWindow(p).isActive) return@edit
             p[Keys.STRICT_MODE] = value
             applied = true
         }
@@ -270,7 +306,6 @@ class SettingsStore(private val context: Context) {
 
     /** Returns true when the PIN was removed; strict mode keeps its credential in place. */
     suspend fun clearPin(): Boolean {
-        val now = trustedNow()
         var cleared = false
         context.dataStore.edit { p ->
             val pin = pinPresent(p)
@@ -279,13 +314,7 @@ class SettingsStore(private val context: Context) {
                 pin,
             )
             if (!StrictPolicy.canClearPin(effectiveStrict, pin)) return@edit
-            if (LockdownGuardPolicy.blocksPinRemoval(
-                    p[Keys.LOCKDOWN_UNTIL] ?: 0L,
-                    guardNow(p, now),
-                )
-            ) {
-                return@edit
-            }
+            if (lockdownWindow(p).isActive) return@edit
             p.remove(Keys.PIN_HASH)
             p.remove(Keys.PIN_SALT)
             cleared = true
@@ -308,6 +337,9 @@ class SettingsStore(private val context: Context) {
             hasPin = pin,
             pornGuard = p[Keys.PORN_GUARD] ?: true,
             safeSearchForce = p[Keys.SAFE_SEARCH_FORCE] ?: true,
+            lockdownUntil = p[Keys.LOCKDOWN_UNTIL] ?: 0L,
+            lockdownElapsedEnd = p[Keys.LOCKDOWN_ELAPSED_END] ?: 0L,
+            lockdownBootAtStart = p[Keys.LOCKDOWN_BOOT_AT_START] ?: -1,
         )
     }
 
@@ -326,10 +358,7 @@ class SettingsStore(private val context: Context) {
             val focusStrict = p[Keys.FOCUS_STRICT] ?: false
             val focusEndsAt = p[Keys.FOCUS_ENDS_AT] ?: 0L
             val focusActive = StrictPolicy.isFocusActive(focusEndsAt, now)
-            val lockdownActive = LockdownGuardPolicy.blocksDisable(
-                p[Keys.LOCKDOWN_UNTIL] ?: 0L,
-                guardNow(p, now),
-            )
+            val lockdownActive = lockdownWindow(p, now).isActive
             val locked = lockdownActive ||
                 StrictPolicy.isMasterLocked(strict, master, focusStrict, focusEndsAt, now)
             if (!locked) p[Keys.MASTER_ENABLED] = false
@@ -377,7 +406,7 @@ class SettingsStore(private val context: Context) {
         return lockRemaining
     }
 
-    private fun currentBootCount(): Int = runCatching {
+    fun currentBootCount(): Int = runCatching {
         android.provider.Settings.Global.getInt(
             context.contentResolver,
             android.provider.Settings.Global.BOOT_COUNT,
@@ -396,18 +425,65 @@ class SettingsStore(private val context: Context) {
     /** 0 = بلا قفل؛ غير ذلك millis انتهاء المدة. القفل مطلق: يُرفع فقط بانتهائه. */
     val lockdownUntil: Flow<Long> =
         context.dataStore.data.map { it[Keys.LOCKDOWN_UNTIL] ?: 0L }.distinctUntilChanged()
+    val lockdownElapsedEnd: Flow<Long> =
+        context.dataStore.data.map { it[Keys.LOCKDOWN_ELAPSED_END] ?: 0L }.distinctUntilChanged()
+    val lockdownBootAtStart: Flow<Int> =
+        context.dataStore.data.map { it[Keys.LOCKDOWN_BOOT_AT_START] ?: -1 }.distinctUntilChanged()
 
-    suspend fun setLockdownUntil(endsAtMs: Long) {
+    /** نافذة القفل الحالية مع لحظة الحساب — الواجهة تعيد الحساب كل ثانية عبر [LockdownWindow.remainingAt]. */
+    val lockdownWindowState: Flow<LockdownWindow> =
+        context.dataStore.data.map { lockdownWindow(it) }.distinctUntilChanged()
+
+    /** True while the lockdown window is live (elapsed-anchored within a boot). */
+    suspend fun isLockdownActiveNow(): Boolean =
+        lockdownWindow(context.dataStore.data.first()).isActive
+
+    suspend fun lockdownRemainingMillis(): Long =
+        lockdownWindow(context.dataStore.data.first()).remainingMillis
+
+    /** Returns true when the value was applied or cleared; false when a live lock refused it. */
+    suspend fun setLockdownUntil(endsAtMs: Long): Boolean {
+        var applied = false
         context.dataStore.edit { p ->
+            val wallNow = maxOf(System.currentTimeMillis(), p[Keys.SEEN_TIME_HIGHWAT] ?: 0L)
             // Never let a caller clear or pre-date a live lockdown with a raw write.
             // Replacing it with a future value is allowed (the user confirmed a new lock).
-            val activeUntil = p[Keys.LOCKDOWN_UNTIL] ?: 0L
-            if (LockdownGuardPolicy.blocksDisable(activeUntil, guardNow(p)) &&
-                endsAtMs <= guardNow(p)
-            ) {
-                return@edit
-            }
+            if (lockdownWindow(p, wallNow).isActive && endsAtMs <= wallNow) return@edit
             p[Keys.LOCKDOWN_UNTIL] = endsAtMs
+            if (endsAtMs > wallNow) {
+                val duration = endsAtMs - wallNow
+                p[Keys.LOCKDOWN_ELAPSED_END] = SystemClock.elapsedRealtime() + duration
+                p[Keys.LOCKDOWN_BOOT_AT_START] = currentBootCount()
+                forceLockdownCore(p)
+            } else {
+                p[Keys.LOCKDOWN_ELAPSED_END] = 0L
+                p[Keys.LOCKDOWN_BOOT_AT_START] = -1
+            }
+            applied = true
+        }
+        return applied
+    }
+
+    /** Re-assert the core filter flags for a live lock (used after boot/package replace). */
+    suspend fun enforceLockdownCore() {
+        context.dataStore.edit { p ->
+            if (!lockdownWindow(p).isActive) return@edit
+            forceLockdownCore(p)
+        }
+    }
+
+    /** Re-anchor the monotonic deadline after a reboot; the lock value itself is unchanged. */
+    suspend fun reanchorLockdown() {
+        context.dataStore.edit { p ->
+            val wallNow = maxOf(System.currentTimeMillis(), p[Keys.SEEN_TIME_HIGHWAT] ?: 0L)
+            val until = p[Keys.LOCKDOWN_UNTIL] ?: 0L
+            if (until > wallNow) {
+                p[Keys.LOCKDOWN_ELAPSED_END] = SystemClock.elapsedRealtime() + (until - wallNow)
+                p[Keys.LOCKDOWN_BOOT_AT_START] = currentBootCount()
+            } else {
+                p[Keys.LOCKDOWN_ELAPSED_END] = 0L
+                p[Keys.LOCKDOWN_BOOT_AT_START] = -1
+            }
         }
     }
 

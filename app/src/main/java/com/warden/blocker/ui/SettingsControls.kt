@@ -1,5 +1,6 @@
 package com.warden.blocker.ui
 
+import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
@@ -19,12 +20,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import com.warden.blocker.system.AdminManager
 import com.warden.blocker.block.LockdownPolicy
 import com.warden.blocker.ui.theme.WardenPalette
+import com.warden.blocker.vpn.VpnController
 
 /**
  * أدوات الحماية والخصوصية التي احتاجتها الأقسام بعد التقسيم — PIN والحماية
@@ -42,8 +43,7 @@ import com.warden.blocker.ui.theme.WardenPalette
 object SettingsControls {
     @Composable
     fun PinCard(vm: WardenViewModel, strict: Boolean, hasPin: Boolean) {
-        val lockdownUntil by vm.lockdownUntil.collectAsState()
-        val lockdownActive = LockdownPolicy.isActive(lockdownUntil, System.currentTimeMillis())
+        val lockdownActive by vm.lockdownActive.collectAsState()
         var showSetPin by remember { mutableStateOf(false) }
         var showRemovePin by remember { mutableStateOf(false) }
         Card(Modifier.fillMaxWidth()) {
@@ -88,8 +88,7 @@ object SettingsControls {
     @Composable
     fun AdminProtectionCard(strict: Boolean, vm: WardenViewModel) {
         val context = LocalContext.current
-        val lockdownUntil by vm.lockdownUntil.collectAsState()
-        val lockdownActive = LockdownPolicy.isActive(lockdownUntil, System.currentTimeMillis())
+        val lockdownActive by vm.lockdownActive.collectAsState()
         var adminActive by remember { mutableStateOf(AdminManager.isActive(context)) }
         val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             adminActive = AdminManager.isActive(context)
@@ -126,41 +125,68 @@ object SettingsControls {
 
     /**
      * بطاقة القفل الزمني (قسم الحماية). القفل مطلق: لا رفع قبل الانتهاء.
-     * التفعيل بخطوتين: بطاقة داعمة → شاشة Device Admin → الكتابة عند العودة الناجحة.
+     * التفعيل بخطوتين: بطاقة داعمة → إذن الفلتر → شاشة Device Admin → الكتابة بعد
+     * التأكد من أن الحجب يعمل فعلاً. لا تُكتب قيمة قبل نجاح السلسلة كلها.
      */
     @Composable
     fun LockdownCard(vm: WardenViewModel) {
         val context = LocalContext.current
-        val lockdownUntil by vm.lockdownUntil.collectAsState()
+        val lockdownActive by vm.lockdownActive.collectAsState()
+        val remaining by vm.lockdownRemaining.collectAsState()
         val streak by vm.currentStreak.collectAsState()
         val sessions by vm.focusSessionsDone.collectAsState()
-        val now = remember { mutableStateOf(System.currentTimeMillis()) }
-        androidx.compose.runtime.LaunchedEffect(Unit) {
-            while (true) {
-                now.value = System.currentTimeMillis()
-                kotlinx.coroutines.delay(1000)
-            }
-        }
-        val active = LockdownPolicy.isActive(lockdownUntil, now.value)
-        val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            // موافقة admin (أو موجود سلفاً) → اكتب القفل؛ رفض/تراجع → أهدر القرار.
-            if (AdminManager.isActive(context) && vm.hasStagedLockdown()) {
-                vm.commitLockdown()
-            } else {
-                vm.discardStagedLockdown()
-            }
-        }
 
         var pendingDurationMs by remember { mutableStateOf<Long?>(null) }
+        var showNewLockOptions by remember { mutableStateOf(false) }
         var manualAmount by remember { mutableStateOf("") }
         var manualUnit by remember { mutableStateOf(LockdownPolicy.DurationUnit.MINUTES) }
         var manualError by remember { mutableStateOf(false) }
+        var activationError by remember { mutableStateOf<String?>(null) }
+
+        fun commitStaged() {
+            vm.commitLockdown { success ->
+                if (success) {
+                    activationError = null
+                    showNewLockOptions = false
+                } else {
+                    activationError = "تعذّر تشغيل فلتر الحماية — لم يُكتب القفل. حاول مرة أخرى."
+                }
+            }
+        }
+
+        val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            // موافقة admin (أو موجود سلفاً) → أكمل؛ رفض/تراجع → أهدر القرار.
+            if (AdminManager.isActive(context) && vm.hasStagedLockdown()) {
+                commitStaged()
+            } else {
+                vm.discardStagedLockdown()
+                activationError = "لم تُفعّل حماية الإلغاء — لم يُكتب القفل."
+            }
+        }
+
+        val vpnLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                if (AdminManager.isActive(context)) commitStaged()
+                else adminLauncher.launch(AdminManager.enableIntent(context))
+            } else {
+                vm.discardStagedLockdown()
+                activationError = "لم يُمنح إذن الفلتر — لم يُكتب القفل."
+            }
+        }
+
+        fun continueActivation() {
+            val consent = VpnController.consentIntent(context)
+            when {
+                consent != null -> vpnLauncher.launch(consent)
+                AdminManager.isActive(context) -> commitStaged()
+                else -> adminLauncher.launch(AdminManager.enableIntent(context))
+            }
+        }
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text("قفل الحماية", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                if (active) {
-                    val remaining = lockdownUntil - now.value
+                if (lockdownActive) {
                     Text(
                         formatRemaining(remaining),
                         style = MaterialTheme.typography.headlineSmall,
@@ -172,14 +198,35 @@ object SettingsControls {
                         style = MaterialTheme.typography.bodySmall,
                         color = WardenPalette.TextMuted,
                     )
+                    if (!showNewLockOptions) {
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = {
+                            activationError = null
+                            showNewLockOptions = true
+                        }) { Text("قفل جديد") }
+                    }
                 } else {
                     Text(
                         "اختر مدة تُقفل فيها الحماية: لا إيقاف ولا حذف طوالها.",
                         style = MaterialTheme.typography.bodySmall,
                         color = WardenPalette.TextMuted,
                     )
+                }
+
+                if (!lockdownActive || showNewLockOptions) {
+                    if (lockdownActive) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "القفل الجديد يبدأ من الآن ويستبدل المدة الحالية بالكامل.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = WardenPalette.Amber,
+                        )
+                    }
                     Spacer(Modifier.height(10.dp))
-                    QuickDurationGrid { durationMs -> pendingDurationMs = durationMs }
+                    QuickDurationGrid { durationMs ->
+                        activationError = null
+                        pendingDurationMs = durationMs
+                    }
                     Spacer(Modifier.height(12.dp))
                     Text(
                         "أو مدة مخصصة (1 دقيقة – 12 شهراً)",
@@ -190,8 +237,11 @@ object SettingsControls {
                     OutlinedTextField(
                         value = manualAmount,
                         onValueChange = {
-                            if (it.length <= 5 && it.all(Char::isDigit)) {
-                                manualAmount = it
+                            // نقبل الأرقام العربية/الفارسية ونحوّلها فوراً إلى ASCII،
+                            // لأن toLongOrNull لا يفهم ٠١٢.
+                            val normalized = LockdownPolicy.normalizeDigits(it)
+                            if (normalized.length <= 5 && normalized.all { c -> c in '0'..'9' }) {
+                                manualAmount = normalized
                                 manualError = false
                             }
                         },
@@ -218,13 +268,14 @@ object SettingsControls {
                     Button(
                         onClick = {
                             val millis = LockdownPolicy.validateManual(
-                                manualAmount.toLongOrNull() ?: 0L,
+                                LockdownPolicy.parseManualAmount(manualAmount) ?: 0L,
                                 manualUnit,
                             )
                             if (millis == null) {
                                 manualError = true
                             } else {
                                 manualError = false
+                                activationError = null
                                 pendingDurationMs = millis
                             }
                         },
@@ -238,6 +289,15 @@ object SettingsControls {
                         )
                     }
                 }
+
+                activationError?.let { message ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
         pendingDurationMs?.let { durationMs ->
@@ -248,13 +308,9 @@ object SettingsControls {
                 onDismiss = { pendingDurationMs = null },
                 onConfirmed = {
                     pendingDurationMs = null
-                    vm.stageLockdownForDuration(durationMs) {
-                        if (AdminManager.isActive(context)) {
-                            vm.commitLockdown()
-                        } else {
-                            adminLauncher.launch(AdminManager.enableIntent(context))
-                        }
-                    }
+                    activationError = null
+                    vm.stageLockdownForDuration(durationMs)
+                    continueActivation()
                 },
             )
         }

@@ -84,11 +84,13 @@ class WardenTileService : TileService() {
         val snapshot = settings.protectionSnapshot()
         val now = settings.peekNow()
         val focusActive = StrictPolicy.isFocusActive(snapshot.focusEndsAt, now)
+        val lockdownActive = settings.isLockdownActiveNow()
         qsTile?.apply {
-            state = if (snapshot.masterEnabled || focusActive) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+            state = if (snapshot.masterEnabled || focusActive || lockdownActive) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
             label = "Warden"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 subtitle = when {
+                    lockdownActive -> "Lockdown"
                     focusActive && snapshot.focusStrict -> "Strict focus"
                     focusActive -> "Focus lock"
                     snapshot.strictMode && snapshot.masterEnabled -> "Strict lock"

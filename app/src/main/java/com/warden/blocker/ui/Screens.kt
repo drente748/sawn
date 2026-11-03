@@ -94,7 +94,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.warden.blocker.block.AdultHosts
-import com.warden.blocker.block.LockdownPolicy
 import com.warden.blocker.data.BlockType
 import com.warden.blocker.data.BlockedItem
 import com.warden.blocker.data.InterceptMode
@@ -147,8 +146,8 @@ fun HomeScreen(
     val items by vm.items.collectAsStateWithLifecycle()
     val pornGuard by vm.pornGuard.collectAsStateWithLifecycle()
     val reduceMotion by vm.reduceMotion.collectAsStateWithLifecycle()
-    val lockdownUntil by vm.lockdownUntil.collectAsStateWithLifecycle()
-    val lockdownActive = LockdownPolicy.isActive(lockdownUntil, System.currentTimeMillis())
+    val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
+    val lockdownRemaining by vm.lockdownRemaining.collectAsStateWithLifecycle()
     val safeSearchForce by vm.safeSearchForce.collectAsStateWithLifecycle()
     val vpnRunning by WardenVpnService.runningFlow.collectAsStateWithLifecycle()
     val a11yGranted = !needsSetup
@@ -170,7 +169,7 @@ fun HomeScreen(
         now = System.currentTimeMillis()
     }
     val focusActive = focusEndsAt > now
-    val blockingNow = enabled || focusActive
+    val blockingNow = enabled || focusActive || lockdownActive
     val lockedNow = !settingsReady || strictLocked || (focusActive && focusStrict)
     val lockLabel = when {
         !settingsReady -> "… checking protection"
@@ -294,7 +293,7 @@ fun HomeScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        "قفل الحماية نشط — الحماية والحذف ممنوعان حتى انتهاء المدة",
+                        "قفل الحماية نشط — ${SettingsControls.formatRemaining(lockdownRemaining)}",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = WardenPalette.GreenDark,

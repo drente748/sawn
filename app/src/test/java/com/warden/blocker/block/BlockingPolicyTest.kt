@@ -24,4 +24,7 @@ class BlockingPolicyTest {
 
     @Test fun idleWhenNothingActive() =
         assertFalse(BlockingPolicy.isActive(true, false, 0L, now, false))
+
+    @Test fun lockdownForcesBlockingWithoutMasterOrSchedule() =
+        assertTrue(BlockingPolicy.isActive(false, false, 0L, now, false, lockdownActive = true))
 }

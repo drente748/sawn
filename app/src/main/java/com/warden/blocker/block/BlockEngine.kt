@@ -1,5 +1,6 @@
 package com.warden.blocker.block
 
+import android.os.SystemClock
 import com.warden.blocker.data.BlockRepository
 import com.warden.blocker.data.ProtectionSnapshot
 import com.warden.blocker.data.SettingsStore
@@ -42,15 +43,29 @@ class BlockEngine(
             focusEndsAt = snapshot.focusEndsAt,
             now = now,
             anyScheduleActive = ScheduleEvaluator.anyActive(repo.enabledSchedules(), cal),
+            lockdownActive = lockdownActive(snapshot, now),
         )
     }
+
+    private fun lockdownActive(snapshot: ProtectionSnapshot, now: Long): Boolean =
+        LockdownWindow(
+            wallUntil = snapshot.lockdownUntil,
+            elapsedEnd = snapshot.lockdownElapsedEnd,
+            startBootCount = snapshot.lockdownBootAtStart,
+            currentBootCount = settings.currentBootCount(),
+            elapsedNow = SystemClock.elapsedRealtime(),
+            wallNow = now,
+        ).isActive
 
     suspend fun blockedDomains(readOnly: Boolean = false): List<String> {
         val snapshot = settings.protectionSnapshot()
         val now = if (readOnly) settings.peekNow() else settings.trustedNow()
-        if (!isActive(snapshot, now, null)) return emptyList()
+        val lockdown = lockdownActive(snapshot, now)
+        if (!lockdown && !isActive(snapshot, now, null)) return emptyList()
         val domains = repo.enabledDomains().toMutableList()
-        if (snapshot.pornGuard) {
+        // A live lockdown always keeps the adult core on, even if a stale/corrupt pref
+        // says otherwise.
+        if (snapshot.pornGuard || lockdown) {
             domains += AdultHosts.ALL
             domains += AdultHosts.REDDIT_MEDIA
         }
