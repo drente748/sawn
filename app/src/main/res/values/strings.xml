@@ -5,7 +5,7 @@
     <string name="vpn_notification_channel">Blocking active</string>
     <string name="vpn_notification_title">Warden is protecting your focus</string>
     <string name="vpn_notification_text">Blocked sites are being filtered.</string>
-    <string name="device_admin_description">Prevents Warden from being uninstalled while blocking is active. Warden requests no other admin powers.</string>
+    <string name="device_admin_description" translatable="true">تمنع إزالة Warden طوال فعالية الحماية. لا تطلب Warden أي صلاحيات إدارية أخرى.</string>
     <string name="monetization_notice">Warden is a commercial, free-to-use app. A reserved ad slot may appear below the Home screen — never on block or pause screens. A paid plan (no ads, more power) arrives later.</string>
     <string name="guard_health_channel">Protection health</string>
     <string name="guard_health_channel_desc">Alerts you if Warden\'s protection is no longer active</string>

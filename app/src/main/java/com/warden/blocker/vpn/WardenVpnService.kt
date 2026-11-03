@@ -9,9 +9,12 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.VpnService
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.warden.blocker.MainActivity
 import com.warden.blocker.R
 import com.warden.blocker.WardenApp
@@ -110,7 +113,18 @@ class WardenVpnService : VpnService() {
 
     private fun startTunnel() {
         if (tunnel != null) { scope.launch { safeRefreshBlocklist() }; return }
-        startForeground(NOTIF_ID, buildNotification())
+        // Android 14+ يتطلب تحديد نوع الخدمة الأمامية صراحةً مع الاستدعاء —
+        // ServiceCompat يعالج الإصدارات تحت ذلك تلقائياً.
+        ServiceCompat.startForeground(
+            this,
+            NOTIF_ID,
+            buildNotification(),
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            } else {
+                0
+            },
+        )
 
         // Capture the real resolvers BEFORE establish() — afterwards the active network is us.
         upstreamDns = systemDnsServers()
