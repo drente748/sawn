@@ -19,6 +19,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.BorderStroke
+
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +51,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
@@ -89,6 +93,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.drawscope.Stroke
+
+import androidx.compose.foundation.Canvas
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -115,9 +123,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * The one-page dashboard: status hero, master switch, focus session, and every
- * protection as a bright, self-describing tile. Nothing important hides behind
- * a tab bar — detail screens open from the tiles and come back with a back arrow.
+ * الشاشة الرئيسية — تصميم «نافذة الصباح» (v2):
+ * بطل واحد كبير (حلقة الحماية الحيّة)، تحته مفتاح الحماية، ثم إجراءات هادئة،
+ * ثم أزرار الإدارة، ثم المردود. أبيض هادئ + أخضر أمان، بلا تدرجات ولا
+ * بطاقات متلونة. عربي RTL.
  */
 @Composable
 fun HomeScreen(
@@ -149,11 +158,10 @@ fun HomeScreen(
     val lockdownRemaining by vm.lockdownRemaining.collectAsStateWithLifecycle()
     val safeSearchForce by vm.safeSearchForce.collectAsStateWithLifecycle()
     val vpnRunning by WardenVpnService.runningFlow.collectAsStateWithLifecycle()
-    val a11yGranted = !needsSetup
     val coverage = coverageLevel(
         CoverageState(
             vpn = vpnRunning,
-            accessibility = a11yGranted,
+            accessibility = !needsSetup,
             safeSearchDns = safeSearchForce && pornGuard,
         ),
     )
@@ -170,103 +178,88 @@ fun HomeScreen(
     val focusActive = focusEndsAt > now
     val blockingNow = enabled || focusActive || lockdownActive
     val lockedNow = !settingsReady || strictLocked || (focusActive && focusStrict)
-    val lockLabel = when {
-        !settingsReady -> "… checking protection"
-        focusActive && focusStrict -> "🔒 Strict focus running"
-        focusActive -> "🔒 Locked during focus"
-        else -> "🔒 Strict lock on"
-    }
 
     Column(
         Modifier
             .fillMaxSize()
-            .background(WardenPalette.Canvas)
+            .background(WardenPalette.Bg)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 22.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        // ── Brand row: name + settings shortcut ──────────────────────────────────
+        // ── الترويسة: الاسم + الإعدادات ───────────────────────────────────
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "Warden",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = WardenPalette.Ink,
-                )
-                Text(
-                    "Your attention, fenced in.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = WardenPalette.Muted,
-                )
-            }
+            Text(
+                "Warden",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = WardenPalette.Zaytoun,
+                modifier = Modifier.weight(1f),
+            )
             IconButton(
                 onClick = onOpenSettings,
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(WardenPalette.BlueSoft),
+                    .background(WardenPalette.Halek),
             ) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = WardenPalette.Blue)
+                Icon(Icons.Filled.Settings, contentDescription = "الإعدادات", tint = WardenPalette.Safeen, modifier = Modifier.size(21.dp))
             }
         }
 
-        // ── Hero: gradient shield that breathes while protection is live ─────────
-        ProtectionHero(
+        // ── البطل: حلقة الحماية الحيّة ───────────────────────────────────
+        GuardianRing(
             blockingNow = blockingNow,
-            focusActive = focusActive,
             needsSetup = needsSetup,
-            activeCount = activeCount,
-            pornGuard = pornGuard,
             coverage = coverage,
+            lockdownActive = lockdownActive,
+            lockdownRemaining = lockdownRemaining,
             reduceMotion = reduceMotion,
-            onClick = { if (needsSetup) onOpenSetup() },
+            streak = streak,
         )
 
-        // Setup / health notices (bright, not alarming)
-        if (needsSetup) {
-            ActionCard(
-                icon = Icons.Filled.CheckCircle,
-                title = "Finish setup",
-                body = "Grant accessibility so Warden can block apps and feeds.",
-                soft = WardenPalette.OrangeSoft,
-                strong = WardenPalette.Orange,
+        // ── تحذير واحد فقط عند الحاجة ────────────────────────────────────
+        when {
+            needsSetup -> QuietActionRow(
+                text = "أكمل الإعداد لتفعيل الحماية الكاملة",
                 onClick = onOpenSetup,
+                urgent = false,
             )
-        } else if (settingsReady && blockingNow && !vpnRunning) {
-            ActionCard(
-                icon = Icons.Filled.ErrorOutline,
-                title = "Protection paused",
-                body = "Blocking should be on but the filter isn't running — tap to restart.",
-                soft = MaterialTheme.colorScheme.errorContainer,
-                strong = MaterialTheme.colorScheme.error,
+            settingsReady && blockingNow && !vpnRunning -> QuietActionRow(
+                text = "الفلتر توقف — اضغط لإعادة تشغيله",
                 onClick = { onToggleBlocking(true) },
+                urgent = true,
             )
         }
 
-        // ── Master guard (hold-to-off) ───────────────────────────────────────────
+        // ── مفتاح الحماية الرئيسي ────────────────────────────────────────
         Surface(
-            shape = RoundedCornerShape(22.dp),
+            shape = RoundedCornerShape(24.dp),
             color = WardenPalette.Card,
-            shadowElevation = 1.dp,
+            border = BorderStroke(1.dp, WardenPalette.Fasal),
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 18.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Master guard", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        if (blockingNow) "Sites, apps and feeds are under guard." else "Everything is allowed right now.",
+                        "الحماية",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WardenPalette.Zaytoun,
+                    )
+                    Text(
+                        if (blockingNow) "مفعّلة الآن — كل شيء تحت الحرس." else "مطفأة. اضغط للتشغيل.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = WardenPalette.Muted,
+                        color = WardenPalette.Ghaim,
                     )
                 }
                 HoldToGuardSwitch(
                     enabled = enabled,
                     hasPin = hasPin,
                     locked = lockedNow,
-                    lockLabel = lockLabel,
+                    lockLabel = if (focusActive && focusStrict) "جلسة صارمة جارية" else if (focusActive) "مقفل خلال الجلسة" else "قفل صارم مفعّل",
                     lockdownActive = lockdownActive,
                     onToggle = onToggleBlocking,
                     onPinRequired = { showVerify = true },
@@ -274,174 +267,46 @@ fun HomeScreen(
             }
         }
 
-        // ── حالة القفل الزمني ───────────────────────────────────────────────────
-        if (lockdownActive) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = WardenPalette.GreenSoft,
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        Icons.Filled.Lock,
-                        contentDescription = null,
-                        tint = WardenPalette.GreenDark,
-                        modifier = Modifier.size(22.dp),
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        "قفل الحماية نشط — ${SettingsControls.formatRemaining(lockdownRemaining)}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = WardenPalette.GreenDark,
-                    )
-                }
-            }
-        }
-
-        // ── Focus session ────────────────────────────────────────────────────────
+        // ── جلسة التركيز ────────────────────────────────────────────────
         FocusCard(focusEndsAt = focusEndsAt, strict = focusStrict, onStart = onStartFocus, onCancel = onCancelFocus)
 
-        // بطاقة حجم قائمة الحجب — رقم ثابت من القوائم المدمجة (قرار 2026-11-01: لا عدّاد حي).
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = WardenPalette.SurfaceSoft,
-        ) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    Icons.Filled.Shield,
-                    contentDescription = null,
-                    tint = WardenPalette.Green,
-                    modifier = Modifier.size(24.dp),
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "${AdultHosts.includedCount()} نطاقاً في قائمة الحجب",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "تُحدَّث من مصادر مجتمعية — حدّثها يدوياً من الإعدادات",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WardenPalette.TextMuted,
-                    )
-                }
-            }
+        // ── الإدارة: شبكة 2×2 هادئة ─────────────────────────────────────
+        Text(
+            "الإدارة",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = WardenPalette.Ghaim,
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuietTile(Modifier.weight(1f), Icons.Filled.Block, "المواقع والتطبيقات",
+                if (activeCount > 0) "$activeCount مُحجوب" else "لا شيء بعد", onOpenBlocklist)
+            QuietTile(Modifier.weight(1f), Icons.Filled.Schedule, "الجداول", "تشغيل تلقائي", onOpenSchedules)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuietTile(Modifier.weight(1f), Icons.Filled.Insights, "الاستخدام", "يومك بنظرة", onOpenStats)
+            QuietTile(Modifier.weight(1f), Icons.Filled.Settings, "الإعدادات", "الأقسام الكاملة", onOpenSettings)
         }
 
-        // ── Everything you can guard: the whole feature map on one page ──────────
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                "Everything you can guard",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold,
-                color = WardenPalette.Ink,
-            )
-            Text(
-                "A whole protection suite on one page — tap any card to fine-tune it.",
-                style = MaterialTheme.typography.bodySmall,
-                color = WardenPalette.Muted,
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FeatureTile(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Block,
-                label = "Sites & apps",
-                detail = if (activeCount > 0) "$activeCount guarded" else "none yet",
-                strong = WardenPalette.Blue,
-                soft = WardenPalette.BlueSoft,
-                onClick = onOpenBlocklist,
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FeatureTile(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Schedule,
-                label = "Schedules",
-                detail = "auto on/off",
-                strong = WardenPalette.Orange,
-                soft = WardenPalette.OrangeSoft,
-                onClick = onOpenSchedules,
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FeatureTile(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Insights,
-                label = "Usage",
-                detail = "see your day",
-                strong = WardenPalette.Teal,
-                soft = WardenPalette.TealSoft,
-                onClick = onOpenStats,
-            )
-            FeatureTile(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Settings,
-                label = "Settings",
-                detail = "filters & locks",
-                strong = WardenPalette.Indigo,
-                soft = WardenPalette.IndigoSoft,
-                onClick = onOpenSettings,
-            )
-        }
-
-        // ── Your wins: always visible, no separate tab needed ────────────────────
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                "Your wins",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold,
-                color = WardenPalette.Ink,
-            )
-            Text(
-                "Small numbers that add up to a quieter mind.",
-                style = MaterialTheme.typography.bodySmall,
-                color = WardenPalette.Muted,
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            WinCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.LocalFireDepartment,
-                value = "$streak",
-                label = if (streak == 1) "day streak" else "days streak",
-                strong = WardenPalette.Orange,
-                soft = WardenPalette.AmberSoft,
-                onClick = onOpenStats,
-            )
-            WinCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.EmojiEvents,
-                value = "$bestStreak",
-                label = "best streak",
-                strong = WardenPalette.Violet,
-                soft = WardenPalette.VioletSoft,
-                onClick = onOpenStats,
-            )
-            WinCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Timer,
-                value = "$sessions",
-                label = "focus runs",
-                strong = WardenPalette.Blue,
-                soft = WardenPalette.BlueSoft,
-                onClick = onOpenStats,
-            )
+        // ── المردود: صف مضغوط ──────────────────────────────────────────
+        Text(
+            "مردودك",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = WardenPalette.Ghaim,
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatPill(Modifier.weight(1f), "$streak", if (streak == 1) "يوم متصل" else "أيام متصلة")
+            StatPill(Modifier.weight(1f), "$bestStreak", "الأطول")
+            StatPill(Modifier.weight(1f), "$sessions", "جلسة تركيز")
         }
 
         AdSlotBanner(slot = AdSlot.HOME_BANNER)
+        Spacer(Modifier.height(8.dp))
     }
 
     if (showVerify) {
         VerifyPinDialog(
-            title = "Enter PIN to stop blocking",
+            title = "أدخل الرقم لإيقاف الحماية",
             verify = vm::verifyPin,
             onSuccess = { showVerify = false; onToggleBlocking(false) },
             onDismiss = { showVerify = false },
@@ -449,247 +314,154 @@ fun HomeScreen(
     }
 }
 
-/** Bright gradient hero: the app's emotional core, readable in both guard states. */
+/** البطل: حلقة حماية دائرية كبيرة، حالة الحماية في مركزها، تتنفس بهدوء. */
 @Composable
-private fun ProtectionHero(
+private fun GuardianRing(
     blockingNow: Boolean,
-    focusActive: Boolean,
     needsSetup: Boolean,
-    activeCount: Int,
-    pornGuard: Boolean,
     coverage: CoverageLevel,
+    lockdownActive: Boolean,
+    lockdownRemaining: Long,
     reduceMotion: Boolean,
-    onClick: () -> Unit,
+    streak: Int,
 ) {
-    val gradient = if (blockingNow) {
-        Brush.linearGradient(
-            listOf(WardenPalette.HeroStart, WardenPalette.HeroMid, WardenPalette.HeroEnd),
-        )
-    } else {
-        Brush.linearGradient(listOf(WardenPalette.AmberSoft, WardenPalette.OrangeSoft))
-    }
-    val title = when {
-        needsSetup -> "Finish setup"
-        focusActive -> "Focus is live"
-        blockingNow -> "You're protected"
-        else -> "Protection is off"
-    }
-    val subtitle = when {
-        needsSetup -> "Tap to grant the permissions Warden needs."
-        focusActive -> "The guard runs until the session ends."
-        blockingNow -> buildString {
-            append("$activeCount blocked")
-            if (pornGuard) append(" · SafeSearch")
-        }
-        else -> "Tap the switch below to start guarding."
-    }
-    val ink = if (blockingNow) Color.White else WardenPalette.Ink
+    val infinite = rememberInfiniteTransition(label = "ringBreath")
+    val ringAlpha by infinite.animateFloat(
+        initialValue = 0.72f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2800, easing = LinearEasing), RepeatMode.Reverse),
+        label = "ringAlpha",
+    )
+    val breath = if (reduceMotion || !blockingNow) 1f else ringAlpha
 
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(gradient)
-            .clickable { onClick() }
-            .padding(22.dp),
+    val ringColor = when {
+        needsSetup -> WardenPalette.Ramil
+        blockingNow && coverage == CoverageLevel.Full -> WardenPalette.Safeen
+        blockingNow -> WardenPalette.Safeen
+        else -> WardenPalette.Fasal
+    }
+    val centerMark = when {
+        needsSetup -> "…"
+        blockingNow -> "✓"
+        else -> "○"
+    }
+    val headline = when {
+        needsSetup -> "لنكمل الإعداد"
+        lockdownActive -> "مقفل زمنياً"
+        blockingNow -> "أنت محميّ"
+        else -> "الحماية مطفأة"
+    }
+    val subline = when {
+        needsSetup -> "امنح إذن إمكانية الوصول لتبدأ الحماية"
+        lockdownActive -> "الحماية والحذف ممنوعان — ${SettingsControls.formatRemaining(lockdownRemaining)}"
+        blockingNow && coverage == CoverageLevel.Full -> "كل طبقات الحماية تعمل الآن"
+        blockingNow -> "طبقة أو أكثر تحتاج انتباهك من الإعدادات"
+        else -> "اضغط مفتاح الحماية أدناه لتفعيلها"
+    }
+
+    Surface(
+        shape = RoundedCornerShape(26.dp),
+        color = WardenPalette.Halek,
+        border = BorderStroke(1.dp, WardenPalette.Fasal),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            ShieldBadge(active = blockingNow, onGradient = blockingNow, reduceMotion = reduceMotion)
-
-            Column(Modifier.weight(1f)) {
+        Row(
+            Modifier.fillMaxWidth().padding(22.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(96.dp)) {
+                Canvas(Modifier.fillMaxSize().scale(breath)) {
+                    drawCircle(color = ringColor, style = Stroke(width = 7.dp.toPx()))
+                    drawCircle(color = WardenPalette.Card, radius = size.minDimension / 2f - 14.dp.toPx())
+                }
                 Text(
-                    title,
+                    centerMark,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = ringColor,
+                )
+            }
+            Spacer(Modifier.width(20.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    headline,
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = ink,
+                    fontWeight = FontWeight.Bold,
+                    color = WardenPalette.Zaytoun,
                 )
                 Text(
-                    subtitle,
+                    subline,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (blockingNow) Color.White.copy(alpha = 0.86f) else WardenPalette.Muted,
+                    color = WardenPalette.Ghaim,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                if (!needsSetup) {
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        HeroChip(
-                            icon = Icons.Filled.Shield,
-                            label = if (pornGuard) "Porn Guard" else "No filter",
-                            onGradient = blockingNow,
-                        )
-                        HeroChip(
-                            icon = Icons.Filled.Timer,
-                            label = if (focusActive) "Focus" else "No focus",
-                            onGradient = blockingNow,
-                        )
-                    }
+                if (blockingNow && streak > 0) {
+                    Text(
+                        if (streak == 1) "يوم واحد متصل بلا رجوع" else "$streak أيام متصلة بلا رجوع",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WardenPalette.Safeen,
+                    )
                 }
             }
-            CoverageRing(coverage = coverage, onGradient = blockingNow)
         }
     }
 }
 
-/**
- * حلقة التغطية: ثلاث نقاط من مصادر حقيقية (VPN / إمكانية الوصول / SafeSearch).
- * أخضر: كل نقطة تعمل؛ كهرماني: نقطة ناقصة؛ رمادي: الحماية مطفأة.
- */
+/** صف إجراء هادئ واحد — بديل بطاقات التحذير الملوّنة السابقة. */
 @Composable
-private fun CoverageRing(coverage: CoverageLevel, onGradient: Boolean) {
-    val on = coverage == CoverageLevel.Full
-    val off = coverage == CoverageLevel.Off
-    val dotColor = when {
-        off -> WardenPalette.TextMuted
-        on -> if (onGradient) Color.White else WardenPalette.Green
-        else -> WardenPalette.Amber
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        repeat(3) { i ->
-            val lit = when (coverage) {
-                CoverageLevel.Full -> true
-                CoverageLevel.Off -> false
-                CoverageLevel.Partial -> true
-            }
-            Box(
-                Modifier
-                    .size(9.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (lit && !off) {
-                            dotColor.copy(alpha = if (onGradient) 0.55f + 0.45f * (1 - i) else 1f - 0.25f * i)
-                        } else {
-                            dotColor.copy(alpha = 0.3f)
-                        }
-                    ),
-            )
-        }
-    }
-}
-
-/** The breathing shield mark, now a real icon instead of an emoji. */
-@Composable
-private fun ShieldBadge(active: Boolean, onGradient: Boolean, reduceMotion: Boolean) {
-    val infinite = rememberInfiniteTransition(label = "shieldPulse")
-    val scale by infinite.animateFloat(
-        initialValue = if (active) 0.94f else 1f,
-        targetValue = if (active) 1.06f else 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "shieldPulseScale",
-    )
-    Box(
-        Modifier
-            .size(76.dp)
-            .scale(if (reduceMotion) 1f else scale)
-            .clip(CircleShape)
-            .background(
-                if (onGradient) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.85f),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.Filled.Shield,
-            contentDescription = null,
-            tint = if (onGradient) Color.White else WardenPalette.Orange,
-            modifier = Modifier.size(42.dp),
-        )
-    }
-}
-
-@Composable
-private fun HeroChip(icon: ImageVector, label: String, onGradient: Boolean) {
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(50))
-            .background(if (onGradient) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.65f))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(13.dp), tint = if (onGradient) Color.White else WardenPalette.Ink)
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = if (onGradient) Color.White else WardenPalette.Ink,
-        )
-    }
-}
-
-/** A bright call-to-action card: coloured icon badge, clear copy, chevron. */
-@Composable
-private fun ActionCard(
-    icon: ImageVector,
-    title: String,
-    body: String,
-    soft: Color,
-    strong: Color,
-    onClick: () -> Unit,
-) {
+private fun QuietActionRow(text: String, onClick: () -> Unit, urgent: Boolean) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(soft)
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (urgent) WardenPalette.RamilSoft else WardenPalette.Halek)
             .clickable { onClick() }
-            .padding(16.dp),
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(strong),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = WardenPalette.Ink)
-            Text(body, style = MaterialTheme.typography.bodySmall, color = WardenPalette.Muted)
-        }
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = strong)
+        Icon(
+            if (urgent) Icons.Filled.ErrorOutline else Icons.Filled.CheckCircle,
+            contentDescription = null,
+            tint = if (urgent) WardenPalette.Ramil else WardenPalette.Safeen,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = WardenPalette.Zaytoun,
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = WardenPalette.Ghaim, modifier = Modifier.size(18.dp))
     }
 }
 
-/** One feature tile: pastel surface, saturated icon badge, label + live status. */
+/** بلاطة إدارة هادئة: أيقونة واحدة ملوّنة، الباقي نص عربي نظيف. */
 @Composable
-private fun FeatureTile(
-    modifier: Modifier,
-    icon: ImageVector,
-    label: String,
-    detail: String,
-    strong: Color,
-    soft: Color,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(soft)
-            .clickable { onClick() }
-            .scaleOnPress()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+private fun QuietTile(modifier: Modifier, icon: ImageVector, label: String, detail: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = WardenPalette.Card,
+        border = BorderStroke(1.dp, WardenPalette.Fasal),
+        modifier = modifier.clickable { onClick() },
     ) {
-        Box(
-            Modifier.size(44.dp).clip(RoundedCornerShape(15.dp)).background(strong),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(23.dp))
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, tint = WardenPalette.Safeen, modifier = Modifier.size(22.dp))
             Text(
                 label,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = WardenPalette.Ink,
+                fontWeight = FontWeight.SemiBold,
+                color = WardenPalette.Zaytoun,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 detail,
                 style = MaterialTheme.typography.bodySmall,
-                color = WardenPalette.Muted,
+                color = WardenPalette.Ghaim,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -697,42 +469,32 @@ private fun FeatureTile(
     }
 }
 
-/** A clickable "win" stat with its own colour and icon. */
+/** رقاقة إحصاء صغيرة — الرقم فقط، هادئ بلا أيقونة. */
 @Composable
-private fun WinCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    value: String,
-    label: String,
-    strong: Color,
-    soft: Color,
-    onClick: () -> Unit,
-) {
+private fun StatPill(modifier: Modifier, value: String, label: String) {
     Column(
         modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(soft)
-            .clickable { onClick() }
-            .scaleOnPress()
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .clip(RoundedCornerShape(16.dp))
+            .background(WardenPalette.Halek)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = strong, modifier = Modifier.size(20.dp))
         Text(
             value,
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = WardenPalette.Ink,
+            fontWeight = FontWeight.Bold,
+            color = WardenPalette.Zaytoun,
         )
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
-            color = WardenPalette.Muted,
+            color = WardenPalette.Ghaim,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
     }
 }
+
 
 /** Shared back header for every detail screen. */
 @Composable

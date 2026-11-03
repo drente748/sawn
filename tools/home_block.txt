@@ -1,0 +1,372 @@
+/**
+ * الشاشة الرئيسية — تصميم «نافذة الصباح» (v2):
+ * بطل واحد كبير (حلقة الحماية الحيّة)، تحته مفتاح الحماية، ثم إجراءات هادئة،
+ * ثم أزرار الإدارة، ثم المردود. أبيض هادئ + أخضر أمان، بلا تدرجات ولا
+ * بطاقات متلونة. عربي RTL.
+ */
+@Composable
+fun HomeScreen(
+    vm: WardenViewModel,
+    onToggleBlocking: (Boolean) -> Unit,
+    onStartFocus: (Int, Boolean) -> Unit,
+    onCancelFocus: () -> Unit,
+    onOpenSetup: () -> Unit,
+    onOpenBlocklist: () -> Unit = {},
+    onOpenSchedules: () -> Unit = {},
+    onOpenStats: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+) {
+    val context = LocalContext.current
+    val needsSetup = !PermissionsHelper.essentialsGranted(context)
+    val enabled by vm.masterEnabled.collectAsStateWithLifecycle()
+    val hasPin by vm.hasPin.collectAsStateWithLifecycle()
+    val streak by vm.currentStreak.collectAsStateWithLifecycle()
+    val bestStreak by vm.longestStreak.collectAsStateWithLifecycle()
+    val sessions by vm.focusSessionsDone.collectAsStateWithLifecycle()
+    val focusEndsAt by vm.focusEndsAt.collectAsStateWithLifecycle()
+    val focusStrict by vm.focusStrict.collectAsStateWithLifecycle()
+    val strictLocked by vm.strictLocked.collectAsStateWithLifecycle()
+    val settingsReady by vm.settingsReady.collectAsStateWithLifecycle()
+    val items by vm.items.collectAsStateWithLifecycle()
+    val pornGuard by vm.pornGuard.collectAsStateWithLifecycle()
+    val reduceMotion by vm.reduceMotion.collectAsStateWithLifecycle()
+    val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
+    val lockdownRemaining by vm.lockdownRemaining.collectAsStateWithLifecycle()
+    val safeSearchForce by vm.safeSearchForce.collectAsStateWithLifecycle()
+    val vpnRunning by WardenVpnService.runningFlow.collectAsStateWithLifecycle()
+    val coverage = coverageLevel(
+        CoverageState(
+            vpn = vpnRunning,
+            accessibility = !needsSetup,
+            safeSearchDns = safeSearchForce && pornGuard,
+        ),
+    )
+    val activeCount = items.count { it.enabled }
+    var showVerify by remember { mutableStateOf(false) }
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(focusEndsAt) {
+        while (focusEndsAt > System.currentTimeMillis()) {
+            now = System.currentTimeMillis()
+            delay(1000)
+        }
+        now = System.currentTimeMillis()
+    }
+    val focusActive = focusEndsAt > now
+    val blockingNow = enabled || focusActive || lockdownActive
+    val lockedNow = !settingsReady || strictLocked || (focusActive && focusStrict)
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(WardenPalette.Bg)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 22.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        // ── الترويسة: الاسم + الإعدادات ───────────────────────────────────
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Warden",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = WardenPalette.Zaytoun,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(WardenPalette.Halek),
+            ) {
+                Icon(Icons.Filled.Settings, contentDescription = "الإعدادات", tint = WardenPalette.Safeen, modifier = Modifier.size(21.dp))
+            }
+        }
+
+        // ── البطل: حلقة الحماية الحيّة ───────────────────────────────────
+        GuardianRing(
+            blockingNow = blockingNow,
+            needsSetup = needsSetup,
+            coverage = coverage,
+            lockdownActive = lockdownActive,
+            lockdownRemaining = lockdownRemaining,
+            reduceMotion = reduceMotion,
+            streak = streak,
+        )
+
+        // ── تحذير واحد فقط عند الحاجة ────────────────────────────────────
+        when {
+            needsSetup -> QuietActionRow(
+                text = "أكمل الإعداد لتفعيل الحماية الكاملة",
+                onClick = onOpenSetup,
+                urgent = false,
+            )
+            settingsReady && blockingNow && !vpnRunning -> QuietActionRow(
+                text = "الفلتر توقف — اضغط لإعادة تشغيله",
+                onClick = { onToggleBlocking(true) },
+                urgent = true,
+            )
+        }
+
+        // ── مفتاح الحماية الرئيسي ────────────────────────────────────────
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = WardenPalette.Card,
+            border = BorderStroke(1.dp, WardenPalette.Fasal),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "الحماية",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = WardenPalette.Zaytoun,
+                    )
+                    Text(
+                        if (blockingNow) "مفعّلة الآن — كل شيء تحت الحرس." else "مطفأة. اضغط للتشغيل.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WardenPalette.Ghaim,
+                    )
+                }
+                HoldToGuardSwitch(
+                    enabled = enabled,
+                    hasPin = hasPin,
+                    locked = lockedNow,
+                    lockLabel = if (focusActive && focusStrict) "جلسة صارمة جارية" else if (focusActive) "مقفل خلال الجلسة" else "قفل صارم مفعّل",
+                    lockdownActive = lockdownActive,
+                    onToggle = onToggleBlocking,
+                    onPinRequired = { showVerify = true },
+                )
+            }
+        }
+
+        // ── جلسة التركيز ────────────────────────────────────────────────
+        FocusCard(focusEndsAt = focusEndsAt, strict = focusStrict, onStart = onStartFocus, onCancel = onCancelFocus)
+
+        // ── الإدارة: شبكة 2×2 هادئة ─────────────────────────────────────
+        Text(
+            "الإدارة",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = WardenPalette.Ghaim,
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuietTile(Modifier.weight(1f), Icons.Filled.Block, "المواقع والتطبيقات",
+                if (activeCount > 0) "$activeCount مُحجوب" else "لا شيء بعد", onOpenBlocklist)
+            QuietTile(Modifier.weight(1f), Icons.Filled.Schedule, "الجداول", "تشغيل تلقائي", onOpenSchedules)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuietTile(Modifier.weight(1f), Icons.Filled.Insights, "الاستخدام", "يومك بنظرة", onOpenStats)
+            QuietTile(Modifier.weight(1f), Icons.Filled.Settings, "الإعدادات", "الأقسام الكاملة", onOpenSettings)
+        }
+
+        // ── المردود: صف مضغوط ──────────────────────────────────────────
+        Text(
+            "مردودك",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = WardenPalette.Ghaim,
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatPill(Modifier.weight(1f), "$streak", if (streak == 1) "يوم متصل" else "أيام متصلة")
+            StatPill(Modifier.weight(1f), "$bestStreak", "الأطول")
+            StatPill(Modifier.weight(1f), "$sessions", "جلسة تركيز")
+        }
+
+        AdSlotBanner(slot = AdSlot.HOME_BANNER)
+        Spacer(Modifier.height(8.dp))
+    }
+
+    if (showVerify) {
+        VerifyPinDialog(
+            title = "أدخل الرقم لإيقاف الحماية",
+            verify = vm::verifyPin,
+            onSuccess = { showVerify = false; onToggleBlocking(false) },
+            onDismiss = { showVerify = false },
+        )
+    }
+}
+
+/** البطل: حلقة حماية دائرية كبيرة، حالة الحماية في مركزها، تتنفس بهدوء. */
+@Composable
+private fun GuardianRing(
+    blockingNow: Boolean,
+    needsSetup: Boolean,
+    coverage: CoverageLevel,
+    lockdownActive: Boolean,
+    lockdownRemaining: Long,
+    reduceMotion: Boolean,
+    streak: Int,
+) {
+    val infinite = rememberInfiniteTransition(label = "ringBreath")
+    val ringAlpha by infinite.animateFloat(
+        initialValue = 0.72f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2800, easing = LinearEasing), RepeatMode.Reverse),
+        label = "ringAlpha",
+    )
+    val breath = if (reduceMotion || !blockingNow) 1f else ringAlpha
+
+    val ringColor = when {
+        needsSetup -> WardenPalette.Ramil
+        blockingNow && coverage == CoverageLevel.Full -> WardenPalette.Safeen
+        blockingNow -> WardenPalette.Safeen
+        else -> WardenPalette.Fasal
+    }
+    val centerMark = when {
+        needsSetup -> "…"
+        blockingNow -> "✓"
+        else -> "○"
+    }
+    val headline = when {
+        needsSetup -> "لنكمل الإعداد"
+        lockdownActive -> "مقفل زمنياً"
+        blockingNow -> "أنت محميّ"
+        else -> "الحماية مطفأة"
+    }
+    val subline = when {
+        needsSetup -> "امنح إذن إمكانية الوصول لتبدأ الحماية"
+        lockdownActive -> "الحماية والحذف ممنوعان — ${SettingsControls.formatRemaining(lockdownRemaining)}"
+        blockingNow && coverage == CoverageLevel.Full -> "كل طبقات الحماية تعمل الآن"
+        blockingNow -> "طبقة أو أكثر تحتاج انتباهك من الإعدادات"
+        else -> "اضغط مفتاح الحماية أدناه لتفعيلها"
+    }
+
+    Surface(
+        shape = RoundedCornerShape(26.dp),
+        color = WardenPalette.Halek,
+        border = BorderStroke(1.dp, WardenPalette.Fasal),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(22.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(96.dp)) {
+                Canvas(Modifier.fillMaxSize().scale(breath)) {
+                    drawCircle(color = ringColor, style = Stroke(width = 7.dp.toPx()))
+                    drawCircle(color = WardenPalette.Card, radius = size.minDimension / 2f - 14.dp.toPx())
+                }
+                Text(
+                    centerMark,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = ringColor,
+                )
+            }
+            Spacer(Modifier.width(20.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    headline,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = WardenPalette.Zaytoun,
+                )
+                Text(
+                    subline,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = WardenPalette.Ghaim,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (blockingNow && streak > 0) {
+                    Text(
+                        if (streak == 1) "يوم واحد متصل بلا رجوع" else "$streak أيام متصلة بلا رجوع",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WardenPalette.Safeen,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** صف إجراء هادئ واحد — بديل بطاقات التحذير الملوّنة السابقة. */
+@Composable
+private fun QuietActionRow(text: String, onClick: () -> Unit, urgent: Boolean) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (urgent) WardenPalette.RamilSoft else WardenPalette.Halek)
+            .clickable { onClick() }
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            if (urgent) Icons.Filled.ErrorOutline else Icons.Filled.CheckCircle,
+            contentDescription = null,
+            tint = if (urgent) WardenPalette.Ramil else WardenPalette.Safeen,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = WardenPalette.Zaytoun,
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = WardenPalette.Ghaim, modifier = Modifier.size(18.dp))
+    }
+}
+
+/** بلاطة إدارة هادئة: أيقونة واحدة ملوّنة، الباقي نص عربي نظيف. */
+@Composable
+private fun QuietTile(modifier: Modifier, icon: ImageVector, label: String, detail: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = WardenPalette.Card,
+        border = BorderStroke(1.dp, WardenPalette.Fasal),
+        modifier = modifier.clickable { onClick() },
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, tint = WardenPalette.Safeen, modifier = Modifier.size(22.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = WardenPalette.Zaytoun,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = WardenPalette.Ghaim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** رقاقة إحصاء صغيرة — الرقم فقط، هادئ بلا أيقونة. */
+@Composable
+private fun StatPill(modifier: Modifier, value: String, label: String) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(WardenPalette.Halek)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = WardenPalette.Zaytoun,
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = WardenPalette.Ghaim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}

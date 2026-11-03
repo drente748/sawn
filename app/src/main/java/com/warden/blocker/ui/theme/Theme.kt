@@ -21,6 +21,16 @@ import androidx.compose.ui.unit.sp
  * داخلي. لا ثيم داكن إطلاقاً؛ أحادي السكيمة على كل الأجهزة.
  */
 object WardenPalette {
+
+    // — لوحة «نافذة الصباح» v2 (التصميم المشتم في HomeRedesign) —
+    val Zaytoun = Color(0xFF24352B)   // نص أساسي زيتوني عميق
+    val Safeen = Color(0xFF128C6D)    // الأخضر الأمان (المقروء)
+    val Halek = Color(0xFFE9F5EF)     // أرضية بطاقات الثقة
+    val Ramil = Color(0xFFD98A26)     // كهرماني للتحذير فقط
+    val RamilSoft = Color(0xFFFBF2E2) // أرضية التحذير
+    val Fasal = Color(0xFFE4EAE5)     // خطوط الفواصل
+    val Ghaim = Color(0xFF62736B)     // نص ثانوي
+
     // الأساسيات من المواصفة (tokens فقط، الاستهلاك في الشاشات)
     val Bg = Color(0xFFFFFFFF)
     val SurfaceSoft = Color(0xFFF6F8F7)
