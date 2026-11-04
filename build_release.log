@@ -34,11 +34,11 @@ Calculating task graph as no cached configuration is available for tasks: testDe
 > Task :app:generateReleaseResources FROM-CACHE
 
 > Task :app:processDebugMainManifest
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:24:5-25:60 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:24:5-25:60 Warning:
 	uses-permission#android.permission.WRITE_EXTERNAL_STORAGE was tagged at AndroidManifest.xml:24 to remove other declarations but no other declaration present
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:26:5-27:60 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:26:5-27:60 Warning:
 	uses-permission#android.permission.READ_EXTERNAL_STORAGE was tagged at AndroidManifest.xml:26 to remove other declarations but no other declaration present
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:28:5-95 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:28:5-95 Warning:
 	uses-permission#android.permission.READ_PHONE_STATE was tagged at AndroidManifest.xml:28 to remove other declarations but no other declaration present
 
 > Task :app:processDebugManifest
@@ -47,11 +47,11 @@ C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:28:5-95 
 > Task :app:extractDeepLinksRelease UP-TO-DATE
 
 > Task :app:processReleaseMainManifest
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:24:5-25:60 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:24:5-25:60 Warning:
 	uses-permission#android.permission.WRITE_EXTERNAL_STORAGE was tagged at AndroidManifest.xml:24 to remove other declarations but no other declaration present
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:26:5-27:60 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:26:5-27:60 Warning:
 	uses-permission#android.permission.READ_EXTERNAL_STORAGE was tagged at AndroidManifest.xml:26 to remove other declarations but no other declaration present
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:28:5-95 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:28:5-95 Warning:
 	uses-permission#android.permission.READ_PHONE_STATE was tagged at AndroidManifest.xml:28 to remove other declarations but no other declaration present
 
 > Task :app:processReleaseManifest

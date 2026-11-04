@@ -1,14 +1,14 @@
 # Security & Privacy
 
-Warden holds four of the most powerful — and most-abused — permissions on Android
+Sawn holds four of the most powerful — and most-abused — permissions on Android
 (VpnService, AccessibilityService, DeviceAdmin, NotificationListener). That combination is
-exactly the profile malware uses, so Warden is built to *prove* it is benign and local-only.
+exactly the profile malware uses, so Sawn is built to *prove* it is benign and local-only.
 This document is the threat model and the measures in place.
 
 ## Core principle: local-first, least privilege
 
-- **No Warden backend or telemetry.** No accounts, analytics, ads, or tracking SDKs. The VPN
-  is local; it does not proxy or forward browsing traffic to Warden or anyone else.
+- **No Sawn backend or telemetry.** No accounts, analytics, ads, or tracking SDKs. The VPN
+  is local; it does not proxy or forward browsing traffic to Sawn or anyone else.
 - The only outbound requests are explicit, user-triggered HTTPS downloads of public adult-
   domain lists from their GitHub sources. They send no account, device, or browsing data.
   There is no automatic background list download.
@@ -30,7 +30,7 @@ This document is the threat model and the measures in place.
 - **VpnService** — a *local* tunnel that filters DNS on-device. Blocked domains are answered
   with a dead-end; **allowed lookups are forwarded to the device's own DNS resolver**
   (captured from the active network). A public fallback resolver is used only when Android
-  exposes no usable system resolver. Warden never reads, stores, or transmits your browsing.
+  exposes no usable system resolver. Sawn never reads, stores, or transmits your browsing.
   Queried domains are **never logged**.
 - **AccessibilityService** — reads the foreground package name (to block apps) and, for
   in-app feed and social-media protection, scans on-screen view-ids/labels of the current app.
@@ -42,12 +42,12 @@ This document is the threat model and the measures in place.
   4 candidate regions per capture with a bundled TFLite model, and the pixels are released
   immediately — nothing is written to storage and no image leaves the device. Below Android
   11 the service takes no screenshots at all.
-  Critical apps (launcher, settings, dialer, phone, Warden itself) are never intercepted, so
+  Critical apps (launcher, settings, dialer, phone, Sawn itself) are never intercepted, so
   you can't be locked out of your own device.
 - **DeviceAdmin** — declares **no enforcement policies**; active-admin status alone provides
-  uninstall protection. Disable it from Warden Settings (behind your PIN; strict mode blocks
+  uninstall protection. Disable it from Sawn Settings (behind your PIN; strict mode blocks
   the in-app path until strict mode is off) or from Android's system Settings, which remains
-  the emergency exit. Warden never traps you.
+  the emergency exit. Sawn never traps you.
 - **NotificationListener** — opt-in; reads only the posting package name to cancel
   notifications from blocked apps. Notification **content is never read, stored, or sent**.
 
@@ -72,12 +72,12 @@ This document is the threat model and the measures in place.
   no diagnostic logging can leak in production.
 - **Packet handling**: `DnsPacket` bounds-checks every offset before reading and drops
   malformed packets. DNS forwarding is concurrency-bounded and shared tunnel writes are
-  synchronized. If the packet loop stops, Warden clears its health flag and stops the
+  synchronized. If the packet loop stops, Sawn clears its health flag and stops the
   service instead of appearing protected while filtering has stopped.
 
 ## Known limitations (honest)
 
-- **DNS-over-HTTPS/TLS** can bypass the DNS sinkhole. Warden optionally sinkholes known DoH
+- **DNS-over-HTTPS/TLS** can bypass the DNS sinkhole. Sawn optionally sinkholes known DoH
   resolver hostnames (Settings → Block DNS-over-HTTPS) to close the common case, but clients
   with hardcoded resolver IPs can still slip through.
 - **IPv6 DNS**: a synthetic IPv6 resolver route is captured to stop the OS from bypassing the
@@ -101,7 +101,7 @@ This document is the threat model and the measures in place.
   outside this layer.
 - **Adult list refresh** is manual and trusts the maintained upstream sources over HTTPS. It
   validates formats and sizes but does not yet verify a signed manifest or prevent rollback.
-- **Strict mode** locks Warden's own disable paths (switch, tile, early focus exit, in-app
+- **Strict mode** locks Sawn's own disable paths (switch, tile, early focus exit, in-app
   admin disable), not Android's system Settings. Deactivating device admin or force-stopping
   the app from the OS remains possible — the deliberate emergency exit.
 - The PIN is not yet bound to the hardware Keystore/StrongBox — planned as defense-in-depth

@@ -1,27 +1,27 @@
 <resources>
-    <string name="app_name">واردن</string>
-    <string name="accessibility_label">واردن — حجب التطبيقات</string>
-    <string name="accessibility_description">يستخدم واردن إمكانية الوصول لرصد فتح تطبيقٍ أو موقعٍ محجوبٍ كي يعرض شاشة الإيقاف، ولمعاينة شريط عنوان المتصفح وصور التطبيقات الاجتماعية محلياً على الجهاز. عند الحاجة يلتقط صورةً عابرة للنافذة الأمامية، يصنّفها داخل الجهاز ثم يتخلّى عنها فوراً. لا يخزّن واردن نص الشاشة ولا الصور، ولا يرسل أيّاً منها إلى أي جهة.</string>
+    <string name="app_name">Sawn</string>
+    <string name="accessibility_label">صَوْن — حجب التطبيقات</string>
+    <string name="accessibility_description">يستخدم صَوْن إمكانية الوصول لرصد فتح تطبيقٍ أو موقعٍ محجوبٍ كي يعرض شاشة الإيقاف، ولمعاينة شريط عنوان المتصفح وصور التطبيقات الاجتماعية محلياً على الجهاز. عند الحاجة يلتقط صورةً عابرة للنافذة الأمامية، يصنّفها داخل الجهاز ثم يتخلّى عنها فوراً. لا يخزّن صَوْن نص الشاشة ولا الصور، ولا يرسل أيّاً منها إلى أي جهة.</string>
 
     <!-- الخدمة والإشعارات -->
     <string name="vpn_notification_channel">الحماية تعمل</string>
-    <string name="vpn_notification_title">واردن يحمي تركيزك</string>
+    <string name="vpn_notification_title">صَوْن يحمي تركيزك</string>
     <string name="vpn_notification_text">فلترة المواقع المحجوبة نشطة الآن.</string>
-    <string name="vpn_permission_needed">واردن بحاجة إلى إذن إنشاء اتصال الحماية ليبدأ الحجب.</string>
-    <string name="protection_start_failed">لم يبدأ الفلتر — افتح شاشة الأذونات ومنح واردن إذن اتصال الحماية.</string>
-    <string name="device_admin_description">تمنع إزالة واردن طوال فعالية الحماية. لا يطلب واردن أي صلاحيات إدارية أخرى.</string>
+    <string name="vpn_permission_needed">صَوْن بحاجة إلى إذن إنشاء اتصال الحماية ليبدأ الحجب.</string>
+    <string name="protection_start_failed">لم يبدأ الفلتر — افتح شاشة الأذونات ومنح صَوْن إذن اتصال الحماية.</string>
+    <string name="device_admin_description">تمنع إزالة صَوْن طوال فعالية الحماية. لا يطلب صَوْن أي صلاحيات إدارية أخرى.</string>
 
     <!-- الفحص الصحي -->
     <string name="guard_health_channel">صحّة الحماية</string>
-    <string name="guard_health_channel_desc">تنبيه حين تتوقف حماية واردن</string>
-    <string name="guard_health_title">توقفت حماية واردن</string>
+    <string name="guard_health_channel_desc">تنبيه حين تتوقف حماية صَوْن</string>
+    <string name="guard_health_title">توقفت حماية صَوْن</string>
     <string name="guard_health_text">لم يعد فحص التطبيقات يعمل، لذا تعطّل حجب المحتوى الإباحي. اضغط لإعادة تشغيل الحماية.</string>
     <string name="guard_health_fix">الإصلاح الآن</string>
     <string name="guard_admin_title">حماية الإلغاء مطفأة</string>
     <string name="guard_admin_text">القفل الزمني نشط لكن حماية الإلغاء أُطفئت. أعد تشغيلها كي لا يُحذف التطبيق قبل انتهاء المدة.</string>
     <string name="guard_admin_fix">إعادة التفعيل</string>
     <string name="guard_vpn_title">الفلتر لا يعمل</string>
-    <string name="guard_vpn_text">الحماية مفعّلة لكن فلتر المواقع توقف. اضغط لفتح واردن ثم أعد تشغيل الحماية.</string>
+    <string name="guard_vpn_text">الحماية مفعّلة لكن فلتر المواقع توقف. اضغط لفتح صَوْن ثم أعد تشغيل الحماية.</string>
 
     <!-- عامة -->
     <string name="back">رجوع</string>
@@ -196,11 +196,11 @@
     <string name="privacy_title">خصوصيتك</string>
     <string name="privacy_body">لا نجمع بيانات شخصية — لا سيرفر ولا حساب ولا تسجيل. يعمل كل شيء على جهازك، وتُسحب قوائم الحجب من مصادر عامة عند تحديثها.</string>
     <string name="help_title">أحتاج مساعدة</string>
-    <string name="help_body">خط مساندة عالمي مجاني يفتح في متصفحك. لا يسجّل واردن أي شيء عند استخدامه.</string>
+    <string name="help_body">خط مساندة عالمي مجاني يفتح في متصفحك. لا يسجّل صَوْن أي شيء عند استخدامه.</string>
     <string name="help_action">فتح صفحة المساعدة</string>
     <string name="reduce_motion_title">تقليل الحركة</string>
     <string name="reduce_motion_sub">يوقف نبض الدرع في الصفحة الرئيسية — لمن يفضّل واجهة ثابتة.</string>
-    <string name="version_label">واردن %1$s (%2$d)</string>
+    <string name="version_label">صَوْن %1$s (%2$d)</string>
 
     <!-- الرقم السري وحماية الإلغاء -->
     <string name="pin_card_title">قفل الرقم السري</string>
@@ -213,8 +213,8 @@
     <string name="pin_blocked_strict">أطفئ الوضع الصارم أولاً</string>
     <string name="pin_remove_failed">لم تُزل الرقم — أطفئ الوضع الصارم أو انتظر انتهاء القفل الزمني.</string>
     <string name="admin_title">حماية من الإلغاء</string>
-    <string name="admin_on">مفعّلة — لا يمكن حذف واردن قبل إطفاء هذه الحماية.</string>
-    <string name="admin_off">مطفأة — يمكن حذف واردن في أي وقت.</string>
+    <string name="admin_on">مفعّلة — لا يمكن حذف صَوْن قبل إطفاء هذه الحماية.</string>
+    <string name="admin_off">مطفأة — يمكن حذف صَوْن في أي وقت.</string>
     <string name="admin_enable">تفعيل الحماية</string>
     <string name="admin_disable">إطفاء الحماية</string>
 
@@ -307,7 +307,7 @@
 
     <!-- شاشة الإعداد -->
     <string name="setup_title">الإعداد</string>
-    <string name="setup_intro">منحُ هذه الأذونات يجعل واردن يعمل بالكامل.</string>
+    <string name="setup_intro">منحُ هذه الأذونات يجعل صَوْن يعمل بالكامل.</string>
     <string name="setup_progress">مكتمل %1$d من %2$d</string>
     <string name="setup_sequence_hint">التسلسل مقترح: الأهمّ أولاً، ثم ما يثبّت الحماية. قد تنتقل إلى شاشة النظام ثم تعود — الحالة تتحدّث تلقائياً.</string>
     <string name="setup_section_core">أساسي</string>
@@ -323,16 +323,16 @@
     <string name="setup_notifications_sub">تُظهر إشعار «الحماية فعّالة» المستمر.</string>
     <string name="setup_usage_title">الوصول إلى بيانات الاستخدام</string>
     <string name="setup_usage_sub">لزمن الشاشة والحدود اليومية.</string>
-    <string name="setup_vpn_title">تشغيل واردن دائماً (VPN)</string>
-    <string name="setup_vpn_sub">يشغّل أندرويد الفلتر تلقائياً بعد إعادة التشغيل: فعّل «دائمًا» لواردن، واترك «حجب الاتصالات بدون VPN» مطفأً.</string>
+    <string name="setup_vpn_title">تشغيل صَوْن دائماً (VPN)</string>
+    <string name="setup_vpn_sub">يشغّل أندرويد الفلتر تلقائياً بعد إعادة التشغيل: فعّل «دائمًا» لصَوْن، واترك «حجب الاتصالات بدون VPN» مطفأً.</string>
     <string name="setup_battery_title">تحسين البطارية</string>
-    <string name="setup_battery_sub">اختر واردن ثم «بدون قيود» كي لا يوقف النظام الفلتر في الخلفية.</string>
+    <string name="setup_battery_sub">اختر صَوْن ثم «بدون قيود» كي لا يوقف النظام الفلتر في الخلفية.</string>
     <string name="setup_dns_title">Private DNS</string>
-    <string name="setup_dns_strict">وضع Private DNS الصارم يتخطى فلتر واردن تماماً. اضبطه على «إيقاف».</string>
+    <string name="setup_dns_strict">وضع Private DNS الصارم يتخطى فلتر صَوْن تماماً. اضبطه على «إيقاف».</string>
     <string name="setup_dns_safe_hint">الأأمن أن يكون «إيقاف» — «تلقائي» قد يستخدم DoT لدى بعض المشغّلين فيقفز فوق الفلتر.</string>
 
     <!-- بلاطة الإعدادات السريعة -->
-    <string name="tile_label">واردن</string>
+    <string name="tile_label">صَوْن</string>
     <string name="tile_sub_lockdown">قفل الحماية</string>
     <string name="tile_sub_strict_focus">جلسة تركيز صارمة</string>
     <string name="tile_sub_focus">جلسة تركيز</string>
@@ -345,13 +345,13 @@
     <string name="intercept_this_app">هذا التطبيق</string>
     <string name="intercept_this_feed">هذا المحتوى</string>
     <string name="intercept_adult_title">محجوب — محتوى إباحي</string>
-    <string name="intercept_adult_body">فلترُ واردن يُبقي هذا الموقع بعيداً في كل متصفح. الرغبةُ تعبر، والموقع يبقى محجوباً. اضغط مطوّلاً على الزر لتذهب إلى غيرَه.</string>
+    <string name="intercept_adult_body">فلترُ صَوْن يُبقي هذا الموقع بعيداً في كل متصفح. الرغبةُ تعبر، والموقع يبقى محجوباً. اضغط مطوّلاً على الزر لتذهب إلى غيرَه.</string>
     <string name="intercept_social_title">محجوب — محتوى إباحي</string>
-    <string name="intercept_social_body">رصد واردن شاشة إباحية في %1$s. بقية التطبيق متاح، هذه الشاشة لا. اضغط مطوّلاً على الزر لتذهب إلى غيرَه.</string>
+    <string name="intercept_social_body">رصد صَوْن شاشة إباحية في %1$s. بقية التطبيق متاح، هذه الشاشة لا. اضغط مطوّلاً على الزر لتذهب إلى غيرَه.</string>
     <string name="intercept_feature_title">%1$s خارج الحدود</string>
-    <string name="intercept_feature_body">يُبعدك واردن عن %1$s. بقية التطبيق يعمل كالمعتاد — التمرير اللانهائي وحده هو الموقوف.</string>
-    <string name="intercept_block_title">محجوب بواردن</string>
-    <string name="intercept_block_body">أنت من طلب من واردن أن يُبقيك بعيداً عن %1$s. الرغبة تعبر — وأنت أثبت.</string>
+    <string name="intercept_feature_body">يُبعدك صَوْن عن %1$s. بقية التطبيق يعمل كالمعتاد — التمرير اللانهائي وحده هو الموقوف.</string>
+    <string name="intercept_block_title">محجوب بصَوْن</string>
+    <string name="intercept_block_body">أنت من طلب من صَوْن أن يُبقيك بعيداً عن %1$s. الرغبة تعبر — وأنت أثبت.</string>
     <string name="intercept_block_generic">هذا محجوبٌ في الوقت الحالي.</string>
     <string name="intercept_limit_title">انتهى الحدّ</string>
     <string name="intercept_limit_opens">استنفدتَ فتحات اليوم في %1$s. تتجدّد غداً.</string>
@@ -365,7 +365,7 @@
     <string name="intercept_pause_note">خُذ لحظة. إن أردتَ الدخول فعلاً فستستطيع المتابعة بعد ثانية.</string>
     <string name="intercept_continue_for">المتابعة لمدة…</string>
     <string name="intercept_minutes">%1$d د</string>
-    <string name="intercept_shield">درع واردن</string>
+    <string name="intercept_shield">درع صَوْن</string>
 
     <!-- الرئيسية الجديدة -->
     <string name="home_subtitle">حماية محلية · بلا حساب</string>
@@ -435,7 +435,7 @@
     <string name="ob_skip">تخطّي</string>
     <string name="ob_next">التالي</string>
     <string name="ob_start">ابدأ الحماية</string>
-    <string name="ob_hero_eyebrow">واردن</string>
+    <string name="ob_hero_eyebrow">صَوْن</string>
     <string name="ob_hero_title">حمايةٌ تبقى معك</string>
     <string name="ob_hero_body">حجبٌ محليّ للمواقع والتطبيقات والمحتوى الإباحي — يعمل على جهازك وحده، ويبقى يعمل بعد إغلاق التطبيق.</string>
     <string name="ob_badge_local">يعمل محلياً</string>
@@ -505,7 +505,7 @@
     <string name="ob_features_page_body">ستّ طبقات تعمل معاً، وكل واحدة مفتاحٌ ظاهر في الشاشة الرئيسية.</string>
     <string name="ob_how_page_title">ثلاث خطوات فقط</string>
     <string name="ob_ready_title">جاهز للبدء</string>
-    <string name="ob_ready_body">سيمرّ بك واردن على الأذونات خطوةً بخطوة، ويقول لك بالضبط ما يعمل وما ينقص.</string>
+    <string name="ob_ready_body">سيمرّ بك صَوْن على الأذونات خطوةً بخطوة، ويقول لك بالضبط ما يعمل وما ينقص.</string>
     <string name="ob_ready_item1">فلتر مواقع محلي يغطّي كل التطبيقات</string>
     <string name="ob_ready_item2">إمكانية الوصول لحجب التطبيقات والمحتوى</string>
     <string name="ob_ready_item3">إشعار دائم يثبّت الحماية في الخلفية</string>

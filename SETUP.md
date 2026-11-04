@@ -1,6 +1,6 @@
 # Setup & Build
 
-Warden is a standard Gradle/Android project. Requirements:
+Sawn is a standard Gradle/Android project. Requirements:
 
 | Item | Version |
 |------|---------|
@@ -35,14 +35,14 @@ Add `--offline` once every dependency is cached if you want to skip network chec
 
 ## Release signing
 
-Release signing is read from the environment or `local.properties`; all four `WARDEN_*`
+Release signing is read from the environment or `local.properties`; all four `SAWN_*`
 values must be present together, or none of them (an unsigned release is then produced):
 
 ```properties
-WARDEN_STORE_FILE=warden-release.keystore
-WARDEN_STORE_PASSWORD=...
-WARDEN_KEY_ALIAS=...
-WARDEN_KEY_PASSWORD=...
+SAWN_STORE_FILE=sawn-release.keystore
+SAWN_STORE_PASSWORD=...
+SAWN_KEY_ALIAS=...
+SAWN_KEY_PASSWORD=...
 ```
 
 Release builds are minified with `proguard-android-optimize.txt` + `proguard-rules.pro`, and
@@ -60,10 +60,10 @@ means no future update can be installed over an existing install.
 ```bash
 adb devices                # confirm the phone shows up
 ./gradlew installDebug
-adb shell monkey -p com.warden.blocker 1
+adb shell monkey -p com.sawn.app 1
 ```
 
-Warden only behaves correctly on a real device: the DNS filter, accessibility detection and
+Sawn only behaves correctly on a real device: the DNS filter, accessibility detection and
 usage stats are all things an emulator exercises poorly.
 
 ### First-run permissions

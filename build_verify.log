@@ -12,11 +12,11 @@ Calculating task graph as configuration cache cannot be reused because file 'app
 > Task :app:extractDeepLinksDebug UP-TO-DATE
 
 > Task :app:processDebugMainManifest
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:27:5-28:60 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:27:5-28:60 Warning:
 	uses-permission#android.permission.WRITE_EXTERNAL_STORAGE was tagged at AndroidManifest.xml:27 to remove other declarations but no other declaration present
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:29:5-30:60 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:29:5-30:60 Warning:
 	uses-permission#android.permission.READ_EXTERNAL_STORAGE was tagged at AndroidManifest.xml:29 to remove other declarations but no other declaration present
-C:\Users\pc\Desktop\claude code\warden\app\src\main\AndroidManifest.xml:31:5-95 Warning:
+C:\Users\pc\Desktop\claude code\sawn\app\src\main\AndroidManifest.xml:31:5-95 Warning:
 	uses-permission#android.permission.READ_PHONE_STATE was tagged at AndroidManifest.xml:31 to remove other declarations but no other declaration present
 
 > Task :app:processDebugManifest

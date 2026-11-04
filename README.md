@@ -1,22 +1,22 @@
-# Warden
+# Sawn
 
 **A local, open-source website, app, adult-content and ad/tracker blocker for Android.** No
 account, no telemetry, no ads. Every feature ships unlocked: no subscription, no paywall, and no
 feature gated behind an upgrade. A community-owned alternative to closed blockers like AppBlock.
 
-> Working name — "Warden" is a placeholder and easy to rename (see [Renaming](#renaming)).
+> Working name — "Sawn" is a placeholder and easy to rename (see [Renaming](#renaming)).
 
 ---
 
 ## Why
 
 Most Android blockers gate their most useful features (strict mode, multiple schedules,
-website blocking) behind a subscription. Warden makes the whole feature set free and the
+website blocking) behind a subscription. Sawn makes the whole feature set free and the
 code auditable — important for an app that, by design, needs deep device permissions.
 
 ## How blocking works
 
-Warden uses **two independent layers**, so there's no single point of bypass:
+Sawn uses **two independent layers**, so there's no single point of bypass:
 
 | Layer | Mechanism | Blocks |
 |-------|-----------|--------|
@@ -25,7 +25,7 @@ Warden uses **two independent layers**, so there's no single point of bypass:
 
 The VPN is **local-only** — DNS is filtered on-device, allowed lookups go to the resolver
 already configured on your network (with a fallback only when Android exposes none), and no
-query is logged. Other traffic is not proxied. Warden adds itself to the disallowed-apps list
+query is logged. Other traffic is not proxied. Sawn adds itself to the disallowed-apps list
 so it never filters its own traffic. See [`SPEC.md`](SPEC.md) for the full architecture and
 privacy model.
 
@@ -51,10 +51,10 @@ privacy model.
 - [x] **Social media protection** — a per-app switch for Reddit, Facebook, Instagram, X,
       TikTok and YouTube that blocks detected NSFW screens, known adult communities and
       explicit searches, plus in-app pointers to each platform's own stronger filters
-- [x] **Protection-health indicator + self-healing filter** — Warden automatically restarts
+- [x] **Protection-health indicator + self-healing filter** — Sawn automatically restarts
       the filter if Android kills it, and Home warns you if it still can't run, so you're never
       *silently* unblocked (the #1 complaint about AppBlock & ScreenZen)
-- [x] **Never locks you out** — launcher, settings, dialer and Warden itself can't be blocked
+- [x] **Never locks you out** — launcher, settings, dialer and Sawn itself can't be blocked
 - [x] **Hardened security** — local DNS filtering, PBKDF2-310k PIN + clock-tamper-resistant
       lockout, PIN-protected management screens, FLAG_SECURE + anti-tapjacking, no cleartext,
       no logging of domains. See [SECURITY.md](SECURITY.md)
@@ -82,7 +82,7 @@ privacy model.
 - [ ] Scheduled, signed, diff-based list updates with rollback protection
 
 ### How it compares
-| | AppBlock | ScreenZen | **Warden** |
+| | AppBlock | ScreenZen | **Sawn** |
 |---|---|---|---|
 | Website blocking (all apps) | ✓ | limited | ✓ (DNS VPN) |
 | App blocking | ✓ | ✓ | ✓ |
@@ -118,7 +118,7 @@ You'll need the **JDK 17** and the **Android SDK** (both easiest via Android Stu
 
 ### Release signing
 
-Release credentials must not be committed. Copy the four `WARDEN_*` entries from
+Release credentials must not be committed. Copy the four `SAWN_*` entries from
 `local.properties.example` into the ignored `local.properties`, or provide the same names as
 environment variables, then run `./gradlew assembleRelease`. Keep the existing keystore for
 upgrades: changing it creates an APK Android will not install over the previous release.
@@ -131,19 +131,19 @@ upgrades: changing it creates an APK Android will not install over the previous 
 - **Notifications** — for the ongoing "blocking active" notice (required for a foreground service).
 
 ### Keeping protection on
-Android may stop background services to save power. Warden contains its own crashes and
+Android may stop background services to save power. Sawn contains its own crashes and
 restarts the filter when Home is opened, but two system settings make it survive reliably
 (see **Setup → Keep protection alive**):
-- **Always-on VPN → Warden on.** Do **not** enable "Block connections without VPN" —
-  Warden only filters DNS, and lockdown would cut all connectivity whenever it restarts.
-- **Battery optimization → No restrictions** for Warden, especially on Xiaomi, Samsung,
+- **Always-on VPN → Sawn on.** Do **not** enable "Block connections without VPN" —
+  Sawn only filters DNS, and lockdown would cut all connectivity whenever it restarts.
+- **Battery optimization → No restrictions** for Sawn, especially on Xiaomi, Samsung,
   Oppo/Realme and Vivo devices that kill background apps aggressively.
 - **Private DNS → Off.** Strict Private DNS (DoT) bypasses the DNS filter completely, and
   "Automatic" can still use DoT on carriers that advertise it.
 
 ### Installing a sideloaded build (Android 13+)
 Android blocks special access (Accessibility, VPN) for apps installed outside an app store.
-Warden cannot, and will not, bypass this. Two legitimate routes:
+Sawn cannot, and will not, bypass this. Two legitimate routes:
 1. **Sideload**: after installing, open **App info → ⋮ → Allow restricted settings**, then
    enable Accessibility in system settings. Play Protect can stay **on** — it does not need
    to be disabled to grant this. If Play Protect flags the unsigned/unrecognized build, use
@@ -157,14 +157,14 @@ of each app keeps working. To block an entire app or site, add it in **Blocklist
 
 ## Renaming
 
-Everything keys off `com.warden.blocker`. To rebrand: change `applicationId`/`namespace` in
+Everything keys off `com.sawn.app`. To rebrand: change `applicationId`/`namespace` in
 [`app/build.gradle.kts`](app/build.gradle.kts), the package folders, `rootProject.name` in
 [`settings.gradle.kts`](settings.gradle.kts), and `app_name` in `res/values/strings.xml`.
 Android Studio's *Refactor → Rename* handles the package move cleanly.
 
 ## License
 
-[GPL-3.0](LICENSE) — Warden is free software; derivatives must stay free too.
+[GPL-3.0](LICENSE) — Sawn is free software; derivatives must stay free too.
 
 **Before any closed or paid distribution:** GPL-3.0 obliges you to hand recipients the source of the
 same build and keeps derivatives under the same license, so a proprietary release requires the
@@ -172,8 +172,8 @@ copyright holder to relicense first (replace `LICENSE`, then update this section
 notices are required either way: TensorFlow Lite Task Vision (Apache-2.0) and IBM Plex Sans Arabic
 (OFL, [`app/licenses/`](app/licenses)) — check the provenance of any blocklist you add too.
 
-The hooks in [`AdSlots.kt`](app/src/main/java/com/warden/blocker/ui/ads/AdSlots.kt) and
-[`Entitlements.kt`](app/src/main/java/com/warden/blocker/billing/Entitlements.kt) are inert in this
+The hooks in [`AdSlots.kt`](app/src/main/java/com/sawn/app/ui/ads/AdSlots.kt) and
+[`Entitlements.kt`](app/src/main/java/com/sawn/app/billing/Entitlements.kt) are inert in this
 build: no ad SDK, no billing library, and `isPremium` is permanently false, so "no ads" describes
 the shipped APK rather than a roadmap promise.
 

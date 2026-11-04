@@ -2,8 +2,8 @@
 # Android Studio writes this automatically on first open.
 sdk.dir=/Users/YOU/Library/Android/sdk
 
-# Optional release signing. Use the same WARDEN_* names for CI environment variables.
-WARDEN_STORE_FILE=warden-release.keystore
-WARDEN_STORE_PASSWORD=replace-me
-WARDEN_KEY_ALIAS=replace-me
-WARDEN_KEY_PASSWORD=replace-me
+# Optional release signing. Use the same SAWN_* names for CI environment variables.
+SAWN_STORE_FILE=sawn-release.keystore
+SAWN_STORE_PASSWORD=replace-me
+SAWN_KEY_ALIAS=replace-me
+SAWN_KEY_PASSWORD=replace-me

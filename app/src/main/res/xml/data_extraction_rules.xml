@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Nothing in Warden may leave the device: the salted PIN hash, the block schedules and the
+  Nothing in Sawn may leave the device: the salted PIN hash, the block schedules and the
   relapse history are useless or dangerous on another phone. android:allowBackup="false"
   stops cloud backup, but per Android's own documentation it does not reliably stop
   device-to-device migration on some manufacturers' ROMs, so both channels are closed here.

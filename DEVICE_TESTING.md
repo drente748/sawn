@@ -1,12 +1,12 @@
 # Real-device testing checklist
 
-Most of Warden is verified on an emulator (see commit history), but a few things can only be
+Most of Sawn is verified on an emulator (see commit history), but a few things can only be
 confirmed on a physical phone with real apps and a real Quick Settings panel. Work through
 these once on your device.
 
 ## Setup
 1. `./gradlew installDebug` with the phone connected (see [SETUP.md](SETUP.md)).
-2. Grant, in-app: **Accessibility** (Settings → Accessibility → Warden), **Usage access**,
+2. Grant, in-app: **Accessibility** (Settings → Accessibility → Sawn), **Usage access**,
    **Notifications**, and turn blocking **On** once (accept the VPN consent dialog).
 
 ## Must-verify on hardware
@@ -23,7 +23,7 @@ differ. Each feature has three signal classes:
 For each feed you care about:
 - Enable it in **Blocklist → Block in-app feeds**.
 - Open the real app and navigate to the feed (e.g. Instagram → Reels).
-- ✅ Expect the "off-limits" screen **after** Warden presses BACK once (navigateAwayTo).
+- ✅ Expect the "off-limits" screen **after** Sawn presses BACK once (navigateAwayTo).
 
 **Mandatory false-positive checks — every case must NOT block:**
 - Instagram/Facebook home feed, with the Reels/Search tabs visible but not selected.
@@ -55,7 +55,7 @@ Do this per app; expect to revisit when apps update. If a feed is not detected, 
 a dump of the app home screen to confirm the new signal does not leak there.
 
 ### 2. Quick Settings tile
-- Pull down the shade → edit (pencil) → drag the **Warden** tile into the active set.
+- Pull down the shade → edit (pencil) → drag the **Sawn** tile into the active set.
 - Tap it. ✅ Blocking toggles on/off (tile shows active/inactive).
 - With a PIN set, tapping to turn **off** should open the app for the PIN.
 - With strict mode on and protection on, tapping **off** should open the app and must not
@@ -72,13 +72,13 @@ a dump of the app home screen to confirm the new signal does not leak there.
 
 ### 4. Device-admin uninstall protection
 - Settings → turn on **Uninstall protection**.
-- Try to uninstall Warden from the launcher / system settings.
+- Try to uninstall Sawn from the launcher / system settings.
 - ✅ Android should refuse until you turn protection off first.
 
 ### 5. Strict mode + PIN
 - Set a PIN, enable strict mode, turn protection on.
 - ✅ Home shows "Strict lock on"; the master switch cannot be turned off.
-- ✅ The tile opens Warden instead of turning protection off.
+- ✅ The tile opens Sawn instead of turning protection off.
 - Start a focus session with strict unchecked. ✅ It is stored strict and there is no early exit.
 - ✅ Blocklist, Schedules, app picker, and feed blocking all ask for the PIN when one exists,
   and no management controls flash before the lock screen appears.
@@ -95,7 +95,7 @@ a dump of the app home screen to confirm the new signal does not leak there.
 - Block `example.com`. In **Settings → Always on**, turn **Always on OFF** (otherwise blocking
   is always active and a schedule boundary is invisible). Turn protection ON and keep the VPN
   running, then create a schedule that starts one minute from now and covers that site.
-- ✅ At the start time, the site must fail to load within 30 seconds without toggling Warden.
+- ✅ At the start time, the site must fail to load within 30 seconds without toggling Sawn.
 - Start and cancel a focus session. ✅ The same domain must become blocked/unblocked immediately.
 
 ### 8. Timed access expiry
@@ -124,13 +124,13 @@ a dump of the app home screen to confirm the new signal does not leak there.
 - With **Block ads & trackers** on, open a site/app that normally loads third-party ads.
   ✅ Common ad requests should fail; first-party sponsored cards may still appear (expected).
 - Disable the setting and toggle blocking off/on once. ✅ The ad hosts must stop being blocked.
-- Turn off Wi-Fi/data and tap **Refresh blocklists**. ✅ Warden must say the update failed and
+- Turn off Wi-Fi/data and tap **Refresh blocklists**. ✅ Sawn must say the update failed and
   keep the previous extra-domain count; it must not claim the lists are current.
 
 ### 12. Browser fallback repeat and tunnel failure
 - In a browser, visit an adult host that dodges DNS, leave the browser, then return to the
   same host. ✅ The intercept must appear again rather than only on the first visit.
-- With blocking active, revoke Warden's VPN from Android system settings. ✅ Warden's health
+- With blocking active, revoke Sawn's VPN from Android system settings. ✅ Sawn's health
   indicator must report protection off and a re-arm action must start a fresh tunnel.
 - Switch Wi-Fi ↔ mobile data while blocking. ✅ DNS filtering must continue after the network
   change; note any failure and the Android version/device.
@@ -138,7 +138,7 @@ a dump of the app home screen to confirm the new signal does not leak there.
 ### 13. Social media protection
 - In **Blocklist → Social media adult content**, enable Social Guard and keep all six platforms
   selected (if every switch is off, the screen correctly reports no selected apps).
-- Reddit: open a known 18+ community or a post carrying an NSFW/18+ badge. ✅ Warden's social
+- Reddit: open a known 18+ community or a post carrying an NSFW/18+ badge. ✅ Sawn's social
   intercept appears and names Reddit; open **r/NoFap** or **r/programming**. ✅ No intercept.
 - Search inside a supported app for an explicit term. ✅ The search surface is intercepted;
   searching "sex education" must not trigger it.
@@ -154,12 +154,12 @@ a dump of the app home screen to confirm the new signal does not leak there.
 - On the home screen tap «الحماية» once. ✅ It switches on within a couple of seconds — no
   holding — the switch stays where you left it, and the ongoing notification appears.
 - Tap it again. ✅ It switches off and the tunnel goes with it (no orphaned notification).
-- Turn protection on, swipe Warden out of Recents twice, wait five minutes, then open a blocked
+- Turn protection on, swipe Sawn out of Recents twice, wait five minutes, then open a blocked
   site. ✅ Still blocked: the health worker restarts the filter if Android tore it down, and the
   home card only reads green while the tunnel is actually running.
-- Settings → Apps → Warden → Force stop, then wait. ⚠️ Expected to stay stopped — Android does
+- Settings → Apps → Sawn → Force stop, then wait. ⚠️ Expected to stay stopped — Android does
   not let an app restart itself after a force stop. The health notification must say the filter
-  stopped, and opening Warden must restore it.
+  stopped, and opening Sawn must restore it.
 
 ### 15. Back handling on the intercept screen (target SDK 36)
 - Open a blocked app, then press Back / use the swipe-back gesture. ✅ You land on the launcher,
@@ -180,12 +180,12 @@ a dump of the app home screen to confirm the new signal does not leak there.
   working.
 
 ### 17. Dark mode and Arabic layout
-- Toggle the system theme in Warden and on an intercept screen. ✅ Both palettes stay readable,
+- Toggle the system theme in Sawn and on an intercept screen. ✅ Both palettes stay readable,
   the day-letter row fits the narrowest phone, and nothing overlaps in right-to-left.
 
 ## Report back
 Note which feeds detected correctly (and paste any `resource-id`s that need adding), whether
 DoH bypassed the block in your browser, and anything that didn't behave — those become the
 next fixes. For social protection, also report the app version and the exact warning label
-shown, since those are the signals Warden relies on. For image screening, report roughly how
+shown, since those are the signals Sawn relies on. For image screening, report roughly how
 long an unlabeled image took to get intercepted, since latency there is the tuning knob.

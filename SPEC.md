@@ -1,4 +1,4 @@
-# Warden — Technical Spec
+# Sawn — Technical Spec
 
 ## Goal
 
@@ -9,7 +9,7 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
 
 ## Non-negotiable principles
 
-1. **Local-first.** No Warden servers, accounts, analytics, or ad SDKs. The VPN never proxies
+1. **Local-first.** No Sawn servers, accounts, analytics, or ad SDKs. The VPN never proxies
    browsing traffic off-device; it only filters forwarded DNS. The sole network exception is
    a user-triggered HTTPS refresh of public adult-domain lists, with no identifiers sent.
    Accessibility inspects bounded on-screen labels in memory to block apps/feeds and detect
@@ -25,7 +25,7 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
 
 ```
                         ┌────────────────────┐
-   Compose UI  ───────► │   WardenViewModel   │
+   Compose UI  ───────► │   SawnViewModel   │
    (screens)            └─────────┬──────────┘
                                   │
                         ┌─────────▼──────────┐
@@ -42,14 +42,14 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
         ┌───────────────────┼───────────────────────┐
         │                   │                        │
 ┌───────▼────────┐  ┌───────▼───────────┐   ┌────────▼─────────┐
-│ WardenVpnService│  │ AppBlockA11yService│   │  BootReceiver    │
+│ SawnVpnService│  │ AppBlockA11yService│   │  BootReceiver    │
 │ DNS sinkhole    │  │ foreground-app     │   │  re-arm on boot  │
 │ (websites)      │  │ block (apps)       │   └──────────────────┘
 └─────────────────┘  └────────────────────┘
 ```
 
 ### Key files
-- `vpn/WardenVpnService.kt` — establishes a local TUN, routes only DNS into it, and either
+- `vpn/SawnVpnService.kt` — establishes a local TUN, routes only DNS into it, and either
   **sinkholes** (A → 0.0.0.0) a blocked domain or **forwards** the query to the device's own
   resolver and NATs the reply back. A public resolver is used only when Android exposes no
   system resolver. Adds itself to disallowed apps and tears down health state on failure.
@@ -139,4 +139,4 @@ grants. Destructive fallback is limited to downgrades in development; real upgra
   filters. It covers native apps, not social sites inside a browser.
 - Strict mode enforces the in-app disable paths, tile, focus cancellation, and in-app
   device-admin disable. Android still allows deactivating device admin from system Settings;
-  that is the deliberate emergency exit, not a bypass inside Warden.
+  that is the deliberate emergency exit, not a bypass inside Sawn.

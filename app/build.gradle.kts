@@ -16,21 +16,21 @@ fun signingValue(name: String): String? =
     System.getenv(name)?.takeIf { it.isNotBlank() }
         ?: localProperties.getProperty(name)?.takeIf { it.isNotBlank() }
 
-val wardenStoreFile = signingValue("WARDEN_STORE_FILE")
-val wardenStorePassword = signingValue("WARDEN_STORE_PASSWORD")
-val wardenKeyAlias = signingValue("WARDEN_KEY_ALIAS")
-val wardenKeyPassword = signingValue("WARDEN_KEY_PASSWORD")
-val wardenSigningValues = listOf(wardenStoreFile, wardenStorePassword, wardenKeyAlias, wardenKeyPassword)
-require(wardenSigningValues.all { it == null } || wardenSigningValues.all { it != null }) {
-    "Set all WARDEN_* signing values in local.properties or the environment, or none of them."
+val sawnStoreFile = signingValue("SAWN_STORE_FILE")
+val sawnStorePassword = signingValue("SAWN_STORE_PASSWORD")
+val sawnKeyAlias = signingValue("SAWN_KEY_ALIAS")
+val sawnKeyPassword = signingValue("SAWN_KEY_PASSWORD")
+val sawnSigningValues = listOf(sawnStoreFile, sawnStorePassword, sawnKeyAlias, sawnKeyPassword)
+require(sawnSigningValues.all { it == null } || sawnSigningValues.all { it != null }) {
+    "Set all SAWN_* signing values in local.properties or the environment, or none of them."
 }
 
 android {
-    namespace = "com.warden.blocker"
+    namespace = "com.sawn.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.warden.blocker"
+        applicationId = "com.sawn.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 18
@@ -39,12 +39,12 @@ android {
     }
 
     signingConfigs {
-        if (wardenSigningValues.all { it != null }) {
+        if (sawnSigningValues.all { it != null }) {
             create("release") {
-                storeFile = rootProject.file(wardenStoreFile!!)
-                storePassword = wardenStorePassword!!
-                keyAlias = wardenKeyAlias!!
-                keyPassword = wardenKeyPassword!!
+                storeFile = rootProject.file(sawnStoreFile!!)
+                storePassword = sawnStorePassword!!
+                keyAlias = sawnKeyAlias!!
+                keyPassword = sawnKeyPassword!!
             }
         }
     }
@@ -53,7 +53,7 @@ android {
         release {
             isMinifyEnabled = true
             isDebuggable = false
-            if (wardenSigningValues.all { it != null }) {
+            if (sawnSigningValues.all { it != null }) {
                 signingConfig = signingConfigs.getByName("release")
             }
             proguardFiles(
@@ -68,7 +68,7 @@ android {
     // is expected and still installs on every supported device (minSdk 26).
     // v3 is what lets a future Play key rotation work without breaking updates.
     signingConfigs {
-        if (wardenSigningValues.all { it != null }) {
+        if (sawnSigningValues.all { it != null }) {
             getByName("release") {
                 enableV1Signing = true
                 enableV2Signing = true
