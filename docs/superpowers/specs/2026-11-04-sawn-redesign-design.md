@@ -240,5 +240,5 @@ User action → ViewModel → Repository (interface) → Room/DataStore → doma
 ## 15) التحقق
 `./gradlew :core:domain:test :app:testDebugUnitTest lint assembleRelease` · `apksigner verify --verbose app-release.apk` · تثبيت على جهاز/محاكي + `DEVICE_TESTING.md` (يُحدَّث) · لا نشر قبل توقيع المالك على النسخة والنصوص EN · Play Protect سلوك مُوثَّق، لا مخفي.
 
-## 16) ملاحظة قانونية (قرار المالك)
-`docs/re-block-reference/*` و`docs/*RE-*.md` تُقرأ **للفهم العام فقط** — لاستيعاب «ما الذي تفعله» (وظائف وأفكار عامة غير محمية). **لا تُنسخ ولا تُترجم ولا تُشتق منها كتل برمجية حرفيًا** في «صَوْن» — كل بند يُنفَّذ بأصلية (first principles + توثيق عام + قوائم مفتوحة مرخّصة مثل StevenBlack/hosts). إن ظهر فيها «حل» مغري: يُعاد اشتقاقه بأسلوب مستقل، أو يُترك.
+## 16) ملاحظة قانونية
+`docs/re-block-reference/*` و`docs/*RE-*.md` تُقرأ للفهم واستيعاب السلوك العام (الوظائف والأفكار العامة ليست محمية). شيفرة التطبيقات المُفكّكة محمية تعبيريًا، فلن تُنسخ ولا تُترجم ولا تُشتق منها كتل؛ التنفيذ أصلي كله (first principles + توثيق عام + StevenBlack/hosts وما شابهها). إن ظهر في المراجع «حل» مغري — يُعاد اشتقاقه بأسلوب مستقل أو يُترك.
