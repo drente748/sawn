@@ -3,9 +3,7 @@ package com.warden.blocker.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,9 +15,10 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.warden.blocker.ui.theme.WardenPalette
+import com.warden.blocker.R
 import kotlinx.coroutines.delay
 
 /**
@@ -29,15 +28,9 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun SupportiveConfirmDialog(
-    title: String = "قرار يحترم طريقك",
-    bodyIntro: String = "هذا القرار لك وحده. قبل أن تُقفل الحماية:",
-    confirmLabel: String = "تأكيد القفل",
-    cancelLabel: String = "التراجع",
-    vm: WardenViewModel,
     streak: Int = 0,
     sessions: Int = 0,
     endsAtMs: Long = 0L, // القفل: الأزرار تحسبها قبل الاستدعاء
-    onExceptionalConfirmLabel: String = "",
     onDismiss: () -> Unit = {},
     onConfirmed: (Long) -> Unit,
 ) {
@@ -51,34 +44,41 @@ fun SupportiveConfirmDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title, fontWeight = FontWeight.ExtraBold) },
+        title = {
+            Text(stringResource(R.string.supportive_title), fontWeight = FontWeight.ExtraBold)
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(bodyIntro, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    stringResource(R.string.supportive_intro),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 if (streak > 0 || sessions > 0) {
+                    val streakText =
+                        if (streak > 0) stringResource(R.string.supportive_streak, streak) else null
+                    val sessionsText =
+                        if (sessions > 0) stringResource(R.string.supportive_sessions, sessions) else null
                     Text(
-                        buildString {
-                            append("واقعك حتى الآن: ")
-                            if (streak > 0) append("سلسلة $streak يوم")
-                            if (streak > 0 && sessions > 0) append(" و ")
-                            if (sessions > 0) append("$sessions جلسة تركيز")
-                            append(".")
-                        },
+                        stringResource(
+                            R.string.supportive_reality,
+                            listOfNotNull(streakText, sessionsText)
+                                .joinToString(stringResource(R.string.supportive_connective)),
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = WardenPalette.GreenDark,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
                 Text(
-                    "كل يوم خارج الإباحية يعيد للنوم صفاءً ويعيد للتركيز عمقه — قيمتك هي نوع الحياة التي تختارها.",
+                    stringResource(R.string.supportive_message),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (reflectSeconds > 0) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "خذ لحظة تأمّل… (${reflectSeconds}ث)",
+                        stringResource(R.string.supportive_reflect, reflectSeconds),
                         style = MaterialTheme.typography.labelMedium,
-                        color = WardenPalette.TextMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -87,10 +87,10 @@ fun SupportiveConfirmDialog(
             TextButton(
                 enabled = reflectSeconds <= 0,
                 onClick = { onConfirmed(endsAtMs) },
-            ) { Text(confirmLabel) }
+            ) { Text(stringResource(R.string.supportive_confirm)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("بقي محمياً") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.supportive_stay_protected)) }
         },
     )
 }

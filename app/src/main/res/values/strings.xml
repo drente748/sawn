@@ -1,20 +1,523 @@
 <resources>
-    <string name="app_name">Warden</string>
-    <string name="accessibility_label">Warden App Blocker</string>
-    <string name="accessibility_description">Warden uses accessibility to detect when a blocked app or website is opened so it can show the block screen. Warden never collects, stores, or transmits the content of your screen.</string>
-    <string name="vpn_notification_channel">Blocking active</string>
-    <string name="vpn_notification_title">Warden is protecting your focus</string>
-    <string name="vpn_notification_text">Blocked sites are being filtered.</string>
-    <string name="device_admin_description" translatable="true">تمنع إزالة Warden طوال فعالية الحماية. لا تطلب Warden أي صلاحيات إدارية أخرى.</string>
-    <string name="monetization_notice">Warden is a commercial, free-to-use app. A reserved ad slot may appear below the Home screen — never on block or pause screens. A paid plan (no ads, more power) arrives later.</string>
-    <string name="guard_health_channel">Protection health</string>
-    <string name="guard_health_channel_desc">Alerts you if Warden\'s protection is no longer active</string>
-    <string name="guard_health_title">Warden protection stopped</string>
-    <string name="guard_health_text">App screening is no longer active — adult-content blocking is off. Tap to re-enable it.</string>
-    <string name="guard_health_fix">Fix now</string>
-    <string name="guard_admin_title">Uninstall protection is off</string>
-    <string name="guard_admin_text">A time lock is active, but Warden\'s uninstall protection was turned off. Re-enable it so the app cannot be removed before the lock ends.</string>
-    <string name="guard_admin_fix">Re-enable</string>
-    <string name="guard_vpn_title">The filter is not running</string>
-    <string name="guard_vpn_text">A time lock is active, but the DNS filter stopped. Open Warden and restart protection.</string>
+    <string name="app_name">واردن</string>
+    <string name="accessibility_label">واردن — حجب التطبيقات</string>
+    <string name="accessibility_description">يستخدم واردن إمكانية الوصول لرصد فتح تطبيقٍ أو موقعٍ محجوبٍ كي يعرض شاشة الإيقاف، ولمعاينة شريط عنوان المتصفح وصور التطبيقات الاجتماعية محلياً على الجهاز. عند الحاجة يلتقط صورةً عابرة للنافذة الأمامية، يصنّفها داخل الجهاز ثم يتخلّى عنها فوراً. لا يخزّن واردن نص الشاشة ولا الصور، ولا يرسل أيّاً منها إلى أي جهة.</string>
+
+    <!-- الخدمة والإشعارات -->
+    <string name="vpn_notification_channel">الحماية تعمل</string>
+    <string name="vpn_notification_title">واردن يحمي تركيزك</string>
+    <string name="vpn_notification_text">فلترة المواقع المحجوبة نشطة الآن.</string>
+    <string name="vpn_permission_needed">واردن بحاجة إلى إذن إنشاء اتصال الحماية ليبدأ الحجب.</string>
+    <string name="protection_start_failed">لم يبدأ الفلتر — افتح شاشة الأذونات ومنح واردن إذن اتصال الحماية.</string>
+    <string name="device_admin_description">تمنع إزالة واردن طوال فعالية الحماية. لا يطلب واردن أي صلاحيات إدارية أخرى.</string>
+
+    <!-- الفحص الصحي -->
+    <string name="guard_health_channel">صحّة الحماية</string>
+    <string name="guard_health_channel_desc">تنبيه حين تتوقف حماية واردن</string>
+    <string name="guard_health_title">توقفت حماية واردن</string>
+    <string name="guard_health_text">لم يعد فحص التطبيقات يعمل، لذا تعطّل حجب المحتوى الإباحي. اضغط لإعادة تشغيل الحماية.</string>
+    <string name="guard_health_fix">الإصلاح الآن</string>
+    <string name="guard_admin_title">حماية الإلغاء مطفأة</string>
+    <string name="guard_admin_text">القفل الزمني نشط لكن حماية الإلغاء أُطفئت. أعد تشغيلها كي لا يُحذف التطبيق قبل انتهاء المدة.</string>
+    <string name="guard_admin_fix">إعادة التفعيل</string>
+    <string name="guard_vpn_title">الفلتر لا يعمل</string>
+    <string name="guard_vpn_text">الحماية مفعّلة لكن فلتر المواقع توقف. اضغط لفتح واردن ثم أعد تشغيل الحماية.</string>
+
+    <!-- عامة -->
+    <string name="back">رجوع</string>
+    <string name="cancel">إلغاء</string>
+    <string name="add">إضافة</string>
+    <string name="remove">حذف</string>
+    <string name="management">الإدارة</string>
+    <string name="progress">التقدّم</string>
+    <string name="protection">الحماية</string>
+
+    <!-- الرئيسية -->
+    <string name="you_are_protected">أنت في حماية</string>
+    <string name="protection_off">الحماية مطفأة</string>
+    <string name="protection_waiting">الحماية في الانتظار</string>
+    <string name="protection_scheduled">الحماية مجدولة — تعمل داخل النوافد</string>
+    <string name="protection_enabled">الحماية مفعّلة</string>
+    <string name="protection_disabled">الحماية مطفأة الآن</string>
+    <string name="setup_required">الإعداد ناقص</string>
+    <string name="grant_access_to_start">امنح الأذونات المطلوبة لتعمل الحماية.</string>
+    <string name="complete_setup">أكمل الإعداد والأذونات</string>
+    <string name="filter_stopped">الفلتر متوقف</string>
+    <string name="restart_filter">أعد تشغيل الفلتر الآن</string>
+    <string name="all_layers_active">طبقات الحماية الثلاث تعمل</string>
+    <string name="some_layers_attention">بعض الطبقات متوقفة — راجع الأذونات</string>
+    <string name="turn_on_protection">شغّل الحماية لتبدأ الفلترة</string>
+    <string name="enable_protection">تشغيل الحماية</string>
+    <string name="disable_protection">إيقاف الحماية</string>
+    <string name="locked_strict">الوضع الصارم يقفل المفتاح</string>
+    <string name="locked_focus">لا إيقاف أثناء الجلسة</string>
+    <string name="locked_by_time_lock">مقفل زمنياً</string>
+    <string name="locked_during_session">الجلسة الصارمة تعمل</string>
+    <string name="strict_focus_session">جلسة صارمة</string>
+    <string name="time_lock_active">قفل الحماية نشط</string>
+    <string name="lockdown_until">لا رفع قبل %1$s</string>
+    <string name="protected_streak">محمي منذ %1$d يوماً</string>
+
+    <!-- الجلسات -->
+    <string name="focus_start">جلسة تركيز</string>
+    <string name="focus_active">جلسة تركيز تعمل</string>
+    <string name="focus_idle_description">مدة قصيرة تُقفل فيها المحجوبات بلا قدرة على إنهائها.</string>
+    <string name="focus_description">يمكنك إنهاء الجلسة من التطبيق في أي وقت.</string>
+    <string name="strict_focus_description">الوضع الصارم: لا إنهاء للجلسة قبل انتهاء المدة.</string>
+    <string name="strict">صارمة</string>
+    <string name="strict_mode">الوضع الصارم</string>
+    <string name="strict_mode_on">الوضع الصارم مفعّل</string>
+    <string name="end_session">إنهاء الجلسة</string>
+    <string name="minutes_count">%1$d دقيقة</string>
+
+    <!-- الإدارة -->
+    <string name="blocklist_title">قائمة الحجب</string>
+    <string name="blocked_count">%1$d يعمل</string>
+    <string name="blocklist_subtitle">المواقع والتطبيقات الممنوعة.</string>
+    <string name="blocklist_website_hint">موقع، مثل instagram.com</string>
+    <string name="add_apps">إضافة تطبيقات للحجب</string>
+    <string name="blocklist_empty">لا شيء محجوباً بعد — أضف موقعاً بالأعلى أو اضغط «إضافة تطبيقات».</string>
+    <string name="apps_title">التطبيقات</string>
+
+    <string name="summary_website_hard">موقع · حجب تام</string>
+    <string name="summary_app_hard">تطبيق · حجب تام</string>
+    <string name="summary_app_pause">تطبيق · إيقاف %1$d ثانية</string>
+    <string name="summary_app_pause_opens">· %1$d فتح/يوم</string>
+    <string name="summary_app_pause_limit">· حدّ %1$d دقيقة/يوم</string>
+
+    <string name="schedules_title">الجداول</string>
+    <string name="schedules_detail">نوافد زمنية لتفعيل الحجب</string>
+    <string name="schedules_hint">حين يكون «الدائم» مطفأً، يعمل الحجب داخل هذه النوافد فقط.</string>
+    <string name="new_schedule">جدول جديد</string>
+    <string name="schedules_empty">لا جداول بعد. أضف واحداً ثم أطفئ «الدائم» من الإعدادات.</string>
+
+    <string name="stats_title">إنجازاتك</string>
+    <string name="stats_detail">أيام الحماية ومدد الشاشة</string>
+    <string name="streak_days">%1$d يوم</string>
+    <string name="best_streak">أطول تتابع</string>
+    <string name="focus_sessions">جلسات مكتملة</string>
+    <string name="screen_time_today">زمن الشاشة اليوم</string>
+    <string name="grant_usage_access">منح إذن استخدام البيانات</string>
+    <string name="usage_access_needed">امنح إذن الوصول إلى بيانات الاستخدام لتظهر أرقام زمن الشاشة.</string>
+    <string name="no_usage_today">لم يُسجَّل أي زمن شاشة اليوم بعد.</string>
+
+    <string name="day_mon">اثنين</string>
+    <string name="day_tue">ثلاثاء</string>
+    <string name="day_wed">أربعاء</string>
+    <string name="day_thu">خميس</string>
+    <string name="day_fri">جمعة</string>
+    <string name="day_sat">سبت</string>
+    <string name="day_sun">أحد</string>
+    <string name="every_day">كل الأيام</string>
+    <string name="hours_minutes">%1$d س %2$d د</string>
+    <string name="minutes_short">%1$d د</string>
+
+    <!-- الإعدادات -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_detail">الحماية والمتصفح والخصوصية</string>
+    <string name="settings_subtitle">الأقسام خلف الحماية.</string>
+    <string name="settings_protection">الحماية</string>
+    <string name="settings_protection_subtitle">فلتر الحجب، فرض SafeSearch، القوائم المخصصة</string>
+    <string name="settings_browser">المتصفح</string>
+    <string name="settings_browser_subtitle">إذن إمكانية الوصول، المتصفحات المدعومة، تلميحات التلافي</string>
+    <string name="settings_privacy">الخصوصية والدعم</string>
+    <string name="settings_privacy_subtitle">لا نجمع بيانات، طلب مساعدة، الحركة، الرقم السري</string>
+    <string name="settings_setup">الإعداد والأذونات</string>
+    <string name="screen_is_locked">أدخل الرقم السري للوصول إلى %1$s</string>
+    <string name="unlock_with_pin">فتح بالرقم السري</string>
+    <string name="enter_pin">أدخل الرقم السري</string>
+
+    <!-- الرقم السري -->
+    <string name="pin_set_title">اختر رقماً سرياً من 4 أرقام</string>
+    <string name="pin_confirm_title">أعد إدخال الرقم للتأكيد</string>
+    <string name="pin_disable_protection">أدخل الرقم لإيقاف الحماية</string>
+    <string name="pin_remove_title">أدخل الرقم لإزالته</string>
+    <string name="pin_wrong">الرقم غير صحيح</string>
+    <string name="pin_mismatch">الرقمان غير متطابقين — اختر من جديد</string>
+    <string name="pin_locked">محظور لإعادة المحاولة %1$d ثانية</string>
+    <string name="pin_save_failed">لم يُحفظ الرقم السري — تحقق من مساحة التخزين وأعد المحاولة.</string>
+    <string name="pin_verify_failed">تعذّر التحقق من الرقم السري الآن — أعد المحاولة.</string>
+    <string name="pin_backspace">مسح آخر رقم</string>
+    <string name="pin_digit">الرقم %1$d</string>
+
+    <!-- قسم الحماية -->
+    <string name="lockdown_active_title">القفل الزمني نشط</string>
+    <string name="lockdown_active_body">لا يمكن إضعاف مفاتيح الحماية قبل انتهاء المدة. القفل لا يُرفع برقم سري.</string>
+    <string name="porn_guard_title">فلتر حجب الإباحية</string>
+    <string name="porn_guard_sub">يحجب المواقع الإباحية في كل المتصفحات والتطبيقات، عبر الفلتر المحلي ومصادر جماعية.</string>
+    <string name="safe_search_title">فرض SafeSearch (DNS)</string>
+    <string name="safe_search_sub">يقفل نتائج البحث والصور والفيديو الحساسة على Google وBing وYouTube وDuckDuckGo من خوادمها نفسها.</string>
+    <string name="always_on_title">الوضع الدائم</string>
+    <string name="always_on_on">الحجب يعمل دوماً عند تفعيله.</string>
+    <string name="always_on_off">الحجب يعمل فقط خلال الجداول الزمنية.</string>
+    <string name="doh_title">حجب DNS-over-HTTPS</string>
+    <string name="doh_sub">يحجب أيضاً محلّلات DNS المشفّرة كي لا تتخطى المتصفحات فلترة المواقع. يسري عند بدء الحجب التالي.</string>
+    <string name="ads_title">حجب الإعلانات والمتتبعات</string>
+    <string name="ads_sub">يحجب مضيفي الإعلانات والتحليلات الشائعة. الإعلانات التي يقدّمها الموقع نفسه قد تظهر.</string>
+    <string name="strict_title">الوضع الصارم</string>
+    <string name="strict_sub">يقفل مفتاح الحماية الرئيسي طوال عمله — يتطلب رقماً سرياً.</string>
+    <string name="strict_enable_failed">لم يُفعَّل الوضع الصارم — يحتاج رقماً سرياً وحماية فعّالة من الإلغاء.</string>
+    <string name="lists_title">قوائم الحجب الجماعية</string>
+    <string name="lists_sub">تُسحب قوائم PornAway وStevenBlack وتُدمج في الفلتر — حدّثها يدوياً بانتظام.</string>
+    <string name="lists_update_action">تحديث القوائم الآن</string>
+    <string name="lists_updating">جارٍ التحديث…</string>
+    <string name="lists_update_failed">تعذّر التحديث — بقيت القوائم السابقة.</string>
+    <string name="lists_up_to_date">القوائم محدثة بالفعل.</string>
+    <string name="lists_updated">تم التحديث — أضيف %1$d نطاقاً جديداً.</string>
+
+    <!-- قفل الحماية -->
+    <string name="lockdown_title">قفل الحماية</string>
+    <string name="lockdown_body">اختر مدة تُقفل فيها الحماية: لا إيقاف ولا حذف طوالها.</string>
+    <string name="lockdown_active_body_card">القفل مطلق: لا يمكن إيقاف الحماية أو إزالة التطبيق قبل انتهاء المدة.</string>
+    <string name="lockdown_new">قفل جديد</string>
+    <string name="lockdown_replaces">القفل الجديد يبدأ من الآن ويستبدل المدة الحالية بالكامل.</string>
+    <string name="lockdown_custom_label">أو مدة مخصصة (دقيقة واحدة – 12 شهراً)</string>
+    <string name="lockdown_duration_field">المدة</string>
+    <string name="lockdown_apply">تثبيت المدة المخصصة</string>
+    <string name="lockdown_invalid_range">المدة يجب أن تكون بين دقيقة واحدة و12 شهراً.</string>
+    <string name="lockdown_no_filter">تعذّر تشغيل فلتر الحماية — لم يُكتب القفل. حاول مرة أخرى.</string>
+    <string name="lockdown_no_admin">لم تُفعَّل حماية الإلغاء — لم يُكتب القفل.</string>
+    <string name="lockdown_no_vpn_permission">لم يُمنح إذن الفلتر — لم يُكتب القفل.</string>
+    <string name="remaining_time">متبقٍ %1$s</string>
+
+    <!-- أقسام المتصفح والخصوصية -->
+    <string name="a11y_title">إمكانية الوصول</string>
+    <string name="a11y_sub">تراقب شريط عنوان المتصفح لرصد المواقع التي تتخطى الفلتر، وتكشف التطبيق المفتوح أمامك محلياً — لا تخزّن أي نص ولا ترسله.</string>
+    <string name="a11y_on">الحالة: مفعّلة</string>
+    <string name="a11y_off">الحالة: غير مفعّلة</string>
+    <string name="grant_now">تفعيل الآن</string>
+    <string name="browsers_title">المتصفحات المدعومة</string>
+    <string name="browsers_count">%1$d متصفحاً مدعوماً — يعمل تلقائياً بدون ضبط إضافي.</string>
+    <string name="doh_hint_title">تلميحات التلافي (DoH)</string>
+    <string name="doh_hint_body">إن استخدم متصفحك DNS المشفّر (DoH) فسوف يقاوم الفلتر — فعّل «حجب DNS-over-HTTPS» من قسم الحماية ليُحجب المشفّر أيضاً.</string>
+    <string name="notifications_title">حجب الإشعارات</string>
+    <string name="notifications_sub">يكتم إشعارات التطبيقات المحجوبة طوال عمل الحجب.</string>
+    <string name="notifications_grant">منح إذن الإشعارات</string>
+    <string name="privacy_title">خصوصيتك</string>
+    <string name="privacy_body">لا نجمع بيانات شخصية — لا سيرفر ولا حساب ولا تسجيل. يعمل كل شيء على جهازك، وتُسحب قوائم الحجب من مصادر عامة عند تحديثها.</string>
+    <string name="help_title">أحتاج مساعدة</string>
+    <string name="help_body">خط مساندة عالمي مجاني يفتح في متصفحك. لا يسجّل واردن أي شيء عند استخدامه.</string>
+    <string name="help_action">فتح صفحة المساعدة</string>
+    <string name="reduce_motion_title">تقليل الحركة</string>
+    <string name="reduce_motion_sub">يوقف نبض الدرع في الصفحة الرئيسية — لمن يفضّل واجهة ثابتة.</string>
+    <string name="version_label">واردن %1$s (%2$d)</string>
+
+    <!-- الرقم السري وحماية الإلغاء -->
+    <string name="pin_card_title">قفل الرقم السري</string>
+    <string name="pin_card_set">يُطلب الرقم السري لكل تعديل في الإعدادات أو إنهاء للحماية.</string>
+    <string name="pin_card_none">احمِ الإعدادات وإنهاء الحماية برقم من أربعة أرقام.</string>
+    <string name="pin_change">تغيير الرقم</string>
+    <string name="pin_set_new">وضع رقماً</string>
+    <string name="pin_remove">إزالة الرقم</string>
+    <string name="pin_blocked_lockdown">القفل الزمني نشط</string>
+    <string name="pin_blocked_strict">أطفئ الوضع الصارم أولاً</string>
+    <string name="pin_remove_failed">لم تُزل الرقم — أطفئ الوضع الصارم أو انتظر انتهاء القفل الزمني.</string>
+    <string name="admin_title">حماية من الإلغاء</string>
+    <string name="admin_on">مفعّلة — لا يمكن حذف واردن قبل إطفاء هذه الحماية.</string>
+    <string name="admin_off">مطفأة — يمكن حذف واردن في أي وقت.</string>
+    <string name="admin_enable">تفعيل الحماية</string>
+    <string name="admin_disable">إطفاء الحماية</string>
+
+    <string name="unit_minutes">دقائق</string>
+    <string name="unit_hours">ساعات</string>
+    <string name="unit_days">أيام</string>
+    <string name="unit_weeks">أسابيع</string>
+    <string name="unit_months">شهور</string>
+
+    <string name="lockdown_30_min">30 دقيقة</string>
+    <string name="lockdown_1_hour">ساعة</string>
+    <string name="lockdown_6_hours">6 ساعات</string>
+    <string name="lockdown_1_day">يوم</string>
+    <string name="lockdown_3_days">3 أيام</string>
+    <string name="lockdown_1_week">أسبوع</string>
+    <string name="lockdown_2_weeks">أسبوعان</string>
+    <string name="lockdown_1_month">شهر</string>
+    <string name="lockdown_3_months">3 شهور</string>
+    <string name="lockdown_6_months">6 شهور</string>
+
+    <!-- أزرار عامة -->
+    <string name="save">حفظ</string>
+    <string name="ok">موافق</string>
+    <string name="open_settings">فتح</string>
+    <string name="grant">منح</string>
+    <string name="granted">ممنوح</string>
+    <string name="not_granted">غير ممنوح</string>
+
+    <!-- الترحيب -->
+    <string name="onboarding_tagline">اهتمامُك، مسيجٌ بيدك.</string>
+    <string name="onboarding_pillar_dns_title">حجب المواقع في كل مكان</string>
+    <string name="onboarding_pillar_dns_body">فلتر DNS محلي يحجب المواقع في كل متصفح وتطبيق — بلا صلاحيات جذر، ولا يخرج شيء من جهازك إلى طرفٍ آخر.</string>
+    <string name="onboarding_pillar_apps_title">حجب التطبيقات والتمرير اللانهائي</string>
+    <string name="onboarding_pillar_apps_body">التطبيق بالكامل، أو الريلز والشورتس داخله وحدها، مع توقّفٍ واعٍ قبل أن تستجيب.</string>
+    <string name="onboarding_pillar_schedule_title">جداول وتركيز ووضعٌ صارم</string>
+    <string name="onboarding_pillar_schedule_body">نوافد تمتدّ بعد منتصف الليل، وجلسات تركيز، وقفلٌ بالرقم السري مع حمايةٍ من الحذف.</string>
+    <string name="onboarding_notice">مجاني للاستخدام · تطبيق تجاري · مساحةٌ إعلانية هادئة قد تظهر في الرئيسية أو صفحة الإنجازات فقط — ولا تظهر أبداً في شاشة الحجب أو التوقّف الواعي. خطةٌ مدفوعة (بلا إعلانات ومزايا أكثر) لاحقاً.</string>
+    <string name="onboarding_get_started">لنبدأ</string>
+    <string name="onboarding_skip">تخطّي</string>
+
+    <!-- منتقي التطبيقات -->
+    <string name="app_picker_title">إضافة تطبيقات</string>
+    <string name="app_picker_hint">اضغط على تطبيقٍ ليُضاف إلى الحجب. التطبيقات الجديدة تبدأ بالتوقّف الواعي — اضبطه من قائمة الحجب.</string>
+    <string name="search_apps">ابحث في التطبيقات</string>
+    <string name="app_picker_no_results">لا تطبيقٌ يطابق بحثك.</string>
+    <string name="added">أُضيف</string>
+
+    <!-- مُحرِّر عنصر الحجب -->
+    <string name="editor_when_opened">عند فتحه</string>
+    <string name="editor_mindful_pause">توقّفٌ واعٍ</string>
+    <string name="editor_hard_block">حجبٌ تام</string>
+    <string name="editor_breathe_seconds">مدة التمهّل (ثانية)</string>
+    <string name="editor_prompt_label">رسالة التوقّف (اختيارية)</string>
+    <string name="editor_prompt_placeholder">لماذا تفتح هذا التطبيق؟</string>
+    <string name="editor_opens_per_day">أقصى عددٍ للفتح في اليوم (0 = بلا حد)</string>
+    <string name="editor_daily_time">حدّ الوقت اليومي بالدقائق (0 = مطفأ)</string>
+    <string name="editor_cooldown">الفاصل بين الفتحات بالدقائق</string>
+    <string name="decrease">إنقاص</string>
+    <string name="increase">زيادة</string>
+    <string name="editor_pause_web_note">التوقّف الواعي خاصٌ بالتطبيقات. المواقع تُحجب حجباً تاماً على مستوى الشبكة.</string>
+
+    <!-- مُحرِّر الجدول -->
+    <string name="schedule_edit_title">تعديل الجدول</string>
+    <string name="schedule_name">الاسم</string>
+    <string name="schedule_days">الأيام</string>
+    <string name="schedule_start">البداية %1$s</string>
+    <string name="schedule_end">النهاية %1$s</string>
+    <string name="schedule_overnight">نافذةٌ ليلية تنتهي في اليوم التالي</string>
+    <string name="schedule_days_preview">المحدَّد: %1$s</string>
+    <string name="schedule_days_none">لم تُحدَّد أي يوم — اختر يوماً واحداً على الأقل.</string>
+    <string name="day_letter_mon">ن</string>
+    <string name="day_letter_tue">ث</string>
+    <string name="day_letter_wed">ر</string>
+    <string name="day_letter_thu">خ</string>
+    <string name="day_letter_fri">ج</string>
+    <string name="day_letter_sat">س</string>
+    <string name="day_letter_sun">ح</string>
+
+    <!-- الحوار الداعم -->
+    <string name="supportive_title">قرارٌ يحترم طريقك</string>
+    <string name="supportive_intro">هذا القرار لك وحدك. قبل أن تُقفل الحماية:</string>
+    <string name="supportive_confirm">تأكيد القفل</string>
+    <string name="supportive_stay_protected">البقاء محميّاً</string>
+    <string name="supportive_reality">واقعك حتى الآن: %1$s.</string>
+    <string name="supportive_streak">سلسلة %1$d يوم</string>
+    <string name="supportive_sessions">%1$d جلسة تركيز</string>
+    <string name="supportive_connective"> و </string>
+    <string name="supportive_message">كل يومٍ بعيداً عن الإباحية يعيد للنوم صفاءه وللتركيز عمقه — قيمتك هي نوعُ الحياة التي تختارها.</string>
+    <string name="supportive_reflect">خذ لحظة تأمّل… (%1$d ث)</string>
+
+    <!-- شاشة الإعداد -->
+    <string name="setup_title">الإعداد</string>
+    <string name="setup_intro">منحُ هذه الأذونات يجعل واردن يعمل بالكامل.</string>
+    <string name="setup_progress">مكتمل %1$d من %2$d</string>
+    <string name="setup_sequence_hint">التسلسل مقترح: الأهمّ أولاً، ثم ما يثبّت الحماية. قد تنتقل إلى شاشة النظام ثم تعود — الحالة تتحدّث تلقائياً.</string>
+    <string name="setup_section_core">أساسي</string>
+    <string name="setup_section_notifications">الإشعارات</string>
+    <string name="setup_section_continuity">استمرارية الحماية</string>
+    <string name="setup_accessibility_title">حجب التطبيقات (إمكانية الوصول)</string>
+    <string name="setup_accessibility_sub">مطلوب — يرصد التطبيق المفتوح أمامك والمحتوى المحجوب داخله.</string>
+    <string name="setup_restricted_title">السماح بالإعدادات المقيدة</string>
+    <string name="setup_restricted_body">أندرويد 13+ يمنع إمكانية الوصول عن التطبيقات المثبّتة من خارج المتاجر، وخطوةٌ واحدة ترفع هذا المنع:</string>
+    <string name="setup_restricted_steps">1. افتح «معلومات التطبيق» بالزر أدناه\n2. اضغط قائمة (⋮) أعلى الشاشة\n3. اختر «السماح بالإعدادات المقيدة»</string>
+    <string name="setup_open_app_info">فتح معلومات التطبيق</string>
+    <string name="setup_notifications_title">الإشعارات</string>
+    <string name="setup_notifications_sub">تُظهر إشعار «الحماية فعّالة» المستمر.</string>
+    <string name="setup_usage_title">الوصول إلى بيانات الاستخدام</string>
+    <string name="setup_usage_sub">لزمن الشاشة والحدود اليومية.</string>
+    <string name="setup_vpn_title">تشغيل واردن دائماً (VPN)</string>
+    <string name="setup_vpn_sub">يشغّل أندرويد الفلتر تلقائياً بعد إعادة التشغيل: فعّل «دائمًا» لواردن، واترك «حجب الاتصالات بدون VPN» مطفأً.</string>
+    <string name="setup_battery_title">تحسين البطارية</string>
+    <string name="setup_battery_sub">اختر واردن ثم «بدون قيود» كي لا يوقف النظام الفلتر في الخلفية.</string>
+    <string name="setup_dns_title">Private DNS</string>
+    <string name="setup_dns_strict">وضع Private DNS الصارم يتخطى فلتر واردن تماماً. اضبطه على «إيقاف».</string>
+    <string name="setup_dns_safe_hint">الأأمن أن يكون «إيقاف» — «تلقائي» قد يستخدم DoT لدى بعض المشغّلين فيقفز فوق الفلتر.</string>
+
+    <!-- بلاطة الإعدادات السريعة -->
+    <string name="tile_label">واردن</string>
+    <string name="tile_sub_lockdown">قفل الحماية</string>
+    <string name="tile_sub_strict_focus">جلسة تركيز صارمة</string>
+    <string name="tile_sub_focus">جلسة تركيز</string>
+    <string name="tile_sub_strict_lock">قفل صارم</string>
+    <string name="tile_sub_blocking">الحجب يعمل</string>
+    <string name="tile_sub_off">مطفأ</string>
+
+    <!-- شاشات الاعتراض -->
+    <string name="intercept_hold_to_leave">اضغط مطوّلاً</string>
+    <string name="intercept_this_app">هذا التطبيق</string>
+    <string name="intercept_this_feed">هذا المحتوى</string>
+    <string name="intercept_adult_title">محجوب — محتوى إباحي</string>
+    <string name="intercept_adult_body">فلترُ واردن يُبقي هذا الموقع بعيداً في كل متصفح. الرغبةُ تعبر، والموقع يبقى محجوباً. اضغط مطوّلاً على الزر لتذهب إلى غيرَه.</string>
+    <string name="intercept_social_title">محجوب — محتوى إباحي</string>
+    <string name="intercept_social_body">رصد واردن شاشة إباحية في %1$s. بقية التطبيق متاح، هذه الشاشة لا. اضغط مطوّلاً على الزر لتذهب إلى غيرَه.</string>
+    <string name="intercept_feature_title">%1$s خارج الحدود</string>
+    <string name="intercept_feature_body">يُبعدك واردن عن %1$s. بقية التطبيق يعمل كالمعتاد — التمرير اللانهائي وحده هو الموقوف.</string>
+    <string name="intercept_block_title">محجوب بواردن</string>
+    <string name="intercept_block_body">أنت من طلب من واردن أن يُبقيك بعيداً عن %1$s. الرغبة تعبر — وأنت أثبت.</string>
+    <string name="intercept_block_generic">هذا محجوبٌ في الوقت الحالي.</string>
+    <string name="intercept_limit_title">انتهى الحدّ</string>
+    <string name="intercept_limit_opens">استنفدتَ فتحات اليوم في %1$s. تتجدّد غداً.</string>
+    <string name="intercept_limit_time">بلغتَ حدّ وقت اليوم في %1$s. تتجدّد غداً.</string>
+    <string name="intercept_limit_cooldown">فتحت %1$s للتو. أعطِه شيئاً من الوقت قبل الزيارة التالية.</string>
+    <string name="intercept_limit_generic">%1$s محدودٌ في هذا الوقت.</string>
+    <string name="intercept_breathe">تمهّل\n%1$d ث</string>
+    <string name="intercept_ready">جاهز؟</string>
+    <string name="intercept_why_opening">لماذا تفتح %1$s؟</string>
+    <string name="intercept_escalations">ابتعدت %1$d مرّةً اليوم — والانتظار يزداد في كل مرّة.</string>
+    <string name="intercept_pause_note">خُذ لحظة. إن أردتَ الدخول فعلاً فستستطيع المتابعة بعد ثانية.</string>
+    <string name="intercept_continue_for">المتابعة لمدة…</string>
+    <string name="intercept_minutes">%1$d د</string>
+    <string name="intercept_shield">درع واردن</string>
+
+    <!-- الرئيسية الجديدة -->
+    <string name="home_subtitle">حماية محلية · بلا حساب</string>
+    <string name="home_quick_title">مفاتيح الحماية</string>
+    <string name="home_quick_hint">كل ميزة تعمل من هنا مباشرة، بلا تنقّل بين تبويبات.</string>
+    <string name="quick_porn">فلتر الإباحية</string>
+    <string name="quick_safe_search">SafeSearch</string>
+    <string name="quick_ads">حجب الإعلانات</string>
+    <string name="quick_doh">حجب DNS المشفّر</string>
+    <string name="quick_notifications">كتم الإشعارات</string>
+    <string name="quick_strict">الوضع الصارم</string>
+    <string name="home_journal_title">حصيلة اليوم</string>
+    <string name="home_journal_today">%1$d محاولة صُدّت</string>
+    <string name="home_journal_quiet">لا محاولات اليوم — يومٌ هادئ.</string>
+    <string name="home_journal_week">آخر 7 أيام</string>
+    <string name="home_journal_total">الإجمالي منذ البداية: %1$d</string>
+    <string name="home_presets_title">أنماط الحماية</string>
+    <string name="home_presets_hint">نمطٌ واحد يضبط المفاتيح كلها — وتبقى قادراً على تعديلها فرداً فرداً.</string>
+    <string name="preset_light">خفيف</string>
+    <string name="preset_balanced">متوازن</string>
+    <string name="preset_maximum">أقصى</string>
+    <string name="preset_applied">طُبِّق النمط: %1$s</string>
+    <string name="home_manage_title">الإدارة</string>
+    <string name="home_manage_apps">التطبيقات والمواقع</string>
+    <string name="home_manage_apps_detail">%1$d عنصراً فعّالاً</string>
+    <string name="home_manage_schedules">الجداول</string>
+    <string name="home_manage_schedules_detail">%1$d نافذةً زمنية</string>
+    <string name="home_manage_stats">الإنجازات</string>
+    <string name="home_manage_stats_detail">سلسلتك وزمن الشاشة</string>
+    <string name="home_manage_checkup">فحص الحماية</string>
+    <string name="home_manage_checkup_detail">%1$d%% من الطبقات</string>
+    <string name="home_streak_chip">سلسلة %1$d يوم</string>
+    <string name="home_streak_start">ابدأ سلسلتك اليوم</string>
+    <string name="home_hero_protected">أنت محميّ</string>
+    <string name="home_layers_complete">كل الطبقات تعمل</string>
+    <string name="home_layers_partial">بعض الطبقات متوقفة</string>
+    <string name="home_focus_quick">جلسة تركيز</string>
+    <string name="home_focus_minutes">%1$d د</string>
+    <string name="home_focus_strict_hint">صارمة — لا إنهاء قبل انتهاء المدة</string>
+    <string name="home_privacy_footer">كل شيء على جهازك: بلا حساب، بلا سيرفر، بلا تسجيل تصفّح.</string>
+    <string name="streak_label">أيام متتابعة</string>
+
+    <!-- فحص الحماية -->
+    <string name="checkup_title">فحص الحماية</string>
+    <string name="checkup_intro">جولةٌ واحدة تكشف كل طبقة: ما يعمل، وما يحتاج خطوةً منك.</string>
+    <string name="checkup_score">%1$d%%</string>
+    <string name="checkup_score_caption">درجة الجاهزية</string>
+    <string name="checkup_complete">كل الطبقات تعمل — لا شيء يحتاج تدخّلك.</string>
+    <string name="checkup_essential_missing">طبقةٌ أساسية متوقفة — الحماية غير مكتملة بعد.</string>
+    <string name="checkup_partial">بعض الطبقات تحتاج خطوةً واحدة.</string>
+    <string name="checkup_layers">طبقات أساسية</string>
+    <string name="checkup_extras">تحسينات وثبات</string>
+    <string name="checkup_filter_title">فلتر المواقع</string>
+    <string name="checkup_filter_sub">فلترة DNS محلية تحجب المواقع في كل متصفح وتطبيق.</string>
+    <string name="checkup_filter_action">تشغيل الفلتر</string>
+    <string name="checkup_consent_title">إذن اتصال الحماية</string>
+    <string name="checkup_consent_sub">يطلبه النظام مرة واحدة، وبدونه لا يبدأ الفلتر.</string>
+    <string name="checkup_consent_action">منح الإذن</string>
+    <string name="checkup_listener_title">قراءة الإشعارات</string>
+    <string name="checkup_listener_sub">لازمة لكتم إشعارات التطبيقات المحجوبة وحدها.</string>
+    <string name="checkup_battery_action">إعدادات البطارية</string>
+    <string name="checkup_ready">جاهز</string>
+    <string name="checkup_pending">ناقص</string>
+    <string name="checkup_summary">%1$d من %2$d نقطة</string>
+
+    <!-- الترحيب الجديد -->
+    <string name="ob_skip">تخطّي</string>
+    <string name="ob_next">التالي</string>
+    <string name="ob_start">ابدأ الحماية</string>
+    <string name="ob_hero_eyebrow">واردن</string>
+    <string name="ob_hero_title">حمايةٌ تبقى معك</string>
+    <string name="ob_hero_body">حجبٌ محليّ للمواقع والتطبيقات والمحتوى الإباحي — يعمل على جهازك وحده، ويبقى يعمل بعد إغلاق التطبيق.</string>
+    <string name="ob_badge_local">يعمل محلياً</string>
+    <string name="ob_badge_account">بلا حساب</string>
+    <string name="ob_badge_tracking">بلا تتبّع</string>
+    <string name="ob_features_title">ما يحميك فعلاً</string>
+    <string name="ob_features_body">ستّ طبقات تعمل معاً، وكل واحدة تُشغَّل وتُطفأ من الرئيسية.</string>
+    <string name="ob_feature_dns_title">كل المواقع</string>
+    <string name="ob_feature_dns_body">فلتر DNS محلي في كل متصفح وتطبيق.</string>
+    <string name="ob_feature_apps_title">التطبيقات</string>
+    <string name="ob_feature_apps_body">حجبٌ تام أو توقّفٌ واعٍ قبل الفتح.</string>
+    <string name="ob_feature_adult_title">الإباحية</string>
+    <string name="ob_feature_adult_body">قوائم مغلقة وSafeSearch مفروض.</string>
+    <string name="ob_feature_feeds_title">التمرير اللانهائي</string>
+    <string name="ob_feature_feeds_body">الريلز والشورتس وحدها، وبقية التطبيق تعمل.</string>
+    <string name="ob_feature_focus_title">جلسات التركيز</string>
+    <string name="ob_feature_focus_body">مؤقّتٌ يفرض الحجب حتى ينتهي.</string>
+    <string name="ob_feature_schedule_title">الجداول</string>
+    <string name="ob_feature_schedule_body">نوافذ زمنية تمتدّ بعد منتصف الليل.</string>
+    <string name="ob_how_title">ثلاث خطوات</string>
+    <string name="ob_step1">امنح الأذونات</string>
+    <string name="ob_step1_body">إمكانية الوصول وفلتر الاتصال — بفحصٍ واضح لكل خطوة.</string>
+    <string name="ob_step2">اختر ما يُحجب</string>
+    <string name="ob_step2_body">تطبيقات ومواقع، أو نمط حماية جاهز بضغطة.</string>
+    <string name="ob_step3">شغّل الحماية</string>
+    <string name="ob_step3_body">تبقى تعمل بعد إغلاق التطبيق وبعد إعادة التشغيل.</string>
+    <string name="ob_privacy">لا نجمع بيانات، ولا نرسل شيئاً عن استخدامك. تُسحب قوائم الحجب من مصادر عامة عند التحديث فقط.</string>
+
+    <!-- الرئيسية v4 — لوحة واحدة بلا تبويبات -->
+    <string name="home_top_protected">محميّ</string>
+    <string name="home_top_off">مطفأ</string>
+    <string name="home_section_layers">مفاتيح الحماية</string>
+    <string name="home_section_layers_hint">كل ميزة تعمل من هنا مباشرة — لا تبويبات ولا تنقّل.</string>
+    <string name="quick_porn_sub">حجب مواقع البالغين في كل المتصفحات</string>
+    <string name="quick_safe_search_sub">نتائج بحثٍ وصورٍ آمنة من المصدر</string>
+    <string name="quick_ads_sub">إعلاناتٌ ومتتبّعاتٌ أقل في التصفّح</string>
+    <string name="quick_doh_sub">إغلاق ثغرة الـ DNS المشفّر</string>
+    <string name="quick_notifications_sub">كتم إشعارات التطبيقات المحجوبة</string>
+    <string name="quick_strict_sub">قفل مفتاح الحماية طوال عمله</string>
+    <string name="home_always_on_title">الوضع الدائم</string>
+    <string name="home_always_on_on">الحجب يعمل دوماً، وخارج الجداول أيضاً</string>
+    <string name="home_always_on_off">الحجب يعمل داخل الجداول فقط</string>
+    <string name="home_section_progress">حصيلتك</string>
+    <string name="home_section_progress_hint">أرقامك على جهازك، ولا تخرج منه.</string>
+    <string name="stat_streak">أيام متتابعة</string>
+    <string name="stat_best">أطول تتابع</string>
+    <string name="stat_sessions">جلسات مكتملة</string>
+    <string name="stat_blocked_week">صُدّت هذا الأسبوع</string>
+    <string name="home_streak_at_risk">اليوم لم يُسجَّل بعد — شغّل الحماية اليوم لتبقى السلسلة حيّة.</string>
+    <string name="home_section_tools">أدوات</string>
+    <string name="sos_title">لحظة رغبة؟</string>
+    <string name="sos_body">دقيقة واحدة من التنفّس تكفي لتعبر الموجة. لا شيء يُسجَّل ولا يُرسل.</string>
+    <string name="sos_open">افتح درع الرغبة</string>
+    <string name="sos_close">أنا بخير الآن</string>
+    <string name="sos_inhale">شهيق…</string>
+    <string name="sos_hold">احتفظ…</string>
+    <string name="sos_exhale">زفير…</string>
+    <string name="sos_intro">اجلس مستقيماً واتبع الدائرة.</string>
+    <string name="sos_done_title">عبرت الموجة</string>
+    <string name="sos_done_body">الرغبة موجةٌ لا أمر. امنحها دقيقةً أخرى إن احتجت، ثم اذهب إلى شيء يشغلك.</string>
+    <string name="sos_again">دقيقة أخرى</string>
+    <string name="sos_counter">%1$d ثانية</string>
+    <string name="sos_note">تنفّس 4 – 7 – 8 يهدّئ الجهاز العصبي. أبقِ الشاشة بعيدة عن المحتوى الآن.</string>
+
+    <!-- الترحيب v3 -->
+    <string name="ob_features_page_title">كل ما يهمّك في مكانٍ واحد</string>
+    <string name="ob_features_page_body">ستّ طبقات تعمل معاً، وكل واحدة مفتاحٌ ظاهر في الشاشة الرئيسية.</string>
+    <string name="ob_how_page_title">ثلاث خطوات فقط</string>
+    <string name="ob_ready_title">جاهز للبدء</string>
+    <string name="ob_ready_body">سيمرّ بك واردن على الأذونات خطوةً بخطوة، ويقول لك بالضبط ما يعمل وما ينقص.</string>
+    <string name="ob_ready_item1">فلتر مواقع محلي يغطّي كل التطبيقات</string>
+    <string name="ob_ready_item2">إمكانية الوصول لحجب التطبيقات والمحتوى</string>
+    <string name="ob_ready_item3">إشعار دائم يثبّت الحماية في الخلفية</string>
+    <string name="ob_ready_item4">استثناء البطارية كي لا يوقفها النظام</string>
+    <string name="ob_ready_note">لن تبدأ الحماية قبل موافقتك، ولن يُرسَل أي شيء خارج جهازك.</string>
+    <string name="ob_page_index">%1$d من %2$d</string>
+    <string name="ob_next_short">التالي</string>
+
+    <!-- الإنجازات v2 -->
+    <string name="stats_week_title">آخر سبعة أيام</string>
+    <string name="stats_week_total">%1$d محاولة صُدّت هذا الأسبوع</string>
+    <string name="stats_hero_label">سلسلتك الآن</string>
+    <string name="stats_days_unit">يوم</string>
+    <string name="setup_battery_direct">السماح الآن</string>
 </resources>

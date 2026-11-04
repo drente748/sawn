@@ -1,140 +1,191 @@
 package com.warden.blocker.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.warden.blocker.R
 
-/**
- * Warden palette 1.0.0 — قاتم/pressing light design.
- *
- * Brand intent (المواصفة 2026-11-01): هادئ وملهم — أبيض نقي + أخضر أمان، طابع عافية وسلام
- * داخلي. لا ثيم داكن إطلاقاً؛ أحادي السكيمة على كل الأجهزة.
- */
 object WardenPalette {
+    val Surface = Color(0xFFFFFFFF)
+    val SurfaceSoft = Color(0xFFFBF7EF)
+    val Background = Color(0xFFF6F2E9)
+    val Ink = Color(0xFF143028)
+    val Muted = Color(0xFF5D6A64)
+    val Line = Color(0xFFDED6C8)
 
-    // — لوحة «نافذة الصباح» v2 (التصميم المشتم في HomeRedesign) —
-    val Zaytoun = Color(0xFF24352B)   // نص أساسي زيتوني عميق
-    val Safeen = Color(0xFF128C6D)    // الأخضر الأمان (المقروء)
-    val Halek = Color(0xFFE9F5EF)     // أرضية بطاقات الثقة
-    val Ramil = Color(0xFFD98A26)     // كهرماني للتحذير فقط
-    val RamilSoft = Color(0xFFFBF2E2) // أرضية التحذير
-    val Fasal = Color(0xFFE4EAE5)     // خطوط الفواصل
-    val Ghaim = Color(0xFF62736B)     // نص ثانوي
+    val Primary = Color(0xFF166B5A)
+    val OnPrimary = Color(0xFFFFFFFF)
+    val PrimaryContainer = Color(0xFFDBEFE7)
+    val OnPrimaryContainer = Color(0xFF09342B)
 
-    // الأساسيات من المواصفة (tokens فقط، الاستهلاك في الشاشات)
-    val Bg = Color(0xFFFFFFFF)
-    val SurfaceSoft = Color(0xFFF6F8F7)
-    val Green = Color(0xFF3DDC97)
-    val GreenDark = Color(0xFF0B3B2A)
-    val TextPrimary = Color(0xFF1A1F1C)
-    val TextMuted = Color(0xFF5C6B63)
-    val Amber = Color(0xFFF2A93B)
-    val Card = Color(0xFFFFFFFF)
-    val Line = Color(0xFFE6EDE8)
-
-    // Secondary containers derived from brand tones for M3 (light scheme calls for containers)
-    val GreenSoft = Color(0xFFE2F7ED)   // light green container, text on it GreenDark
-    val AmberSoft = Color(0xFFFFF1DC)   // light amber container, warning surfaces only
-    val LineSoft = Color(0xFFEFF3F0)
-
-    // Legacy aliases (0.x era) — الشاشات القديمة لا تزال تشير إليها؛ تُلجم في إعادة
-    // كتابة الشاشات (مهام 2–3) ثم تُحذف في تنظيف لاحق.
-    val Ink = TextPrimary
-    val Muted = TextMuted
-    val Canvas = Bg
-    val Blue = Green
-    val BlueDeep = GreenDark
-    val BlueSoft = GreenSoft
-    val GreenDarkSoft = GreenSoft
-    val Orange = Amber
-    val OrangeSoft = AmberSoft
-    val Pink = Green
-    val PinkSoft = GreenSoft
-    val Violet = Green
-    val VioletSoft = GreenSoft
-    val Teal = Green
-    val TealSoft = GreenSoft
-    val Indigo = Green
-    val IndigoSoft = GreenSoft
-    val HeroStart = Green
-    val HeroMid = Green
-    val HeroEnd = GreenDark
+    val Success = Color(0xFF1A805F)
+    val SuccessContainer = Color(0xFFE4F3EC)
+    val Error = Color(0xFFB3261E)
+    val ErrorContainer = Color(0xFFFDECE9)
+    val Info = Color(0xFF2F5F85)
+    val InfoContainer = Color(0xFFE3EFF7)
 }
 
-private val SunriseColors = lightColorScheme(
-    primary = WardenPalette.Green,
-    onPrimary = WardenPalette.GreenDark,
-    primaryContainer = WardenPalette.GreenSoft,
-    onPrimaryContainer = WardenPalette.GreenDark,
-    secondary = WardenPalette.GreenDark,
-    onSecondary = WardenPalette.Bg,
-    secondaryContainer = WardenPalette.GreenSoft,
-    onSecondaryContainer = WardenPalette.GreenDark,
-    tertiary = WardenPalette.Amber,
-    onTertiary = Color(0xFF3D2A05),
-    tertiaryContainer = WardenPalette.AmberSoft,
-    onTertiaryContainer = Color(0xFF3D2A05),
-    background = WardenPalette.Bg,
-    onBackground = WardenPalette.TextPrimary,
-    surface = WardenPalette.Card,
-    onSurface = WardenPalette.TextPrimary,
-    surfaceVariant = WardenPalette.SurfaceSoft,
-    onSurfaceVariant = WardenPalette.TextMuted,
-    surfaceTint = WardenPalette.Green,
-    surfaceContainerLowest = WardenPalette.Bg,
-    surfaceContainerLow = WardenPalette.SurfaceSoft,
-    surfaceContainer = WardenPalette.SurfaceSoft,
-    surfaceContainerHigh = WardenPalette.SurfaceSoft,
-    surfaceContainerHighest = WardenPalette.LineSoft,
-    outline = WardenPalette.Line,
-    outlineVariant = WardenPalette.LineSoft,
-    error = Color(0xFFDC2626),
-    onError = WardenPalette.Bg,
-    errorContainer = Color(0xFFFFE4E4),
-    onErrorContainer = Color(0xFF5C0F0F),
+/** نسخة الليل من الهوية نفسها: ورقٌ أخضر داكن بدل الورق الفاتح، ونفَس زيتوني أفتح. */
+private object WardenNight {
+    val Background = Color(0xFF0B1512)
+    val Surface = Color(0xFF12201B)
+    val SurfaceSoft = Color(0xFF1B2C26)
+    val SurfaceHighest = Color(0xFF23352E)
+    val Ink = Color(0xFFE4EDE8)
+    val Muted = Color(0xFFA2B3AB)
+    val Line = Color(0xFF37463F)
+    val LineSoft = Color(0xFF28352F)
+
+    val Primary = Color(0xFF7FD8B6)
+    val OnPrimary = Color(0xFF003829)
+    val PrimaryContainer = Color(0xFF135041)
+    val OnPrimaryContainer = Color(0xFFCFEFDF)
+
+    val SuccessContainer = Color(0xFF17453A)
+    val Error = Color(0xFFFFB4AB)
+    val ErrorContainer = Color(0xFF7E170F)
+    val OnErrorContainer = Color(0xFFFFDAD6)
+    val Info = Color(0xFF9FCCED)
+    val InfoContainer = Color(0xFF1B4560)
+}
+
+private val WardenArabicFont = FontFamily(
+    Font(R.font.ibm_plex_sans_arabic_regular, FontWeight.Normal),
+    Font(R.font.ibm_plex_sans_arabic_medium, FontWeight.Medium),
+    Font(R.font.ibm_plex_sans_arabic_semibold, FontWeight.SemiBold),
+    Font(R.font.ibm_plex_sans_arabic_bold, FontWeight.Bold),
 )
 
-private val SunriseShapes = Shapes(
+private fun arabicStyle(
+    size: TextUnit,
+    lineHeight: TextUnit,
+    weight: FontWeight = FontWeight.Normal,
+): TextStyle = TextStyle(
+    fontFamily = WardenArabicFont,
+    fontWeight = weight,
+    fontSize = size,
+    lineHeight = lineHeight,
+    letterSpacing = 0.sp,
+    lineHeightStyle = LineHeightStyle(
+        alignment = LineHeightStyle.Alignment.Center,
+        trim = LineHeightStyle.Trim.None,
+    ),
+)
+
+private val WardenTypography = Typography(
+    displaySmall = arabicStyle(28.sp, 1.45.em, FontWeight.Bold),
+    headlineMedium = arabicStyle(24.sp, 1.45.em, FontWeight.Bold),
+    headlineSmall = arabicStyle(22.sp, 1.4.em, FontWeight.SemiBold),
+    titleLarge = arabicStyle(19.sp, 1.45.em, FontWeight.SemiBold),
+    titleMedium = arabicStyle(16.sp, 1.5.em, FontWeight.Medium),
+    titleSmall = arabicStyle(14.sp, 1.5.em, FontWeight.SemiBold),
+    bodyLarge = arabicStyle(16.sp, 1.65.em),
+    bodyMedium = arabicStyle(14.sp, 1.65.em),
+    bodySmall = arabicStyle(12.sp, 1.6.em),
+    labelLarge = arabicStyle(14.sp, 1.5.em, FontWeight.SemiBold),
+    labelMedium = arabicStyle(12.sp, 1.5.em, FontWeight.Medium),
+    labelSmall = arabicStyle(11.sp, 1.4.em, FontWeight.Medium),
+)
+
+private val WardenLightColors = lightColorScheme(
+    primary = WardenPalette.Primary,
+    onPrimary = WardenPalette.OnPrimary,
+    primaryContainer = WardenPalette.PrimaryContainer,
+    onPrimaryContainer = WardenPalette.OnPrimaryContainer,
+    secondary = WardenPalette.Success,
+    onSecondary = WardenPalette.OnPrimary,
+    secondaryContainer = WardenPalette.SuccessContainer,
+    onSecondaryContainer = WardenPalette.OnPrimaryContainer,
+    tertiary = WardenPalette.Info,
+    onTertiary = WardenPalette.OnPrimary,
+    tertiaryContainer = WardenPalette.InfoContainer,
+    onTertiaryContainer = WardenPalette.OnPrimaryContainer,
+    background = WardenPalette.Background,
+    onBackground = WardenPalette.Ink,
+    surface = WardenPalette.Surface,
+    onSurface = WardenPalette.Ink,
+    surfaceVariant = WardenPalette.SurfaceSoft,
+    onSurfaceVariant = WardenPalette.Muted,
+    surfaceTint = WardenPalette.Primary,
+    surfaceContainerLowest = WardenPalette.Surface,
+    surfaceContainerLow = WardenPalette.SurfaceSoft,
+    surfaceContainer = WardenPalette.SurfaceSoft,
+    surfaceContainerHigh = WardenPalette.Background,
+    surfaceContainerHighest = Color(0xFFEEE8DD),
+    outline = WardenPalette.Line,
+    outlineVariant = Color(0xFFE8E0D3),
+    error = WardenPalette.Error,
+    onError = WardenPalette.OnPrimary,
+    errorContainer = WardenPalette.ErrorContainer,
+    onErrorContainer = Color(0xFF5F1410),
+)
+
+private val WardenDarkColors = darkColorScheme(
+    primary = WardenNight.Primary,
+    onPrimary = WardenNight.OnPrimary,
+    primaryContainer = WardenNight.PrimaryContainer,
+    onPrimaryContainer = WardenNight.OnPrimaryContainer,
+    secondary = WardenPalette.Success,
+    onSecondary = WardenNight.OnPrimary,
+    secondaryContainer = WardenNight.SuccessContainer,
+    onSecondaryContainer = WardenNight.OnPrimaryContainer,
+    tertiary = WardenNight.Info,
+    onTertiary = WardenNight.OnPrimary,
+    tertiaryContainer = WardenNight.InfoContainer,
+    onTertiaryContainer = WardenNight.OnPrimaryContainer,
+    background = WardenNight.Background,
+    onBackground = WardenNight.Ink,
+    surface = WardenNight.Surface,
+    onSurface = WardenNight.Ink,
+    surfaceVariant = WardenNight.SurfaceSoft,
+    onSurfaceVariant = WardenNight.Muted,
+    surfaceTint = WardenNight.Primary,
+    surfaceContainerLowest = WardenNight.Background,
+    surfaceContainerLow = WardenNight.Surface,
+    surfaceContainer = WardenNight.SurfaceSoft,
+    surfaceContainerHigh = WardenNight.SurfaceHighest,
+    surfaceContainerHighest = WardenNight.SurfaceHighest,
+    outline = WardenNight.Line,
+    outlineVariant = WardenNight.LineSoft,
+    error = WardenNight.Error,
+    onError = WardenNight.Surface,
+    errorContainer = WardenNight.ErrorContainer,
+    onErrorContainer = WardenNight.OnErrorContainer,
+)
+
+private val WardenShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
     medium = RoundedCornerShape(18.dp),
     large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(30.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
-private val WardenTypography = Typography(
-    displaySmall = Typography().displaySmall.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.8).sp),
-    headlineMedium = Typography().headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp),
-    headlineSmall = Typography().headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
-    titleLarge = Typography().titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.1).sp),
-    titleMedium = Typography().titleMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.1.sp),
-    titleSmall = Typography().titleSmall.copy(fontWeight = FontWeight.SemiBold),
-    labelLarge = Typography().labelLarge.copy(fontWeight = FontWeight.SemiBold),
-)
-
-/**
- * Warden ships in one bright scheme on purpose: there is no dark variant, so the
- * guard never turns into a dull grey app even on phones set to dark mode.
- */
 @Composable
-fun WardenTheme(content: @Composable () -> Unit) {
-    // Warden عربي بالكامل (كل النصوص فارسيّة-عربية inline) — فرض اتجاه RTL
-    // مستقل عن لغة النظام كي لا تختلط الفقرات داخل حاوية LTR عند من يملك
-    // لغة إنجليزية على الهاتف. القياس يظل يعمل في كلا الاتجاهين.
+fun WardenTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         MaterialTheme(
-            colorScheme = SunriseColors,
-            shapes = SunriseShapes,
+            colorScheme = if (darkTheme) WardenDarkColors else WardenLightColors,
+            shapes = WardenShapes,
             typography = WardenTypography,
             content = content,
         )

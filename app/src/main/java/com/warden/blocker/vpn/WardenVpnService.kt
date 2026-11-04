@@ -20,6 +20,7 @@ import com.warden.blocker.R
 import com.warden.blocker.WardenApp
 import com.warden.blocker.block.DomainMatcher
 import com.warden.blocker.block.SafeSearchHosts
+import com.warden.blocker.system.KeepAliveWorker
 import com.warden.blocker.wardenContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -155,6 +156,15 @@ class WardenVpnService : VpnService() {
 
         tunnel = established
         _running.value = true
+        // A running filter is a protected day: the streak must not wait for the user to
+        // reopen the app (that froze the day counter at 0 for schedule/focus users).
+        scope.launch {
+            runCatching {
+                if (wardenContainer.blockEngine.isBlockingActiveNow()) {
+                    wardenContainer.settings.recordActiveDay()
+                }
+            }
+        }
         registerUpstreamWatcher()
         loopJob = scope.launch {
             safeRefreshBlocklist()
@@ -455,8 +465,25 @@ class WardenVpnService : VpnService() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // مسح التطبيق من الخلفية (swipe in recents) لا يسقط الحماية: الترنل خدمة
-        // نظام مستقلة عن مهمة الواجهة — يبقى يعمل ما دام blocking مطلوباً.
+        // مسح التطبيق من قائمة المهام لا يوقف الحماية: هذه خدمة نظام مستقلة عن
+        // المهمة (`stopWithTask=false`). نعيد نشر الإشعار المستمر دائماً — حتى لو
+        // لم يكن الترنل قائماً بعد — ثم نوقظ الوصي بعد لحظات: إن قتلت الشركةُ
+        // العمليةَ كاملةً يُعاد تشغيل الترنل، وإن كان حياً يكتفي الوصي بتسجيل اليوم.
+        runCatching {
+            ServiceCompat.startForeground(
+                this,
+                NOTIF_ID,
+                buildNotification(),
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                } else {
+                    0
+                },
+            )
+        }
+        // لا نشترط أن يكون الترنل حياً: قد يكون النظام قتل العملية للتو. العامل يفحص
+        // الحالة بنفسه ولا يفعل شيئاً إن كان المستخدم قد أوقف الحماية من داخل التطبيق.
+        KeepAliveWorker.schedule(this, delaySeconds = 8L)
         super.onTaskRemoved(rootIntent)
     }
 

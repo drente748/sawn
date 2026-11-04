@@ -13,8 +13,11 @@ import kotlinx.coroutines.launch
 /** Re-arms the DNS filter after a reboot or an app update if protection should be live. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action
-        if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+        val action = intent.action ?: return
+        val boot = action == Intent.ACTION_BOOT_COMPLETED ||
+            action == "android.intent.action.QUICKBOOT_POWERON" ||
+            action == "com.htc.intent.action.QUICKBOOT_POWERON"
+        if (!boot && action != Intent.ACTION_MY_PACKAGE_REPLACED) return
         val pending = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
@@ -22,7 +25,7 @@ class BootReceiver : BroadcastReceiver() {
                 // notification from an accessibility loss during shutdown gets resolved.
                 GuardHealthWorker.schedule(context)
                 val settings = context.wardenContainer.settings
-                if (action == Intent.ACTION_BOOT_COMPLETED) {
+                if (boot) {
                     // The monotonic anchor belongs to the previous boot; rebuild it from the
                     // wall deadline protected by the high-water mark.
                     settings.reanchorLockdown()
@@ -39,6 +42,7 @@ class BootReceiver : BroadcastReceiver() {
                 // Re-arm if blocking is active for any reason — master, schedule, focus,
                 // or a live lockdown. Consent must have been granted previously.
                 val active = context.wardenContainer.blockEngine.isBlockingActiveNow()
+                if (active) context.wardenContainer.settings.recordActiveDay()
                 if (active && VpnController.consentIntent(context) == null) {
                     VpnController.start(context)
                 } else if (lockdownActive && !WardenVpnService.running) {

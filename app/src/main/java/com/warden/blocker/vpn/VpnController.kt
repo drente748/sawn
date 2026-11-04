@@ -6,40 +6,35 @@ import android.net.VpnService
 import android.os.SystemClock
 import kotlinx.coroutines.delay
 
-/** Thin facade the UI uses to start/stop the filtering tunnel. */
 object VpnController {
 
-    /**
-     * Returns an intent to show the system VPN-consent dialog, or null if already granted.
-     * The caller must launch it and call [start] once the result is OK.
-     */
     fun consentIntent(context: Context): Intent? = VpnService.prepare(context)
 
-    fun start(context: Context) {
+    /**
+     * Starts the filter. A background start on Android 12+ can be refused
+     * (ForegroundServiceStartNotAllowedException); fall back to a plain start, which still
+     * works while the app is in the foreground, instead of reporting a false failure.
+     */
+    fun start(context: Context): Boolean {
         val intent = Intent(context, WardenVpnService::class.java)
             .setAction(WardenVpnService.ACTION_START)
-        context.startForegroundService(intent)
+        if (runCatching { context.startForegroundService(intent) }.isSuccess) return true
+        return runCatching { context.startService(intent) }.isSuccess
     }
 
-    /**
-     * Start the tunnel and wait briefly for `establish()` to succeed. Focus sessions are
-     * persisted only after this returns true, so denying consent (or a failed start) cannot
-     * leave a strict session with no filter behind it.
-     */
-    suspend fun startAndAwait(context: Context, timeoutMs: Long = 5_000L): Boolean {
+    suspend fun startAndAwait(context: Context, timeoutMs: Long = 6_000L): Boolean {
         if (WardenVpnService.running) return true
-        start(context)
+        if (!start(context)) return false
         val deadline = SystemClock.elapsedRealtime() + timeoutMs
         while (SystemClock.elapsedRealtime() < deadline) {
             if (WardenVpnService.running) return true
-            delay(100L)
+            delay(120L)
         }
         return WardenVpnService.running
     }
 
-    fun stop(context: Context) {
+    fun stop(context: Context): Boolean {
         val intent = Intent(context, WardenVpnService::class.java)
-            .setAction(WardenVpnService.ACTION_STOP)
-        context.startService(intent)
+        return runCatching { context.stopService(intent) }.isSuccess
     }
 }

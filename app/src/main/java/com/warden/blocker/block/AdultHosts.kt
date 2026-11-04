@@ -42,7 +42,7 @@ object AdultHosts {
         // Aggregators / search / NSFW social ---------------------------------------
         "pornmd.com", "pornpen.ai", "fapello.com", "sex.com",
         "thothub.tv", "leakedmodels.com", "bunkr.is", "bunkr.su",
-        "motherless.com", "imgur.com/sex", "scrolller.com",
+        "motherless.com", "scrolller.com",
         // Arabic / regional -----------------------------------------------------------
         "arabsexweb.com", "arabsex.com", "arabhotsex.com", "sexarab.com",
         "xn-arab.com", "alkonuz.com", "arabseed.adult",
@@ -57,7 +57,7 @@ object AdultHosts {
      * and programming help, and break r/NoFap. So we target the media paths.
      */
     val REDDIT_MEDIA: List<String> = listOf(
-        "i.redd.it", "v.redd.it", "reddit-media.com", "i.imgur.com", "grey-temp.dexscreener.com",
+        "i.redd.it", "v.redd.it", "reddit-media.com",
     ).map { it.trim().lowercase() }.distinct()
 
     /** Broad extension sets; deliberately larger than CORE. */
@@ -72,7 +72,7 @@ object AdultHosts {
 
     val ALL: Set<String> = (CORE + EXTENDED).toSortedSet()
 
-    fun isAdultDomain(domain: String): Boolean = domain != null && domain in ALL
+    fun isAdultDomain(domain: String): Boolean = domain in ALL
 
     /** عدد النطاقات المدمجة — يُعرض ثابتاً في بطاقة الرئيسية (قرار 2026-11-01). */
     fun includedCount(): Int = ALL.size

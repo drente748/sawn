@@ -1,8 +1,8 @@
 # Warden
 
-**A free, open-source website, app, adult-content and ad/tracker blocker for Android.** No
-subscriptions, no ads, no account, no telemetry. A community-owned alternative to closed
-blockers like AppBlock.
+**A local, open-source website, app, adult-content and ad/tracker blocker for Android.** No
+account, no telemetry, no ads. Every feature ships unlocked: no subscription, no paywall, and no
+feature gated behind an upgrade. A community-owned alternative to closed blockers like AppBlock.
 
 > Working name — "Warden" is a placeholder and easy to rename (see [Renaming](#renaming)).
 
@@ -64,6 +64,10 @@ privacy model.
       (optional strict mode with no early exit; a session started while strict mode is on is
       automatically strict), independent of the master switch
 - [x] **Notification blocking** — silence notifications from blocked apps while blocking is active
+- [x] **Local protection journal** - a per-day count of refused attempts with a seven-day chart on Home (a counter only: no site or app names, nothing leaves the device)
+- [x] **One-tap protection presets** - light / balanced / maximum profiles that set every switch at once
+- [x] **Protection checkup** - a weighted readiness score across every layer, with a direct fix path for each missing permission
+- [x] **Survives a recents swipe** - after the task is removed the filter re-posts its notification and a keep-alive worker re-arms it, not only after a reboot
 - [x] **DNS-over-HTTPS blocking** — optionally sinkhole encrypted-DNS resolvers to close the browser bypass
 - [x] **Always-on or schedule-only** modes, a first-run **setup** screen, app icons throughout,
       and **data-loss-safe upgrades** (real Room migrations)
@@ -161,6 +165,17 @@ Android Studio's *Refactor → Rename* handles the package move cleanly.
 ## License
 
 [GPL-3.0](LICENSE) — Warden is free software; derivatives must stay free too.
+
+**Before any closed or paid distribution:** GPL-3.0 obliges you to hand recipients the source of the
+same build and keeps derivatives under the same license, so a proprietary release requires the
+copyright holder to relicense first (replace `LICENSE`, then update this section). Third-party
+notices are required either way: TensorFlow Lite Task Vision (Apache-2.0) and IBM Plex Sans Arabic
+(OFL, [`app/licenses/`](app/licenses)) — check the provenance of any blocklist you add too.
+
+The hooks in [`AdSlots.kt`](app/src/main/java/com/warden/blocker/ui/ads/AdSlots.kt) and
+[`Entitlements.kt`](app/src/main/java/com/warden/blocker/billing/Entitlements.kt) are inert in this
+build: no ad SDK, no billing library, and `isPremium` is permanently false, so "no ads" describes
+the shipped APK rather than a roadmap promise.
 
 ## Contributing
 

@@ -28,9 +28,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.warden.blocker.R
 import com.warden.blocker.data.BlockType
 import com.warden.blocker.usage.AppsHelper
 import com.warden.blocker.usage.InstalledApp
@@ -49,12 +51,16 @@ fun AppPickerScreen(vm: WardenViewModel, onBack: () -> Unit = {}) {
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        BackHeader("Add apps", onBack)
-        Text("Tap an app to block it. New apps start in mindful-pause mode — tune it in Blocklist.", style = MaterialTheme.typography.bodyMedium)
+        BackHeader(stringResource(R.string.app_picker_title), onBack)
+        Text(
+            stringResource(R.string.app_picker_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = query, onValueChange = { query = it },
-            label = { Text("Search apps") }, singleLine = true,
+            label = { Text(stringResource(R.string.search_apps)) }, singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(12.dp))
@@ -66,6 +72,15 @@ fun AppPickerScreen(vm: WardenViewModel, onBack: () -> Unit = {}) {
             }
         } else {
             val filtered = list.filter { it.label.contains(query, ignoreCase = true) }
+            if (filtered.isEmpty()) {
+                Text(
+                    stringResource(R.string.app_picker_no_results),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 items(filtered, key = { it.packageName }) { app ->
                     val added = app.packageName in blockedPackages
@@ -78,9 +93,19 @@ fun AppPickerScreen(vm: WardenViewModel, onBack: () -> Unit = {}) {
                         AppIcon(app.packageName, modifier = Modifier.size(40.dp).padding(end = 12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(app.label, style = MaterialTheme.typography.bodyLarge)
-                            Text(app.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                            Text(
+                                app.packageName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline,
+                            )
                         }
-                        if (added) Icon(Icons.Filled.CheckCircle, contentDescription = "Added", tint = MaterialTheme.colorScheme.primary)
+                        if (added) {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = stringResource(R.string.added),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 }
             }

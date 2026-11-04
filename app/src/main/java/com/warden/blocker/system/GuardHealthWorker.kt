@@ -7,6 +7,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.warden.blocker.util.PermissionsHelper
+import com.warden.blocker.vpn.VpnController
 import com.warden.blocker.vpn.WardenVpnService
 import com.warden.blocker.wardenContainer
 import kotlinx.coroutines.flow.first
@@ -37,6 +38,9 @@ class GuardHealthWorker(context: Context, params: WorkerParameters) : CoroutineW
                     )
             )
         val accessibilityOn = PermissionsHelper.isAccessibilityEnabled(applicationContext)
+
+        // سلسلة الأيام لا تعتمد على فتح الواجهة: طالما الحجب فعّالٌ فهذا اليوم محميّ.
+        if (container.blockEngine.isBlockingActiveNow()) settings.recordActiveDay()
         if (needsScreening && !accessibilityOn) {
             GuardHealthNotifier.notifyAccessibilityDown(applicationContext)
         } else {
@@ -44,8 +48,6 @@ class GuardHealthWorker(context: Context, params: WorkerParameters) : CoroutineW
         }
 
         // A lockdown is only meaningful if the uninstall guard and the filter are both live.
-        // Android gives no API to force them back, so surface the loss loudly instead of
-        // pretending the lock is intact.
         val adminMissing = lockdownActive && !AdminManager.isActive(applicationContext)
         if (adminMissing) {
             GuardHealthNotifier.notifyAdminDown(applicationContext)
@@ -53,7 +55,17 @@ class GuardHealthWorker(context: Context, params: WorkerParameters) : CoroutineW
             GuardHealthNotifier.clearAdmin(applicationContext)
         }
 
-        val vpnMissing = lockdownActive && !WardenVpnService.running
+        // إعادة تسليح الفلتر حين يُفترض أن يعمل. إذن VPN مُمنوح مسبقاً من المستخدم،
+        // والمحاولة عادية لا تتحايل على شيء: إن رفضها النظام (قيود بدء الخدمات
+        // الأمامية من الخلفية) يبقى التنبيه هو الوصفة، ولا ندّعي أن الحماية سليمة.
+        val filterShouldRun = needsScreening || container.blockEngine.isBlockingActiveNow()
+        if (filterShouldRun && !WardenVpnService.running &&
+            VpnController.consentIntent(applicationContext) == null
+        ) {
+            VpnController.start(applicationContext)
+        }
+
+        val vpnMissing = filterShouldRun && !WardenVpnService.running
         if (vpnMissing) {
             GuardHealthNotifier.notifyVpnDown(applicationContext)
         } else {
@@ -71,7 +83,7 @@ class GuardHealthWorker(context: Context, params: WorkerParameters) : CoroutineW
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE,
-                ExistingPeriodicWorkPolicy.KEEP, // don't reset the cadence on app relaunch
+                ExistingPeriodicWorkPolicy.UPDATE, // adopt new constraints on upgrade
                 request,
             )
         }

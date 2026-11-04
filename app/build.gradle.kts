@@ -27,14 +27,14 @@ require(wardenSigningValues.all { it == null } || wardenSigningValues.all { it !
 
 android {
     namespace = "com.warden.blocker"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.warden.blocker"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 15
-        versionName = "1.1.0"
+        targetSdk = 36
+        versionCode = 18
+        versionName = "1.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -63,10 +63,10 @@ android {
         }
     }
 
-    // Sign with every scheme Android can verify, not just v2:
-    //  - v1 keeps sideloads verifiable by older tools/AV checkers, reducing the
-    //    "unknown signature" path that feeds Play Protect's first-run hesitation.
-    //  - v3 lets a future Play Store upload rotate keys without breaking updates.
+    // APK Signature Scheme v2 + v3. v1 (JAR signing) is requested but AGP omits it for
+    // minSdk >= 24 — measured on the release output: v2/v3 verify, v1 reports false, which
+    // is expected and still installs on every supported device (minSdk 26).
+    // v3 is what lets a future Play key rotation work without breaking updates.
     signingConfigs {
         if (wardenSigningValues.all { it != null }) {
             getByName("release") {

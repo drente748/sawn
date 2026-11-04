@@ -6,6 +6,7 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.annotation.RequiresApi
 import com.warden.blocker.feature.ImageScreeningPolicy
 import com.warden.blocker.feature.NsfwClassifier
 import java.util.concurrent.ExecutorService
@@ -60,7 +61,12 @@ class ImageScreeningOrchestrator(private val service: AccessibilityService) {
             onResult(false); return
         }
         lastCapture = now
+        capture(classifier, onResult)
+    }
 
+    /** takeScreenshot() and its result types are API 30+; maybeScreen() has already gated this. */
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun capture(classifier: NsfwClassifier, onResult: (Boolean) -> Unit) {
         runCatching {
             val window = service.windows.firstOrNull()
                 ?: throw IllegalStateException("no window")
@@ -81,14 +87,14 @@ class ImageScreeningOrchestrator(private val service: AccessibilityService) {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun process(
         result: AccessibilityService.ScreenshotResult,
         classifier: NsfwClassifier,
         onResult: (Boolean) -> Unit,
     ) {
         try {
-            val buffer = result?.hardwareBuffer
-            if (buffer == null) { onResult(false); return }
+            val buffer = result.hardwareBuffer
             var bitmap: Bitmap? = null
             try {
                 bitmap = Bitmap.wrapHardwareBuffer(buffer, result.colorSpace)

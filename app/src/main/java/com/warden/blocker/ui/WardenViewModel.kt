@@ -4,12 +4,17 @@ import android.app.Application
 import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.warden.blocker.block.BlockingPolicy
+import com.warden.blocker.block.ScheduleEvaluator
 import com.warden.blocker.block.StrictPolicy
 import com.warden.blocker.data.BlockType
 import com.warden.blocker.data.BlockedItem
 import com.warden.blocker.data.DisableOutcome
 import com.warden.blocker.data.InterceptMode
 import com.warden.blocker.data.Schedule
+import com.warden.blocker.feature.JournalSnapshot
+import com.warden.blocker.feature.ShieldPreset
+import com.warden.blocker.feature.StreakPolicy
 import com.warden.blocker.security.AdultListFetcher
 import com.warden.blocker.security.PinHasher
 import com.warden.blocker.security.PinResult
@@ -28,6 +33,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 
 class WardenViewModel(app: Application) : AndroidViewModel(app) {
     private val container = app.wardenContainer
@@ -48,7 +54,8 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.strictMode,
         container.settings.hasPin,
         container.settings.focusEndsAt,
-    ) { _, _, _, _ -> true }
+        container.settings.onboardingDone,
+    ) { _, _, _, _, _ -> true }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun setOnboardingDone() = viewModelScope.launch { container.settings.setOnboardingDone() }
@@ -128,6 +135,23 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
         .map { it > 0L }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    /** True only when the policy actually enforces blocking at the current trusted time. */
+    val enforcementActive: StateFlow<Boolean> = combine(
+        combine(masterEnabled, alwaysOn, container.settings.focusEndsAt, schedules, oneSecondTicker) { master, on, focusAt, list, _ ->
+            val calendar = Calendar.getInstance()
+            BlockingPolicy.isActive(
+                masterEnabled = master,
+                alwaysOn = on,
+                focusEndsAt = focusAt,
+                now = calendar.timeInMillis,
+                anyScheduleActive = ScheduleEvaluator.anyActive(list, calendar),
+            )
+        },
+        lockdownActive,
+    ) { policyActive, lockdown ->
+        policyActive || lockdown
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     /** المدة المنتظرة — لا تُكتب أي قيمة قبل موافقة Device Admin. */
     private var pendingLockdownDurationMs: Long? = null
 
@@ -185,8 +209,38 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.hasPin
             .map<Boolean, Boolean?> { it }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-    val currentStreak: StateFlow<Int> =
-        container.settings.currentStreak.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    /** نبضٌ دقيقي يجعل «اليوم» يتغيّر في الواجهة عند منتصف الليل بلا إعادة فتح. */
+    private val minuteTicker: Flow<Unit> = flow {
+        while (true) {
+            emit(Unit)
+            delay(60_000L)
+        }
+    }
+
+    /**
+     * السلسلة كما يراها المستخدم: تُشتق مقابل اليوم الحالي، فاليومُ الفائت يصفّرها
+     * فوراً بدل أن تبقى تعرض رقماً قديماً حتى تُفتح الواجهة من جديد.
+     */
+    val currentStreak: StateFlow<Int> = combine(
+        container.settings.currentStreak,
+        container.settings.lastActiveDay,
+        minuteTicker,
+    ) { raw, lastDay, _ -> StreakPolicy.visibleStreak(raw, lastDay, StreakPolicy.todayEpochDay()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** السلسلة حيّة لكن اليوم لم يُسجَّل بعد — تستخدمها الرئيسية تذكيراً هادئاً. */
+    val streakAtRisk: StateFlow<Boolean> = combine(
+        container.settings.currentStreak,
+        container.settings.lastActiveDay,
+        minuteTicker,
+    ) { raw, lastDay, _ -> StreakPolicy.isAtRisk(raw, lastDay, StreakPolicy.todayEpochDay()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val blockJournal: StateFlow<JournalSnapshot> =
+        container.settings.blockJournal.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), JournalSnapshot())
+
+    /** نمط حماية بضغطة واحدة (خفيف / متوازن / أقصى). */
+    fun applyPreset(preset: ShieldPreset) = viewModelScope.launch { container.settings.applyPreset(preset) }
     val longestStreak: StateFlow<Int> =
         container.settings.longestStreak.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val focusSessionsDone: StateFlow<Int> =
@@ -211,6 +265,8 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
             endsAt,
             StrictPolicy.effectiveFocusStrict(globalStrict, strict),
         )
+        // الجلسة تفرض الحجب، فهي يوم محمي مهما كانت حالة المفتاح الرئيسي.
+        container.settings.recordActiveDay()
         FocusEndWorker.schedule(getApplication(), minutes * 60_000L)
     }
 
@@ -240,9 +296,25 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.setFeatureEnabled(key, enabled)
     }
 
-    /** Record a protected day for the focus streak, once per open while blocking is on. */
+    /**
+     * سجّل اليوم المحمي عند فتح التطبيق. الشرط هو الحجب الفعلي لا مفتاح «الدائم» وحده:
+     * جلسة تركيز أو نافذة جدول أو قفل زمني كلها حمايةٌ تستحق أن تُحتسب في السلسلة.
+     */
     fun onAppOpened() = viewModelScope.launch {
-        if (container.settings.masterEnabled.first()) container.settings.recordActiveDay()
+        runCatching {
+            if (container.blockEngine.isBlockingActiveNow()) {
+                container.settings.recordActiveDay()
+            } else {
+                container.settings.reconcileStreak()
+            }
+        }
+    }
+
+    /** يُستدعى فور نجاح تشغيل الفلتر كي لا ينتظر العدّاد إعادة فتح التطبيق. */
+    fun recordProtectedDayNow() = viewModelScope.launch {
+        runCatching {
+            if (container.blockEngine.isBlockingActiveNow()) container.settings.recordActiveDay()
+        }
     }
 
     fun addWebsite(domain: String) {
@@ -285,12 +357,11 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
     fun setMasterEnabled(enabled: Boolean) = viewModelScope.launch { container.settings.setMasterEnabled(enabled) }
 
     /** Strict mode needs a PIN; the store enforces that atomically with the write. */
-    fun setStrictMode(enabled: Boolean) = viewModelScope.launch {
-        if (enabled) {
-            container.settings.enableStrictMode(container.settings.trustedNow())
-        } else {
-            container.settings.setStrictMode(false)
-        }
+    suspend fun setStrictMode(enabled: Boolean): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            if (enabled) container.settings.enableStrictMode(container.settings.trustedNow())
+            else container.settings.setStrictMode(false)
+        }.getOrDefault(false)
     }
 
     // --- PIN ---
@@ -298,25 +369,20 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
      * Create a PIN. When [enableStrict] is true (the user asked for strict mode before a PIN
      * existed), strict is enabled in the same coroutine so ordering cannot be lost.
      */
-    fun setPin(
-        pin: String,
-        enableStrict: Boolean = false,
-        onDone: () -> Unit = {},
-    ) = viewModelScope.launch(Dispatchers.Default) {
-        // PBKDF2 بـ310k تكرار لا يجوز على الخيط الرئيسي — كان يجمّد الواجهة/يسقطها.
-        val salt = PinHasher.newSalt()
-        val hash = PinHasher.hash(pin, salt)
-        withContext(Dispatchers.Main.immediate) {
-            container.settings.setPin(hash, salt)
-            if (enableStrict) {
-                container.settings.enableStrictMode(container.settings.trustedNow())
-            }
-            onDone()
+    suspend fun setPin(pin: String, enableStrict: Boolean = false): Boolean =
+        withContext(Dispatchers.Default) {
+            runCatching {
+                val salt = PinHasher.newSalt()
+                val hash = PinHasher.hash(pin, salt)
+                container.settings.setPin(hash, salt)
+                !enableStrict || container.settings.enableStrictMode(container.settings.trustedNow())
+            }.getOrDefault(false)
         }
-    }
 
-    /** Refused atomically by the store while strict mode is effective. */
-    fun clearPin() = viewModelScope.launch { container.settings.clearPin() }
+    /** False when the store refused the removal — strict mode or a time lock still needs the PIN. */
+    suspend fun clearPin(): Boolean = withContext(Dispatchers.IO) {
+        runCatching { container.settings.clearPin() }.getOrDefault(false)
+    }
 
     /** Verifies [pin], enforcing a compounding lockout after repeated failures. */
     suspend fun verifyPin(pin: String): PinResult {
@@ -325,17 +391,24 @@ class WardenViewModel(app: Application) : AndroidViewModel(app) {
             return PinResult.Locked(((lockRemaining + 999L) / 1000L).toInt())
         }
 
-        val (hash, salt) = container.settings.pinCredentials() ?: return PinResult.Wrong
-        return if (PinHasher.verify(pin, salt, hash)) {
-            container.settings.recordPinSuccess()
-            PinResult.Ok
-        } else {
-            val newLockRemaining = container.settings.recordPinFailure()
-            if (newLockRemaining > 0L) {
-                PinResult.Locked(((newLockRemaining + 999L) / 1000L).toInt())
+        val credentials = runCatching { container.settings.pinCredentials() }
+            .getOrNull() ?: return PinResult.Error
+        val (hash, salt) = credentials
+        return try {
+            val verified = withContext(Dispatchers.Default) { PinHasher.verify(pin, salt, hash) }
+            if (verified) {
+                container.settings.recordPinSuccess()
+                PinResult.Ok
             } else {
-                PinResult.Wrong
+                val newLockRemaining = container.settings.recordPinFailure()
+                if (newLockRemaining > 0L) {
+                    PinResult.Locked(((newLockRemaining + 999L) / 1000L).toInt())
+                } else {
+                    PinResult.Wrong
+                }
             }
+        } catch (_: Exception) {
+            PinResult.Error
         }
     }
 }

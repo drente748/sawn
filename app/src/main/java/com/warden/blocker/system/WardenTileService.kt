@@ -1,11 +1,13 @@
 package com.warden.blocker.system
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.warden.blocker.MainActivity
+import com.warden.blocker.R
 import com.warden.blocker.block.StrictPolicy
 import com.warden.blocker.vpn.VpnController
 import com.warden.blocker.wardenContainer
@@ -68,6 +70,7 @@ class WardenTileService : TileService() {
         if (!outcome.focusActive) VpnController.stop(this)
     }
 
+    @SuppressLint("StartActivityAndCollapseDeprecated") // the pre-34 branch has no PendingIntent overload
     private fun openApp() {
         val intent = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -87,16 +90,18 @@ class WardenTileService : TileService() {
         val lockdownActive = settings.isLockdownActiveNow()
         qsTile?.apply {
             state = if (snapshot.masterEnabled || focusActive || lockdownActive) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-            label = "Warden"
+            label = getString(R.string.tile_label)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                subtitle = when {
-                    lockdownActive -> "Lockdown"
-                    focusActive && snapshot.focusStrict -> "Strict focus"
-                    focusActive -> "Focus lock"
-                    snapshot.strictMode && snapshot.masterEnabled -> "Strict lock"
-                    snapshot.masterEnabled -> "Blocking on"
-                    else -> "Off"
-                }
+                subtitle = getString(
+                    when {
+                        lockdownActive -> R.string.tile_sub_lockdown
+                        focusActive && snapshot.focusStrict -> R.string.tile_sub_strict_focus
+                        focusActive -> R.string.tile_sub_focus
+                        snapshot.strictMode && snapshot.masterEnabled -> R.string.tile_sub_strict_lock
+                        snapshot.masterEnabled -> R.string.tile_sub_blocking
+                        else -> R.string.tile_sub_off
+                    },
+                )
             }
             updateTile()
         }

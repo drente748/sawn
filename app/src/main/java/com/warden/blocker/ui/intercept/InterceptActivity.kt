@@ -2,7 +2,9 @@ package com.warden.blocker.ui.intercept
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -22,8 +24,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -31,18 +36,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import com.warden.blocker.R
 import com.warden.blocker.block.LimitReason
 import com.warden.blocker.data.BlockedItem
 import com.warden.blocker.ui.theme.WardenTheme
@@ -64,12 +71,18 @@ class InterceptActivity : ComponentActivity() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             window.setHideOverlayWindows(true)
         }
+        // Back must send the user home; letting it fall through would resume the blocked app
+        // waiting behind this screen.
+        onBackPressedDispatcher.addCallback(this) { goHome() }
         val kind = intent.getStringExtra(EXTRA_KIND) ?: KIND_BLOCK
         val itemId = intent.getLongExtra(EXTRA_ITEM_ID, -1L)
         val reason = intent.getStringExtra(EXTRA_REASON)?.let { runCatching { LimitReason.valueOf(it) }.getOrNull() }
         val escalations = intent.getIntExtra(EXTRA_ESCALATIONS, 0)
         val adultHost = intent.getStringExtra(EXTRA_HOST)
         val contentLabel = intent.getStringExtra(EXTRA_FEATURE_LABEL)
+
+        // عدّاد محلي فقط: كم محاولة رفضها واردن (يظهر في بطاقة حصيلة اليوم).
+        lifecycleScope.launch { wardenContainer.settings.recordBlockEvent() }
 
         setContent {
             WardenTheme {
@@ -119,9 +132,6 @@ class InterceptActivity : ComponentActivity() {
         finish()
     }
 
-    @Deprecated("Back should return home, never silently enter the app")
-    override fun onBackPressed() = goHome()
-
     companion object {
         const val EXTRA_KIND = "kind"
         const val EXTRA_ITEM_ID = "item_id"
@@ -140,20 +150,20 @@ class InterceptActivity : ComponentActivity() {
 
 @Composable
 private fun SocialBlockScreen(platformLabel: String?, onHome: () -> Unit) {
-    val platform = platformLabel ?: "this app"
+    val platform = platformLabel ?: stringResource(R.string.intercept_this_app)
     CenteredHoldToLeave(
-        title = "Adult content blocked",
-        body = "Warden detected an adult or NSFW screen on $platform. " +
-            "The rest of the app remains available; this screen is not. Hold the button to head somewhere else.",
+        title = stringResource(R.string.intercept_social_title),
+        body = stringResource(R.string.intercept_social_body, platform),
         onHome = onHome,
     )
 }
 
 @Composable
 private fun FeatureBlockScreen(featureLabel: String?, onHome: () -> Unit) {
+    val feed = featureLabel ?: stringResource(R.string.intercept_this_feed)
     CenteredHoldToLeave(
-        title = "${featureLabel ?: "That feed"} is off-limits",
-        body = "Warden is keeping you out of ${featureLabel ?: "this feed"}. The rest of the app still works — just not the endless scroll.",
+        title = stringResource(R.string.intercept_feature_title, feed),
+        body = stringResource(R.string.intercept_feature_body, feed),
         onHome = onHome,
     )
 }
@@ -161,9 +171,8 @@ private fun FeatureBlockScreen(featureLabel: String?, onHome: () -> Unit) {
 @Composable
 private fun AdultBlockScreen(onHome: () -> Unit) {
     CenteredHoldToLeave(
-        title = "Blocked — adult content",
-        body = "Warden's Porn Guard keeps this site out of reach, in every browser. " +
-            "The urge passes; the page stays blocked. Hold the button to head somewhere else.",
+        title = stringResource(R.string.intercept_adult_title),
+        body = stringResource(R.string.intercept_adult_body),
         onHome = onHome,
     )
 }
@@ -179,11 +188,26 @@ private fun CenteredHoldToLeave(title: String, body: String, onHome: () -> Unit)
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("🛡", style = MaterialTheme.typography.displayMedium)
+        Icon(
+            Icons.Filled.Shield,
+            contentDescription = stringResource(R.string.intercept_shield),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(64.dp),
+        )
         Spacer(Modifier.height(16.dp))
-        Text(title, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold,
+        )
         Spacer(Modifier.height(12.dp))
-        Text(body, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        Text(
+            body,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(Modifier.height(40.dp))
         HoldToLeaveButton(onDone = onHome)
     }
@@ -198,34 +222,65 @@ private const val HOLD_MS = 1200
  */
 @Composable
 private fun HoldToLeaveButton(onDone: () -> Unit) {
-    var progress by remember { mutableStateOf(0f) }
+    var holding by remember { mutableStateOf(false) }
+    var progress by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(holding) {
+        if (!holding) {
+            progress = 0f
+            return@LaunchedEffect
+        }
+        val startedAt = SystemClock.elapsedRealtime()
+        while (holding) {
+            progress = ((SystemClock.elapsedRealtime() - startedAt) / HOLD_MS.toFloat()).coerceIn(0f, 1f)
+            delay(40L)
+        }
+    }
 
-    Box(contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(
-            progress = progress,
-            modifier = Modifier.size(72.dp),
-            color = MaterialTheme.colorScheme.secondary,
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.size(84.dp),
+                strokeWidth = 4.dp,
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier
+                    .size(64.dp)
+                    .pointerInput(Unit) {
+                        // awaitEachGesture: نافذة واضحة من الضغط إلى الإفلات.
+                        // إلغاء أو رفع مبكر = لا خروج؛ القصد وحده يُحتسب.
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            down.consume()
+                            holding = true
+                            val start = SystemClock.elapsedRealtime()
+                            val up = waitForUpOrCancellation()
+                            val held = SystemClock.elapsedRealtime() - start
+                            holding = false
+                            if (up != null && held >= HOLD_MS) onDone()
+                        }
+                    },
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Filled.Home,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(R.string.intercept_hold_to_leave),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier
-                .size(60.dp)
-                .pointerInput(Unit) {
-                    // awaitEachGesture: explicit down→up window; null from
-                    // waitForUpOrCancellation means cancelled — only a real, sustained
-                    // release past HOLD_MS counts as a deliberate exit.
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        down.consume()
-                        val start = System.currentTimeMillis()
-                        val up = waitForUpOrCancellation()
-                        val held = System.currentTimeMillis() - start
-                        if (up != null && held >= HOLD_MS) onDone()
-                    }
-                },
-        ) {}
-        Text("Hold", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }
 
@@ -256,14 +311,19 @@ private fun PauseScreen(item: BlockedItem, escalations: Int, onContinue: (Int) -
                 modifier = Modifier.size(220.dp).scale(breathing),
             ) {}
             Text(
-                if (remaining > 0) "Breathe\n${remaining}s" else "Ready?",
+                if (remaining > 0) {
+                    stringResource(R.string.intercept_breathe, remaining)
+                } else {
+                    stringResource(R.string.intercept_ready)
+                },
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
             )
         }
         Spacer(Modifier.height(40.dp))
         Text(
-            item.customPrompt?.takeIf { it.isNotBlank() } ?: "Why are you opening ${item.label}?",
+            item.customPrompt?.takeIf { it.isNotBlank() }
+                ?: stringResource(R.string.intercept_why_opening, item.label),
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
         )
@@ -272,7 +332,7 @@ private fun PauseScreen(item: BlockedItem, escalations: Int, onContinue: (Int) -
         if (remaining > 0) {
             if (escalations > 0) {
                 Text(
-                    "You've stepped away ${escalations}× today — the wait grows each time.",
+                    stringResource(R.string.intercept_escalations, escalations),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,
                     textAlign = TextAlign.Center,
@@ -280,16 +340,19 @@ private fun PauseScreen(item: BlockedItem, escalations: Int, onContinue: (Int) -
                 Spacer(Modifier.height(8.dp))
             }
             Text(
-                "Take a moment. If you still want in, you can continue in a second.",
+                stringResource(R.string.intercept_pause_note),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            Text("Continue for…", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.intercept_continue_for), style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 listOf(1, 5, 15).forEach { min ->
-                    OutlinedButton(onClick = { onContinue(min) }) { Text("$min min") }
+                    OutlinedButton(onClick = { onContinue(min) }) {
+                        Text(stringResource(R.string.intercept_minutes, min))
+                    }
                 }
             }
         }
@@ -301,9 +364,10 @@ private fun PauseScreen(item: BlockedItem, escalations: Int, onContinue: (Int) -
 @Composable
 private fun HardBlockScreen(item: BlockedItem?, onHome: () -> Unit) {
     CenteredHoldToLeave(
-        title = "Blocked by Warden",
-        body = item?.let { "You asked Warden to keep you off ${it.label}. The urge passes — you've got this." }
-            ?: "This is blocked right now.",
+        title = stringResource(R.string.intercept_block_title),
+        body = item?.let {
+            stringResource(R.string.intercept_block_body, it.label)
+        } ?: stringResource(R.string.intercept_block_generic),
         onHome = onHome,
     )
 }
@@ -311,10 +375,14 @@ private fun HardBlockScreen(item: BlockedItem?, onHome: () -> Unit) {
 @Composable
 private fun LimitScreen(item: BlockedItem, reason: LimitReason?, onHome: () -> Unit) {
     val body = when (reason) {
-        LimitReason.OPENS -> "You've used up today's opens for ${item.label}. It resets tomorrow."
-        LimitReason.TIME -> "You've hit today's time limit for ${item.label}. It resets tomorrow."
-        LimitReason.COOLDOWN -> "You just used ${item.label}. Give it a little while before the next visit."
-        null -> "${item.label} is limited right now."
+        LimitReason.OPENS -> stringResource(R.string.intercept_limit_opens, item.label)
+        LimitReason.TIME -> stringResource(R.string.intercept_limit_time, item.label)
+        LimitReason.COOLDOWN -> stringResource(R.string.intercept_limit_cooldown, item.label)
+        null -> stringResource(R.string.intercept_limit_generic, item.label)
     }
-    CenteredHoldToLeave(title = "Limit reached", body = body, onHome = onHome)
+    CenteredHoldToLeave(
+        title = stringResource(R.string.intercept_limit_title),
+        body = body,
+        onHome = onHome,
+    )
 }

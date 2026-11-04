@@ -1,78 +1,93 @@
 # Setup & Build
 
-Warden is a standard Gradle/Android project. You need **JDK 17** and the **Android SDK
-(API 34)**. Two paths below: the quick command-line path (already bootstrapped on this Mac)
-and the Android Studio path (best for running on a device/emulator).
+Warden is a standard Gradle/Android project. Requirements:
 
-## This machine is already set up
+| Item | Version |
+|------|---------|
+| JDK | 17 or newer (this machine uses 21) |
+| Gradle | 8.13 (via the wrapper — don't install it separately) |
+| Android Gradle Plugin | 8.13.2 |
+| Android SDK | platform **android-36**, build-tools **36.0.0** |
+| Device | Android 8.0 (API 26) or newer |
 
-A no-sudo toolchain was installed for you:
+`compileSdk` and `targetSdk` are 36. Play requires target 36 or higher for new and updated
+apps as of 31 Aug 2026, so do not lower these to speed up a build.
 
-- **JDK 17** via Homebrew: `/opt/homebrew/opt/openjdk@17`
-- **Android SDK** at `~/Library/Android/sdk` (platform-tools, platform 34, build-tools 34.0.0)
-- `local.properties` already points Gradle at that SDK.
+## Paths on this machine
 
-Build from a terminal:
+- SDK: `C:/Users/pc/tools/android-sdk` (recorded in `local.properties` as `sdk.dir`)
+- JDK: `C:/Users/pc/tools/jdk-21.0.12.1+1` (exported as `JAVA_HOME`)
+
+`local.properties` is machine-local and never committed. Copy `local.properties.example`
+and point `sdk.dir` at your own SDK if you build elsewhere.
+
+## Building
+
+From Git Bash in the project root:
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-export ANDROID_HOME=$HOME/Library/Android/sdk
-cd ~/warden
-
-./gradlew assembleDebug        # builds app/build/outputs/apk/debug/app-debug.apk
-./gradlew testDebugUnitTest    # runs the JVM unit tests (schedule logic, etc.)
+./gradlew assembleDebug        # -> app/build/outputs/apk/debug/app-debug.apk
+./gradlew testDebugUnitTest    # JVM unit tests (scheduling, policy, DNS, PIN lockout)
+./gradlew lintDebug            # Android lint
 ```
 
-To make the env vars permanent, add those two `export` lines to `~/.zshrc`.
+Add `--offline` once every dependency is cached if you want to skip network checks.
 
-## Running on your phone
+## Release signing
 
-Warden's whole job needs a real device or emulator with Google-style browsers.
+Release signing is read from the environment or `local.properties`; all four `WARDEN_*`
+values must be present together, or none of them (an unsigned release is then produced):
 
-1. Enable **Developer options** on the phone (tap *Settings → About phone → Build number* 7×),
-   then turn on **USB debugging**.
+```properties
+WARDEN_STORE_FILE=warden-release.keystore
+WARDEN_STORE_PASSWORD=...
+WARDEN_KEY_ALIAS=...
+WARDEN_KEY_PASSWORD=...
+```
+
+Release builds are minified with `proguard-android-optimize.txt` + `proguard-rules.pro`, and
+signed with v1 + v2 + v3 so sideloaded copies verify on older tooling and the key can be
+rotated for Play later.
+
+**The keystore is the update identity of the app.** Keep a backup off-machine; losing it
+means no future update can be installed over an existing install.
+
+## Running on a phone
+
+1. *Settings → About phone → Build number* 7× to unlock Developer options, then enable **USB debugging**.
 2. Plug in over USB and authorize the computer.
-3. Install and launch:
-   ```bash
-   export PATH=$ANDROID_HOME/platform-tools:$PATH
-   adb devices                 # confirm your phone shows up
-   ./gradlew installDebug      # builds + installs
-   adb shell monkey -p com.warden.blocker 1   # launches it
-   ```
-
-### First-run permissions (grant these in-app / when prompted)
-- **VPN consent** — appears when you first flip blocking on (local DNS filter).
-- **Accessibility** → *Settings → Accessibility → Warden* → On (app blocking + mindful pause).
-- **Usage access** — Settings screen button (screen-time + daily time limits).
-- **Notifications** — allow the ongoing "blocking active" notice.
-- **Uninstall protection** (optional) — Settings → turn on device admin.
-
-## Android Studio (recommended for UI work)
-
-1. Install [Android Studio](https://developer.android.com/studio) (bundles JDK + SDK).
-2. **File → Open** → select `~/warden`. Let it sync Gradle (it rewrites `local.properties`
-   to its own SDK automatically).
-3. Pick a device (physical or create an emulator via *Device Manager*, API 34+) and hit **Run**.
-
-## Fresh machine, command-line only
-
-If you ever set this up elsewhere without Android Studio:
 
 ```bash
-brew install openjdk@17
-# Android cmdline tools:
-mkdir -p ~/Library/Android/sdk/cmdline-tools
-curl -fsSL https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip -o /tmp/cmdline.zip
-unzip -q /tmp/cmdline.zip -d /tmp/clt && mv /tmp/clt/cmdline-tools ~/Library/Android/sdk/cmdline-tools/latest
-export ANDROID_HOME=~/Library/Android/sdk
-yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-echo "sdk.dir=$ANDROID_HOME" > ~/warden/local.properties
+adb devices                # confirm the phone shows up
+./gradlew installDebug
+adb shell monkey -p com.warden.blocker 1
 ```
+
+Warden only behaves correctly on a real device: the DNS filter, accessibility detection and
+usage stats are all things an emulator exercises poorly.
+
+### First-run permissions
+
+The in-app **الإعداد** screen drives these and re-reads their state every time you return
+from system settings:
+
+- **Accessibility** — app blocking and in-app content detection (required).
+- **Restricted settings** — Android 13+ hides Accessibility from sideloaded installs until
+  you allow it from *App info → ⋮ → Allow restricted settings*. The setup screen shows the
+  card for this when it detects a sideload.
+- **Notifications** — the ongoing "protection active" notice.
+- **Usage access** — screen time and daily limits.
+- **Always-on VPN** — makes Android restart the filter after a reboot. Leave
+  *Block connections without VPN* off.
+- **Battery optimization → Unrestricted** — so the system doesn't stop the filter.
+- **Private DNS** — set to *Off*; a strict Private DNS profile bypasses local filtering.
+- **VPN consent** — appears the first time you turn protection on.
 
 ## Troubleshooting
-- **`Unable to locate a Java Runtime`** → `JAVA_HOME` isn't set to the JDK 17 path above.
-- **`SDK location not found`** → `local.properties` is missing/wrong; re-run the last line above,
-  or open once in Android Studio.
-- **Gradle re-downloads every build** → expected only on the *first* build; the wrapper caches
-  the distribution under `~/.gradle` afterward.
+
+- **`Unable to locate a Java Runtime`** → `JAVA_HOME` doesn't point at a JDK 17+.
+- **`SDK location not found`** → `local.properties` is missing or wrong.
+- **`Failed to find target with hash string 'android-36'`** → install it:
+  `sdkmanager "platforms;android-36" "build-tools;36.0.0"`
+- **First build downloads a lot** → expected: the wrapper fetches Gradle 8.13 and AGP 8.13.2
+  into `~/.gradle`, then builds go offline-able.

@@ -16,70 +16,111 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.MaterialTheme
-import com.warden.blocker.system.AdminManager
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.warden.blocker.R
 import com.warden.blocker.block.LockdownPolicy
-import com.warden.blocker.ui.theme.WardenPalette
+import com.warden.blocker.system.AdminManager
 import com.warden.blocker.vpn.VpnController
+import kotlinx.coroutines.launch
 
 /**
- * أدوات الحماية والخصوصية التي احتاجتها الأقسام بعد التقسيم — PIN والحماية
- * من الإلغاء تعيش في [SettingsControls] وتُستدعى من SettingsSections.kt.
+ * أدوات الرقم السري وحماية الإلغاء والقفل الزمني. تستدعيها أقسام الإعدادات، ولا تملك
+ * أي بوابة رقم سري بنفسها — البوابة الوحيدة في ManagementPinGate.
  */
 object SettingsControls {
+
+    /**
+     * ضرب رقم سري. يُستدعى من بطاقة الرقم ومن تفعيل الوضع الصارم معاً، ويبلغ المستخدم
+     * بالفشل بدل أن ينطفئ بصمت.
+     */
+    @Composable
+    fun PinSetup(vm: WardenViewModel, enableStrictAfter: Boolean, onDismiss: () -> Unit) {
+        SetPinDialog(
+            onSubmit = { pin -> vm.setPin(pin, enableStrict = enableStrictAfter) },
+            onDismiss = onDismiss,
+        )
+    }
+
     @Composable
     fun PinCard(vm: WardenViewModel, strict: Boolean, hasPin: Boolean) {
-        val lockdownActive by vm.lockdownActive.collectAsState()
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
         var showSetPin by remember { mutableStateOf(false) }
         var showRemovePin by remember { mutableStateOf(false) }
+        var removeBlockedMessage by remember { mutableStateOf<String?>(null) }
+
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("قفل الرقم السري", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.pin_card_title), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (hasPin) "يُطلب الرقم السري لكل تعديل إعدادات أو إنهاء للحماية."
-                    else "احمِ الإعدادات وإنهاء الحماية برقم من 4 أرقام.",
+                    stringResource(if (hasPin) R.string.pin_card_set else R.string.pin_card_none),
                     style = MaterialTheme.typography.bodySmall,
-                    color = WardenPalette.TextMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { showSetPin = true }) { Text(if (hasPin) "تغيير الرقم" else "وضع رقماً") }
+                    Button(onClick = { showSetPin = true }) {
+                        Text(stringResource(if (hasPin) R.string.pin_change else R.string.pin_set_new))
+                    }
                     if (hasPin) {
-                        OutlinedButton(onClick = { showRemovePin = true }, enabled = !strict && !lockdownActive) {
+                        OutlinedButton(
+                            onClick = { showRemovePin = true },
+                            enabled = !strict && !lockdownActive,
+                        ) {
                             Text(
-                                when {
-                                    lockdownActive -> "القفل الزمني نشط"
-                                    strict -> "أطفئ الوضع الصارم أولاً"
-                                    else -> "إزالة الرقم"
-                                }
+                                stringResource(
+                                    when {
+                                        lockdownActive -> R.string.pin_blocked_lockdown
+                                        strict -> R.string.pin_blocked_strict
+                                        else -> R.string.pin_remove
+                                    },
+                                ),
                             )
                         }
                     }
                 }
+                removeBlockedMessage?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
+
         if (showSetPin) {
-            SetPinDialog(onDone = { vm.setPin(it, enableStrict = false) }, onDismiss = { showSetPin = false })
+            PinSetup(vm = vm, enableStrictAfter = false, onDismiss = { showSetPin = false })
         }
         if (showRemovePin) {
             VerifyPinDialog(
-                "أدخل الرقم لإزالته",
-                vm::verifyPin,
-                onSuccess = { vm.clearPin(); showRemovePin = false },
+                title = stringResource(R.string.pin_remove_title),
+                verify = vm::verifyPin,
+                onSuccess = {
+                    showRemovePin = false
+                    // المتجر يرفض الإزالة ما دام الوضع الصارم أو القفل الزمني نشطاً، فنبلغ السبب.
+                    scope.launch {
+                        if (!vm.clearPin()) removeBlockedMessage = context.getString(R.string.pin_remove_failed)
+                    }
+                },
                 onDismiss = { showRemovePin = false },
             )
         }
@@ -88,79 +129,83 @@ object SettingsControls {
     @Composable
     fun AdminProtectionCard(strict: Boolean, vm: WardenViewModel) {
         val context = LocalContext.current
-        val lockdownActive by vm.lockdownActive.collectAsState()
+        val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
         var adminActive by remember { mutableStateOf(AdminManager.isActive(context)) }
         val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             adminActive = AdminManager.isActive(context)
         }
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("حماية من الإلغاء", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.admin_title), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    if (adminActive) "مفعّلة — لا يمكن إلغاء Warden قبل تعطيل هذه الحماية."
-                    else "مطفأة — يمكن إلغاء Warden في أي وقت.",
+                    stringResource(if (adminActive) R.string.admin_on else R.string.admin_off),
                     style = MaterialTheme.typography.bodySmall,
-                    color = WardenPalette.TextMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
                 if (adminActive) {
                     OutlinedButton(
-                        onClick = { if (!strict) { AdminManager.disable(context); adminActive = AdminManager.isActive(context) } },
+                        onClick = {
+                            if (!strict) {
+                                AdminManager.disable(context)
+                                adminActive = AdminManager.isActive(context)
+                            }
+                        },
                         enabled = !strict && !lockdownActive,
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            when {
-                                lockdownActive -> "القفل الزمني نشط"
-                                strict -> "أطفئ الوضع الصارم أولاً"
-                                else -> "إطفاء الحماية"
-                            }
+                            stringResource(
+                                when {
+                                    lockdownActive -> R.string.pin_blocked_lockdown
+                                    strict -> R.string.pin_blocked_strict
+                                    else -> R.string.admin_disable
+                                },
+                            ),
                         )
                     }
                 } else {
-                    Button(onClick = { adminLauncher.launch(AdminManager.enableIntent(context)) }) { Text("تفعيل الحماية") }
+                    Button(
+                        onClick = { adminLauncher.launch(AdminManager.enableIntent(context)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.admin_enable)) }
                 }
             }
         }
     }
 
     /**
-     * بطاقة القفل الزمني (قسم الحماية). القفل مطلق: لا رفع قبل الانتهاء.
-     * التفعيل بخطوتين: بطاقة داعمة → إذن الفلتر → شاشة Device Admin → الكتابة بعد
-     * التأكد من أن الحجب يعمل فعلاً. لا تُكتب قيمة قبل نجاح السلسلة كلها.
+     * بطاقة القفل الزمني. القفل مطلق: لا رفع قبل الانتهاء. التفعيل بخطوات مرتّبة —
+     * بطاقة داعمة → إذن الفلتر → شاشة Device Admin → الكتابة بعد التأكد أن الحجب يعمل
+     * فعلاً، فلا تُكتب أي قيمة قبل نجاح السلسلة كلها.
      */
     @Composable
     fun LockdownCard(vm: WardenViewModel) {
         val context = LocalContext.current
-        val lockdownActive by vm.lockdownActive.collectAsState()
-        val remaining by vm.lockdownRemaining.collectAsState()
-        val streak by vm.currentStreak.collectAsState()
-        val sessions by vm.focusSessionsDone.collectAsState()
+        val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
+        val remaining by vm.lockdownRemaining.collectAsStateWithLifecycle()
+        val streak by vm.currentStreak.collectAsStateWithLifecycle()
+        val sessions by vm.focusSessionsDone.collectAsStateWithLifecycle()
 
         var pendingDurationMs by remember { mutableStateOf<Long?>(null) }
         var showNewLockOptions by remember { mutableStateOf(false) }
         var manualAmount by remember { mutableStateOf("") }
         var manualUnit by remember { mutableStateOf(LockdownPolicy.DurationUnit.MINUTES) }
         var manualError by remember { mutableStateOf(false) }
-        var activationError by remember { mutableStateOf<String?>(null) }
+        var activationError by remember { mutableStateOf<ActivationError?>(null) }
 
         fun commitStaged() {
             vm.commitLockdown { success ->
-                if (success) {
-                    activationError = null
-                    showNewLockOptions = false
-                } else {
-                    activationError = "تعذّر تشغيل فلتر الحماية — لم يُكتب القفل. حاول مرة أخرى."
-                }
+                activationError = if (success) null else ActivationError.FILTER
             }
         }
 
         val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            // موافقة admin (أو موجود سلفاً) → أكمل؛ رفض/تراجع → أهدر القرار.
             if (AdminManager.isActive(context) && vm.hasStagedLockdown()) {
                 commitStaged()
             } else {
                 vm.discardStagedLockdown()
-                activationError = "لم تُفعّل حماية الإلغاء — لم يُكتب القفل."
+                activationError = ActivationError.ADMIN
             }
         }
 
@@ -170,7 +215,7 @@ object SettingsControls {
                 else adminLauncher.launch(AdminManager.enableIntent(context))
             } else {
                 vm.discardStagedLockdown()
-                activationError = "لم يُمنح إذن الفلتر — لم يُكتب القفل."
+                activationError = ActivationError.FILTER_CONSENT
             }
         }
 
@@ -185,31 +230,38 @@ object SettingsControls {
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("قفل الحماية", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.lockdown_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
                 if (lockdownActive) {
                     Text(
-                        formatRemaining(remaining),
+                        stringResource(R.string.remaining_time, formatRemaining(remaining)),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.ExtraBold,
-                        color = WardenPalette.GreenDark,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        "القفل مطلق: لا يمكن إيقاف الحماية أو إزالة التطبيق قبل انتهاء المدة.",
+                        stringResource(R.string.lockdown_active_body_card),
                         style = MaterialTheme.typography.bodySmall,
-                        color = WardenPalette.TextMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (!showNewLockOptions) {
                         Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = {
-                            activationError = null
-                            showNewLockOptions = true
-                        }) { Text("قفل جديد") }
+                        OutlinedButton(
+                            onClick = {
+                                activationError = null
+                                showNewLockOptions = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.lockdown_new)) }
                     }
                 } else {
                     Text(
-                        "اختر مدة تُقفل فيها الحماية: لا إيقاف ولا حذف طوالها.",
+                        stringResource(R.string.lockdown_body),
                         style = MaterialTheme.typography.bodySmall,
-                        color = WardenPalette.TextMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -217,9 +269,9 @@ object SettingsControls {
                     if (lockdownActive) {
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "القفل الجديد يبدأ من الآن ويستبدل المدة الحالية بالكامل.",
+                            stringResource(R.string.lockdown_replaces),
                             style = MaterialTheme.typography.bodySmall,
-                            color = WardenPalette.Amber,
+                            color = MaterialTheme.colorScheme.tertiary,
                         )
                     }
                     Spacer(Modifier.height(10.dp))
@@ -229,16 +281,16 @@ object SettingsControls {
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "أو مدة مخصصة (1 دقيقة – 12 شهراً)",
+                        stringResource(R.string.lockdown_custom_label),
                         style = MaterialTheme.typography.bodySmall,
-                        color = WardenPalette.TextMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(6.dp))
                     OutlinedTextField(
                         value = manualAmount,
                         onValueChange = {
-                            // نقبل الأرقام العربية/الفارسية ونحوّلها فوراً إلى ASCII،
-                            // لأن toLongOrNull لا يفهم ٠١٢.
+                            // نقبل الأرقام العربية-الفارسية ونحوّلها فوراً إلى ASCII،
+                            // لأن toLongOrNull لا يقرأ ٠١٢.
                             val normalized = LockdownPolicy.normalizeDigits(it)
                             if (normalized.length <= 5 && normalized.all { c -> c in '0'..'9' }) {
                                 manualAmount = normalized
@@ -248,7 +300,7 @@ object SettingsControls {
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         isError = manualError,
-                        label = { Text("المدة") },
+                        label = { Text(stringResource(R.string.lockdown_duration_field)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
                     Spacer(Modifier.height(6.dp))
@@ -280,29 +332,37 @@ object SettingsControls {
                             }
                         },
                         enabled = manualAmount.isNotBlank(),
-                    ) { Text("تثبيت المدة المخصصة") }
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.lockdown_apply)) }
                     if (manualError) {
+                        Spacer(Modifier.height(4.dp))
                         Text(
-                            "المدة يجب أن تكون بين دقيقة و12 شهراً.",
+                            stringResource(R.string.lockdown_invalid_range),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
                 }
 
-                activationError?.let { message ->
+                activationError?.let { error ->
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        message,
+                        stringResource(
+                            when (error) {
+                                ActivationError.FILTER -> R.string.lockdown_no_filter
+                                ActivationError.ADMIN -> R.string.lockdown_no_admin
+                                ActivationError.FILTER_CONSENT -> R.string.lockdown_no_vpn_permission
+                            },
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
         }
+
         pendingDurationMs?.let { durationMs ->
             SupportiveConfirmDialog(
-                vm = vm,
                 streak = streak,
                 sessions = sessions,
                 onDismiss = { pendingDurationMs = null },
@@ -316,6 +376,8 @@ object SettingsControls {
         }
     }
 
+    private enum class ActivationError { FILTER, ADMIN, FILTER_CONSENT }
+
     private fun unitMillis(unit: LockdownPolicy.DurationUnit): Long = when (unit) {
         LockdownPolicy.DurationUnit.MINUTES -> 60_000L
         LockdownPolicy.DurationUnit.HOURS -> 3_600_000L
@@ -324,31 +386,34 @@ object SettingsControls {
         LockdownPolicy.DurationUnit.MONTHS -> 30L * 86_400_000L
     }
 
-    private fun unitLabel(unit: LockdownPolicy.DurationUnit): String = when (unit) {
-        LockdownPolicy.DurationUnit.MINUTES -> "دقائق"
-        LockdownPolicy.DurationUnit.HOURS -> "ساعات"
-        LockdownPolicy.DurationUnit.DAYS -> "أيام"
-        LockdownPolicy.DurationUnit.WEEKS -> "أسابيع"
-        LockdownPolicy.DurationUnit.MONTHS -> "شهور"
-    }
+    @Composable
+    private fun unitLabel(unit: LockdownPolicy.DurationUnit): String = stringResource(
+        when (unit) {
+            LockdownPolicy.DurationUnit.MINUTES -> R.string.unit_minutes
+            LockdownPolicy.DurationUnit.HOURS -> R.string.unit_hours
+            LockdownPolicy.DurationUnit.DAYS -> R.string.unit_days
+            LockdownPolicy.DurationUnit.WEEKS -> R.string.unit_weeks
+            LockdownPolicy.DurationUnit.MONTHS -> R.string.unit_months
+        },
+    )
 
     private data class QuickDuration(
-        val label: String,
+        val labelRes: Int,
         val amount: Long,
         val unit: LockdownPolicy.DurationUnit,
     )
 
     private val quickDurations = listOf(
-        QuickDuration("30 دقيقة", 30L, LockdownPolicy.DurationUnit.MINUTES),
-        QuickDuration("ساعة", 1L, LockdownPolicy.DurationUnit.HOURS),
-        QuickDuration("6 ساعات", 6L, LockdownPolicy.DurationUnit.HOURS),
-        QuickDuration("يوم", 1L, LockdownPolicy.DurationUnit.DAYS),
-        QuickDuration("3 أيام", 3L, LockdownPolicy.DurationUnit.DAYS),
-        QuickDuration("أسبوع", 1L, LockdownPolicy.DurationUnit.WEEKS),
-        QuickDuration("أسبوعان", 2L, LockdownPolicy.DurationUnit.WEEKS),
-        QuickDuration("شهر", 1L, LockdownPolicy.DurationUnit.MONTHS),
-        QuickDuration("3 شهور", 3L, LockdownPolicy.DurationUnit.MONTHS),
-        QuickDuration("6 شهور", 6L, LockdownPolicy.DurationUnit.MONTHS),
+        QuickDuration(R.string.lockdown_30_min, 30L, LockdownPolicy.DurationUnit.MINUTES),
+        QuickDuration(R.string.lockdown_1_hour, 1L, LockdownPolicy.DurationUnit.HOURS),
+        QuickDuration(R.string.lockdown_6_hours, 6L, LockdownPolicy.DurationUnit.HOURS),
+        QuickDuration(R.string.lockdown_1_day, 1L, LockdownPolicy.DurationUnit.DAYS),
+        QuickDuration(R.string.lockdown_3_days, 3L, LockdownPolicy.DurationUnit.DAYS),
+        QuickDuration(R.string.lockdown_1_week, 1L, LockdownPolicy.DurationUnit.WEEKS),
+        QuickDuration(R.string.lockdown_2_weeks, 2L, LockdownPolicy.DurationUnit.WEEKS),
+        QuickDuration(R.string.lockdown_1_month, 1L, LockdownPolicy.DurationUnit.MONTHS),
+        QuickDuration(R.string.lockdown_3_months, 3L, LockdownPolicy.DurationUnit.MONTHS),
+        QuickDuration(R.string.lockdown_6_months, 6L, LockdownPolicy.DurationUnit.MONTHS),
     )
 
     /** أزرار المدة في شبكة عمودين. */
@@ -361,7 +426,7 @@ object SettingsControls {
                         OutlinedButton(
                             onClick = { onPick(item.amount * unitMillis(item.unit)) },
                             modifier = Modifier.weight(1f),
-                        ) { Text(item.label) }
+                        ) { Text(stringResource(item.labelRes)) }
                     }
                     if (row.size == 1) Spacer(Modifier.weight(1f))
                 }
@@ -369,12 +434,17 @@ object SettingsControls {
         }
     }
 
+    /** «3ي 5س» أو «12س 40د 5ث» — اختصارات زمنية بلا سياق لغوي. */
     fun formatRemaining(ms: Long): String {
         val totalSec = (ms / 1000).coerceAtLeast(0)
         val days = totalSec / 86_400
         val hours = totalSec % 86_400 / 3_600
         val minutes = totalSec % 3_600 / 60
         val seconds = totalSec % 60
-        return if (days > 0) "متبقٍ ${days}ي ${hours}س" else "متبقٍ ${hours}س ${minutes}د ${seconds}ث"
+        return when {
+            days > 0 -> "${days}ي ${hours}س"
+            hours > 0 -> "${hours}س ${minutes}د"
+            else -> "${minutes}د ${seconds}ث"
+        }
     }
 }

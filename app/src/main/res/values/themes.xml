@@ -1,9 +1,8 @@
 <resources>
-    <!-- Material3 dynamic theming is applied in Compose; this base theme keeps the
-         splash/system-bar look consistent before Compose takes over. -->
-    <style name="Theme.Warden" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Warden" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowBackground">#F6F2E9</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

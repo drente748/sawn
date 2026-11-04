@@ -150,8 +150,42 @@ a dump of the app home screen to confirm the new signal does not leak there.
 - Set the device language to Arabic (if available) and open NSFW content with an Arabic
   warning. ✅ The Arabic warning is detected.
 
+### 14. One-tap protection and the recents swipe (new in 1.2.0)
+- On the home screen tap «الحماية» once. ✅ It switches on within a couple of seconds — no
+  holding — the switch stays where you left it, and the ongoing notification appears.
+- Tap it again. ✅ It switches off and the tunnel goes with it (no orphaned notification).
+- Turn protection on, swipe Warden out of Recents twice, wait five minutes, then open a blocked
+  site. ✅ Still blocked: the health worker restarts the filter if Android tore it down, and the
+  home card only reads green while the tunnel is actually running.
+- Settings → Apps → Warden → Force stop, then wait. ⚠️ Expected to stay stopped — Android does
+  not let an app restart itself after a force stop. The health notification must say the filter
+  stopped, and opening Warden must restore it.
+
+### 15. Back handling on the intercept screen (target SDK 36)
+- Open a blocked app, then press Back / use the swipe-back gesture. ✅ You land on the launcher,
+  never inside the blocked app. With predictive back the screen animates out instead of
+  disappearing flatly.
+- On «تمهّل» (the mindful pause), use Back. ✅ Recorded as a defeat: the next attempt waits
+  longer — check the escalation counter.
+- On the PIN screen, Back must never skip verification.
+
+### 16. On-device image screening (Android 11+)
+- Enable Social Guard for one app and scroll a feed of unlabeled suggestive images with no NSFW
+  badge and no warning text. ✅ The intercept appears within a second or two. Before 1.2.0 this
+  never fired at all: the accessibility config did not declare the screenshot capability, so
+  every capture died on a `SecurityException` and the verdict silently came back negative.
+- Scroll for ten minutes. ✅ No jank and no heat spike — screening is capped at one capture per
+  750 ms and at most four regions per capture, on a lowest-priority thread.
+- On Android 8–10 the image path must stay silent (it is API 30+ only) while text detection keeps
+  working.
+
+### 17. Dark mode and Arabic layout
+- Toggle the system theme in Warden and on an intercept screen. ✅ Both palettes stay readable,
+  the day-letter row fits the narrowest phone, and nothing overlaps in right-to-left.
+
 ## Report back
 Note which feeds detected correctly (and paste any `resource-id`s that need adding), whether
 DoH bypassed the block in your browser, and anything that didn't behave — those become the
 next fixes. For social protection, also report the app version and the exact warning label
-shown, since those are the signals Warden relies on.
+shown, since those are the signals Warden relies on. For image screening, report roughly how
+long an unlabeled image took to get intercepted, since latency there is the tuning knob.

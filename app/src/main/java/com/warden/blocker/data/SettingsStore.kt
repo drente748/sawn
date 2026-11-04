@@ -13,6 +13,10 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.warden.blocker.block.LockdownWindow
 import com.warden.blocker.block.StrictPolicy
+import com.warden.blocker.feature.BlockJournal
+import com.warden.blocker.feature.JournalSnapshot
+import com.warden.blocker.feature.ShieldPreset
+import com.warden.blocker.feature.StreakPolicy
 import com.warden.blocker.security.PinLockoutPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -85,6 +89,9 @@ class SettingsStore(private val context: Context) {
         val LOCKDOWN_UNTIL = longPreferencesKey("lockdown_until")
         val LOCKDOWN_ELAPSED_END = longPreferencesKey("lockdown_elapsed_end")
         val LOCKDOWN_BOOT_AT_START = intPreferencesKey("lockdown_boot_at_start")
+        // سجل محلي لعدد المحاولات المصدودة يومياً — لا يغادر الجهاز.
+        val BLOCK_LOG = stringPreferencesKey("block_log")
+        val BLOCK_TOTAL = intPreferencesKey("block_total")
     }
 
     /** A PIN is only usable when both its hash and salt are present. */
@@ -192,8 +199,12 @@ class SettingsStore(private val context: Context) {
     }
     val hasPin: Flow<Boolean> =
         context.dataStore.data.map { pinPresent(it) }.distinctUntilChanged()
+    /** الطول الخام للسلسلة كما هو مخزَّن؛ العرض يشتقّ منه قيمة اليوم الحالي. */
     val currentStreak: Flow<Int> =
         context.dataStore.data.map { it[Keys.CURRENT_STREAK] ?: 0 }.distinctUntilChanged()
+    /** آخر يوم محمي (epochDay) — يُشتق منه العداد المرئي بعد اليوم الفائت. */
+    val lastActiveDay: Flow<Long> =
+        context.dataStore.data.map { it[Keys.LAST_ACTIVE_DAY] ?: -1L }.distinctUntilChanged()
     val longestStreak: Flow<Int> =
         context.dataStore.data.map { it[Keys.LONGEST_STREAK] ?: 0 }.distinctUntilChanged()
     val enabledFeatureKeys: Flow<Set<String>> =
@@ -237,15 +248,68 @@ class SettingsStore(private val context: Context) {
      * while blocking is enabled. A gap of more than a day resets the streak to 1.
      */
     suspend fun recordActiveDay() {
-        val today = LocalDate.now().toEpochDay()
+        val today = StreakPolicy.todayEpochDay()
         context.dataStore.edit { p ->
             val last = p[Keys.LAST_ACTIVE_DAY] ?: -1L
             if (last == today) return@edit
-            val current = p[Keys.CURRENT_STREAK] ?: 0
-            val next = if (last == today - 1) current + 1 else 1
+            val (next, day) = StreakPolicy.afterActiveDay(p[Keys.CURRENT_STREAK] ?: 0, last, today)
             p[Keys.CURRENT_STREAK] = next
             p[Keys.LONGEST_STREAK] = maxOf(p[Keys.LONGEST_STREAK] ?: 0, next)
-            p[Keys.LAST_ACTIVE_DAY] = today
+            p[Keys.LAST_ACTIVE_DAY] = day
+        }
+    }
+
+    /**
+     * يصفّر الطول الخام إن انقضى يوم كامل بلا حماية، كي لا يعود العدّاد القديم عند أول
+     * تفعيلٍ بعد انقطاع. يُحفظ الطول بعد التصفير حتى تبدأ السلسلة من 1 لا من رقمٍ قديم.
+     */
+    suspend fun reconcileStreak() {
+        val today = StreakPolicy.todayEpochDay()
+        context.dataStore.edit { p ->
+            val raw = p[Keys.CURRENT_STREAK] ?: 0
+            val last = p[Keys.LAST_ACTIVE_DAY] ?: -1L
+            if (raw > 0 && StreakPolicy.visibleStreak(raw, last, today) == 0) {
+                p[Keys.CURRENT_STREAK] = 0
+            }
+        }
+    }
+
+    /**
+     * محاولة محجوبة رُفضت (حجبٌ تام، توقّفٌ واعٍ، محتوى داخل تطبيق، شاشة إباحية).
+     * عدّاد فقط لكل يوم محلي، ويُقلَّم بعد أسبوعين. لا يُخزَّن اسم موقع ولا تطبيق.
+     */
+    suspend fun recordBlockEvent() {
+        val today = StreakPolicy.todayEpochDay()
+        context.dataStore.edit { p ->
+            val log = BlockJournal.bump(BlockJournal.decode(p[Keys.BLOCK_LOG]), today)
+            p[Keys.BLOCK_LOG] = BlockJournal.encode(log)
+            p[Keys.BLOCK_TOTAL] = (p[Keys.BLOCK_TOTAL] ?: 0) + 1
+        }
+    }
+
+    val blockJournal: Flow<JournalSnapshot> = context.dataStore.data
+        .map { p ->
+            BlockJournal.snapshot(
+                log = BlockJournal.decode(p[Keys.BLOCK_LOG]),
+                total = p[Keys.BLOCK_TOTAL] ?: 0,
+                today = StreakPolicy.todayEpochDay(),
+            )
+        }
+        .distinctUntilChanged()
+
+    /** يطبّق نمط حماية بضغطة، دون إضعاف قفلٍ زمني نشط. */
+    suspend fun applyPreset(preset: ShieldPreset) {
+        context.dataStore.edit { p ->
+            val locked = lockdownWindow(p).isActive
+            fun put(key: Preferences.Key<Boolean>, value: Boolean) {
+                if (locked && !value) return
+                p[key] = value
+            }
+            put(Keys.PORN_GUARD, preset.pornGuard)
+            put(Keys.SAFE_SEARCH_FORCE, preset.safeSearch)
+            put(Keys.BLOCK_ADS, preset.blockAds)
+            put(Keys.BLOCK_DOH, preset.blockDoh)
+            put(Keys.BLOCK_NOTIFICATIONS, preset.blockNotifications)
         }
     }
 
@@ -256,6 +320,9 @@ class SettingsStore(private val context: Context) {
             if (!value && lockdownWindow(p).isActive) return@edit
             p[Keys.MASTER_ENABLED] = value
         }
+        // تفعيل الحماية اليوم = يوم محمي. بلا هذا السطر يبقى عدّاد الأيام صفراً حتى
+        // يُغلق المستخدم التطبيق ويفتحه من جديد.
+        if (value) recordActiveDay()
     }
 
     suspend fun setAlwaysOn(value: Boolean) {

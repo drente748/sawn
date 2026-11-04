@@ -36,7 +36,12 @@ This document is the threat model and the measures in place.
   in-app feed and social-media protection, scans on-screen view-ids/labels of the current app.
   Social detection additionally checks whether a search field contains an explicit term. It
   **never logs, stores, or transmits screen content or queries**, makes an in-memory
-  block/allow decision, and discards the text. No screenshots are taken.
+  block/allow decision, and discards the text. On Android 11+ it can additionally take a
+  **transient window screenshot** for on-device adult-image screening: it runs only for
+  platforms the user switched on, is throttled to one capture per 750 ms, classifies at most
+  4 candidate regions per capture with a bundled TFLite model, and the pixels are released
+  immediately — nothing is written to storage and no image leaves the device. Below Android
+  11 the service takes no screenshots at all.
   Critical apps (launcher, settings, dialer, phone, Warden itself) are never intercepted, so
   you can't be locked out of your own device.
 - **DeviceAdmin** — declares **no enforcement policies**; active-admin status alone provides
@@ -87,9 +92,13 @@ This document is the threat model and the measures in place.
 - **Ad/tracker filtering** is a bundled, curated host list. It cannot remove sponsored content
   served by the same first-party domain as the page, and there is no automatic remote ad-list
   subscription.
-- **Social-media protection** is text-and-label based, not image classification. It cannot see
-  unlabelled photos/videos, and app updates may rename the view ids and warning text it relies
-  on. It covers native apps only; social sites opened in a browser are outside this layer.
+- **Social-media protection** combines a text/label detector with on-device image screening on
+  Android 11+. Screening runs only after the text path finds nothing, samples at most four
+  regions per capture at one capture per 750 ms, and a coarse MobileNet — so unlabelled media can
+  still be missed, and a stylised or partial image can be missed silently. Below Android 11 the
+  image path is absent and only the text detector applies. App updates may rename the view ids and
+  warning text it relies on, and it covers native apps only; social sites opened in a browser are
+  outside this layer.
 - **Adult list refresh** is manual and trusts the maintained upstream sources over HTTPS. It
   validates formats and sizes but does not yet verify a signed manifest or prevent rollback.
 - **Strict mode** locks Warden's own disable paths (switch, tile, early focus exit, in-app
@@ -98,6 +107,24 @@ This document is the threat model and the measures in place.
 - The PIN is not yet bound to the hardware Keystore/StrongBox — planned as defense-in-depth
   against offline extraction on rooted devices (the salted 310k-PBKDF2 hash + no-backup is the
   current protection).
+
+## Play Store submission checklist
+
+Uploading the AAB is not the whole job — these declarations are checked against the binary, and a
+mismatch between them and this file is the usual cause of a policy rejection.
+
+| What must be declared | What this build actually does |
+|---|---|
+| **AccessibilityService use** (`isAccessibilityTool = false`, plus a purpose statement and a prominent in-app disclosure) | Reads the foreground package and window content to enforce the user's own block rules, and on Android 11+ captures a transient window screenshot for local NSFW classification. It also issues BACK/HOME — and, for a per-feature "navigate away" rule, one `ACTION_CLICK` — inside the blocked app. That last part is the highest-risk item under the rule against autonomously initiating actions in other apps, so state it plainly instead of implying the service is a disability aid. |
+| **`specialUse` foreground service** | Local DNS filter only; the `<property>` subtype string in the manifest is the first thing a reviewer reads. |
+| **Data safety form** | Nothing collected, nothing shared, no advertising or analytics SDK. The screenshot exists only in memory and is never persisted or transmitted — say so in the privacy policy too. |
+| **Sensitive permissions / access** | `PACKAGE_USAGE_STATS` (screen time), notification access (suppressing notifications of blocked apps), device admin (uninstall lock), VPN. Each needs a one-line user-facing justification that matches this document. |
+| **Privacy policy URL** | Must state on-device processing, no backend, and that adult-list downloads are user-triggered. |
+| **Backup and transfer** | Handled in code: `allowBackup="false"` **and** `dataExtractionRules` closing both cloud backup and device-to-device transfer, so a PIN hash cannot travel to a new phone. |
+| **API level** | Handled: `targetSdk 36`, the Play requirement for updated apps after 31 Aug 2026. |
+
+Back the release keystore up off-machine before the first upload. Losing it means losing the ability
+to ship updates to the same listing forever.
 
 ## Reporting a vulnerability
 
