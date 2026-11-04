@@ -145,7 +145,7 @@ git add -A && git commit -m "build: three-module Sawn (core:domain, core:data) +
 **Files:**
 - Create: `core/domain/src/main/kotlin/com/sawn/domain/ProtectionDayPolicy.kt`
 - Test: `core/domain/src/test/kotlin/com/sawn/domain/ProtectionDayPolicyTest.kt`
-- Delete in Task 10: old `feature/StreakPolicy.kt` + its test (after Data layer records days).
+- `StreakPolicy` is superseded by this task — its file moves to `:core:domain` in Task 5; its remaining usages switch to `ProtectionDayPolicy` in Task 10, and `domain/.../StreakPolicy.kt` + its test are deleted in Task 10.
 
 **Interfaces:**
 - Produces: `object ProtectionDayPolicy { fun currentStreak(days:Set<LocalDate>, today:LocalDate):Int; fun longestStreak(days:Set<LocalDate>):Int; fun isAtRisk(days:Set<LocalDate>, today:LocalDate):Boolean; fun heatmap(days:Set<LocalDate>, today:LocalDate, pastDays:Int):List<DayCell> }` and `data class DayCell(val date:LocalDate, val protected:Boolean)`.
@@ -180,7 +180,7 @@ Write exactly these tests; expected values per the rule: `currentStreak(days, to
 **Interfaces:** Produces `SchedulePolicy`/`LockdownPolicy`/`BlockingPolicy`/`DomainMatcher`/`AdultHosts`/`WebUrlExtractor`/`BrowserConfig`/`FeatureCatalog`/`ProtectionCheckup`/`BlockJournal`/`CriticalApps`/`DnsPacket`/`DnsQuery` reachable as `com.sawn.domain.*` — exact names unchanged to minimize churn.
 
 - [ ] **Step 1: Move files** with `git mv`; fix `package` lines; remove any `android.*` import (replace with pure Kotlin or move back to `:app` if truly Android-bound, e.g., `UsageStatsHelper` stays in `:app` or moves to `:core:data` as an Android-dependent helper — decide by compile errors).
-- [ ] **Step 2: Move tests** the same way; `app` module: `testImplementation(project(":core:domain"))` and app code imports `com.sawn.domain.*`.
+- [ ] **Step 2: Move tests** the same way; `app` adds `implementation(project(":core:domain"))` and `testImplementation(project(":core:domain"))` to `dependencies`, and app code imports `com.sawn.domain.*`.
 - [ ] **Step 3: Verify** — `.\gradlew.bat :core:domain:test :app:assembleDebug testDebugUnitTest` — all tests ported, zero lost (compare counts).
 - [ ] **Step 4: Commit** — `git commit -m "refactor(domain): port pure policies (block/feature/security/vpn) to core:domain with tests"`
 
@@ -198,8 +198,8 @@ Write exactly these tests; expected values per the rule: `currentStreak(days, to
   - `ChallengeRunEntity`/`ChallengeDayEntity`, `TriggerLogEntity` — write the two Plan-B tables now (empty DAOs fine) so the schema exports once.
 - [ ] **Step 2: Database + migration 0→1 + `fallbackToDestructiveMigration` NOT used; export schemas** (`room.schemaLocation` already set) — first version: `version = 1`, `createAll`.
 - [ ] **Step 3: DataStore** — `sawn_settings` with typed keys (`masterEnabled`, `pornGuard`, `safeSearchForce`, `blockAds`, `blockDoh`, `blockNotifications`, `strictMode`, `alwaysOn`, `reduceMotion`, `locale`, `userDisabledProtection`, `onboardingCompleted`, `onboardingAnswersJson`, `profileName`, `profileAge`, `nightGuardEnabled`, `nightGuardStartMin`, `nightGuardEndMin`, `parentPinHash`, `responsibilityPartner*`, `nudgesEnabled`). Migration note: **fresh start** — no legacy read.
-- [ ] **Step 4: Repositories** — interfaces in `:core:domain`, Room impls in `:core:data` binding via Hilt (Task 7). `StatsRepository.recordProtectedDay(today)` calls `ProtectedDaysRepository.upsert(today, source)`.
-- [ ] **Step 5: Verify** — `:core:data:assembleDebug` + `:core:data:kspDebugKotlin` + write one Room in-memory DAO test for ProtectedDays (upsert idempotence) — `:core:data:testDebugUnitTest` green.
+- [ ] **Step 4: Repositories** — interfaces in `:core:domain` (`com.sawn.domain.repo`), Room impls in `:core:data` bound via Hilt (Task 7). `ProtectedDaysRepository` contract: `suspend fun upsert(date: LocalDate, source: String); fun observeProtectedDays(): Flow<Set<LocalDate>>; suspend fun allDays(): List<LocalDate>` — **idempotent upsert on the ISO date PK**. `StatsRepository` contract: `fun currentStreak(): Flow<Int>; fun longestStreak(): Flow<Int>; fun isAtRisk(): Flow<Boolean>` — derived from `observeProtectedDays()` + `ProtectionDayPolicy` (Task 4) with `LocalDate.now(ZoneId.systemDefault())` at emission time. Room DAOs may `@Query("SELECT * FROM protected_days")` freely (tiny table).
+- [ ] **Step 5: Verify** — `:core:data:assembleDebug` + `:core:data:kspDebugKotlin` + one Room in-memory DAO test for ProtectedDays (upsert idempotence) via **Robolectric** (`testOptions.unitTests.isIncludeAndroidResources = true`, `testImplementation(libs.androidx.room.testing)` + `robolectric`). If Robolectric cannot resolve offline, replace the DAO test with an `androidTest` skeleton (not blocking) and say so in the report — persistence correctness is otherwise covered by Task 4's pure unit tests; `:core:data:testDebugUnitTest` green.
 - [ ] **Step 6: Commit** — `git commit -m "feat(data): SawnDatabase v1 (protected_days, journal, challenge, triggers) + sawn_* DataStore + repositories"`
 
 ## Task 7: Hilt + services wiring (foundation only)
@@ -252,7 +252,7 @@ Write exactly these tests; expected values per the rule: `currentStreak(days, to
 
 **Files:** `ui/home/HomeScreen.kt` + `home/` components reuse; ViewModel split: `HomeViewModel` (state) — keep `SawnViewModel` or split screens' state as appropriate.
 
-- [ ] **Step 1: Sections per spec §7**: TopBar (greeting `{name}` + streak chip + gear→`settings`) · HeroShield w/ `HeroState` derived from (enforcementActive&&vpnRunning, needs setup, lockdown) · conditional AlertRows (only when broken) · «الحماية المباشرة» 2×3 grid (porn/safesearch/ads/doh/notifications/strict) wired to existing VM setters · PresetChips (Light/Balanced/Max) · ProgressStrip (streak/longest/sessions — from `StatsRepository`) · «أدواتي» (Focus 25/50 via existing focus flow, SOS existing `UrgeSos`) — night guard chip only if enabled (Plan B flag).
+- [ ] **Step 1: Sections per spec §7**: TopBar (greeting `{name}` + streak chip + gear→`settings`) · HeroShield w/ `HeroState` derived from (enforcementActive&&vpnRunning, needs setup, lockdown) · conditional AlertRows (only when broken) · «الحماية المباشرة» 2×3 grid (porn/safesearch/ads/doh/notifications/strict) wired to existing VM setters · PresetChips (Light/Balanced/Max) · ProgressStrip (streak/longest/sessions — from `StatsRepository`, computed by `ProtectionDayPolicy`; switch `currentStreak`/`longestStreak`/`streakAtRisk` off `StreakPolicy`, then `git rm` `domain/.../StreakPolicy.kt` + its test) · «أدواتي» (Focus 25/50 via existing focus flow, SOS existing `UrgeSos`) — night guard chip only if enabled (Plan B flag).
 - [ ] **Step 2: Delete old monolith blocks** replaced; no tabs/bottom nav; settings links removed from home (gear only).
 - [ ] **Step 3: Strings AR/EN** for all home copy; RTL check both locales.
 - [ ] **Step 4: Verify** — walkthrough AR/EN + toggles work + `assembleDebug` · commit `git commit -m "feat(home): لوحة الفجر — direct features, no tabs"`
