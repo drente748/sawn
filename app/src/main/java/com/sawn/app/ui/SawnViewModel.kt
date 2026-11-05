@@ -4,20 +4,21 @@ import android.app.Application
 import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.sawn.app.block.BlockingPolicy
-import com.sawn.app.block.ScheduleEvaluator
-import com.sawn.app.block.StrictPolicy
+import com.sawn.domain.block.BlockingPolicy
+import com.sawn.domain.block.ScheduleEvaluator
+import com.sawn.domain.block.StrictPolicy
 import com.sawn.app.data.BlockType
 import com.sawn.app.data.BlockedItem
 import com.sawn.app.data.DisableOutcome
 import com.sawn.app.data.InterceptMode
 import com.sawn.app.data.Schedule
-import com.sawn.app.feature.JournalSnapshot
-import com.sawn.app.feature.ShieldPreset
-import com.sawn.app.feature.StreakPolicy
+import com.sawn.app.data.toDomain
+import com.sawn.domain.feature.JournalSnapshot
+import com.sawn.domain.feature.ShieldPreset
+import com.sawn.domain.feature.StreakPolicy
 import com.sawn.app.security.AdultListFetcher
-import com.sawn.app.security.PinHasher
-import com.sawn.app.security.PinResult
+import com.sawn.domain.security.PinHasher
+import com.sawn.domain.security.PinResult
 import com.sawn.app.system.FocusEndWorker
 import com.sawn.app.vpn.VpnController
 import com.sawn.app.sawnContainer
@@ -144,7 +145,7 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
                 alwaysOn = on,
                 focusEndsAt = focusAt,
                 now = calendar.timeInMillis,
-                anyScheduleActive = ScheduleEvaluator.anyActive(list, calendar),
+                anyScheduleActive = ScheduleEvaluator.anyActive(list.map { it.toDomain() }, calendar),
             )
         },
         lockdownActive,

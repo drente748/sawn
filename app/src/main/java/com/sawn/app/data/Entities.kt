@@ -41,6 +41,17 @@ data class BlockedItem(
     val cooldownMinutes: Int = 0,
 )
 
+/** Convert the Room entity to the pure domain model the policies consume. */
+internal fun Schedule.toDomain(): com.sawn.domain.model.Schedule =
+    com.sawn.domain.model.Schedule(
+        id = id,
+        name = name,
+        enabled = enabled,
+        daysMask = daysMask,
+        startMinute = startMinute,
+        endMinute = endMinute,
+    )
+
 /**
  * A time window during which the blocklist is enforced.
  * [daysMask] is a 7-bit mask, bit 0 = Monday … bit 6 = Sunday.

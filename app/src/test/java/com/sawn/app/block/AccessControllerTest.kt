@@ -1,4 +1,4 @@
-package com.sawn.app.block
+package com.sawn.domain.block
 
 import com.sawn.app.data.BlockType
 import com.sawn.app.data.BlockedItem

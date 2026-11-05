@@ -1,7 +1,7 @@
 package com.sawn.app.accessibility
 
 import android.view.accessibility.AccessibilityNodeInfo
-import com.sawn.app.feature.UiNode
+import com.sawn.domain.feature.UiNode
 
 /**
  * Adapts an Android AccessibilityNodeInfo to the testable [UiNode] interface.

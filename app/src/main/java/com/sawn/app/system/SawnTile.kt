@@ -8,7 +8,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.sawn.app.MainActivity
 import com.sawn.app.R
-import com.sawn.app.block.StrictPolicy
+import com.sawn.domain.block.StrictPolicy
 import com.sawn.app.vpn.VpnController
 import com.sawn.app.sawnContainer
 import kotlinx.coroutines.CoroutineScope

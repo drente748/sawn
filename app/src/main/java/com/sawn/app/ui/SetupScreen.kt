@@ -52,8 +52,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
-import com.sawn.app.feature.CheckupState
-import com.sawn.app.feature.ProtectionCheckup
+import com.sawn.domain.feature.CheckupState
+import com.sawn.domain.feature.ProtectionCheckup
 import com.sawn.app.util.PermissionsHelper
 import com.sawn.app.vpn.VpnController
 import com.sawn.app.vpn.SawnVpnService

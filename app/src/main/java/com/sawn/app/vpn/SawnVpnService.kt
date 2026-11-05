@@ -18,8 +18,9 @@ import androidx.core.content.ContextCompat
 import com.sawn.app.MainActivity
 import com.sawn.app.R
 import com.sawn.app.SawnApp
-import com.sawn.app.block.DomainMatcher
-import com.sawn.app.block.SafeSearchHosts
+import com.sawn.domain.block.DomainMatcher
+import com.sawn.domain.block.SafeSearchHosts
+import com.sawn.domain.vpn.DnsPacket
 import com.sawn.app.system.KeepAliveWorker
 import com.sawn.app.sawnContainer
 import kotlinx.coroutines.CancellationException

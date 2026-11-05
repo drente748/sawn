@@ -50,7 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.sawn.app.R
-import com.sawn.app.block.LimitReason
+import com.sawn.domain.block.LimitReason
 import com.sawn.app.data.BlockedItem
 import com.sawn.app.ui.theme.SawnTheme
 import com.sawn.app.sawnContainer

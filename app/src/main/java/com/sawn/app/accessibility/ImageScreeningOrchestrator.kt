@@ -7,8 +7,8 @@ import android.os.Build
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.RequiresApi
-import com.sawn.app.feature.ImageScreeningPolicy
-import com.sawn.app.feature.NsfwClassifier
+import com.sawn.domain.feature.ImageScreeningPolicy
+import com.sawn.domain.feature.NsfwClassifier
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean

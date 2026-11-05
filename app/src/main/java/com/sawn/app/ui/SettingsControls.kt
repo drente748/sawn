@@ -34,7 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
-import com.sawn.app.block.LockdownPolicy
+import com.sawn.domain.block.LockdownPolicy
 import com.sawn.app.system.AdminManager
 import com.sawn.app.vpn.VpnController
 import kotlinx.coroutines.launch

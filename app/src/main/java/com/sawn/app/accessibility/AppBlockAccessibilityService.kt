@@ -5,18 +5,18 @@ import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import com.sawn.app.block.AccessDecision
-import com.sawn.app.block.LimitReason
-import com.sawn.app.feature.AppFeature
-import com.sawn.app.feature.FeatureAction
-import com.sawn.app.feature.FeatureCatalog
-import com.sawn.app.feature.FeatureDetector
-import com.sawn.app.feature.NavigateAwayGuard
-import com.sawn.app.feature.SocialContentDetector
-import com.sawn.app.feature.SocialContentHit
-import com.sawn.app.feature.SocialPlatform
-import com.sawn.app.feature.UiNode
-import com.sawn.app.feature.FeatureWallPolicy
+import com.sawn.domain.block.AccessDecision
+import com.sawn.domain.block.LimitReason
+import com.sawn.domain.feature.AppFeature
+import com.sawn.domain.feature.FeatureAction
+import com.sawn.domain.feature.FeatureCatalog
+import com.sawn.domain.feature.FeatureDetector
+import com.sawn.domain.feature.NavigateAwayGuard
+import com.sawn.domain.feature.SocialContentDetector
+import com.sawn.domain.feature.SocialContentHit
+import com.sawn.domain.feature.SocialPlatform
+import com.sawn.domain.feature.UiNode
+import com.sawn.domain.feature.FeatureWallPolicy
 import com.sawn.app.ui.intercept.InterceptActivity
 import com.sawn.app.system.GuardHealthNotifier
 import com.sawn.app.util.CriticalApps
@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Watches the foreground app and asks [com.sawn.app.block.AccessController] what to do,
+ * Watches the foreground app and asks [com.sawn.domain.block.AccessController] what to do,
  * launching [InterceptActivity] for a hard block, limit notice, or mindful pause.
  *
  * It also performs *in-app feature* blocking: while a supported app is foreground, it scans

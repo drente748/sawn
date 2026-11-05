@@ -1,7 +1,7 @@
 package com.sawn.app.security
 
 import android.content.Context
-import com.sawn.app.block.DomainMatcher
+import com.sawn.domain.block.DomainMatcher
 import com.sawn.app.sawnContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers

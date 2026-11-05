@@ -1,4 +1,4 @@
-package com.sawn.app.feature
+package com.sawn.domain.feature
 
 import android.content.Context
 import android.graphics.Bitmap

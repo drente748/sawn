@@ -5,8 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.sawn.app.billing.Entitlements
 import com.sawn.app.billing.FreeEntitlements
-import com.sawn.app.block.AccessController
-import com.sawn.app.block.BlockEngine
+import com.sawn.domain.block.AccessController
+import com.sawn.domain.block.BlockEngine
 import com.sawn.app.data.BlockRepository
 import com.sawn.app.data.SettingsStore
 import com.sawn.app.data.SawnDatabase

@@ -77,11 +77,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
-import com.sawn.app.feature.CheckupState
-import com.sawn.app.feature.JournalSnapshot
-import com.sawn.app.feature.ProtectionCheckup
-import com.sawn.app.feature.ShieldPreset
-import com.sawn.app.feature.ShieldPresetState
+import com.sawn.domain.feature.CheckupState
+import com.sawn.domain.feature.JournalSnapshot
+import com.sawn.domain.feature.ProtectionCheckup
+import com.sawn.domain.feature.ShieldPreset
+import com.sawn.domain.feature.ShieldPresetState
 import com.sawn.app.util.PermissionsHelper
 import com.sawn.app.vpn.SawnVpnService
 import kotlinx.coroutines.delay

@@ -1,11 +1,12 @@
-package com.sawn.app.block
+package com.sawn.domain.block
 
 import android.os.SystemClock
 import com.sawn.app.data.BlockRepository
 import com.sawn.app.data.ProtectionSnapshot
 import com.sawn.app.data.SettingsStore
+import com.sawn.app.data.toDomain
 import java.util.Calendar
-import com.sawn.app.block.AdultHosts
+import com.sawn.domain.block.AdultHosts
 
 /**
  * Answers "is blocking enforced right now?" from the master switch + schedules. The VPN
@@ -42,7 +43,7 @@ class BlockEngine(
             alwaysOn = snapshot.alwaysOn,
             focusEndsAt = snapshot.focusEndsAt,
             now = now,
-            anyScheduleActive = ScheduleEvaluator.anyActive(repo.enabledSchedules(), cal),
+            anyScheduleActive = ScheduleEvaluator.anyActive(repo.enabledSchedules().map { it.toDomain() }, cal),
             lockdownActive = lockdownActive(snapshot, now),
         )
     }

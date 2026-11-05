@@ -34,7 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.sawn.app.R
-import com.sawn.app.security.PinResult
+import com.sawn.domain.security.PinResult
 import kotlinx.coroutines.launch
 
 private const val PIN_LEN = 4

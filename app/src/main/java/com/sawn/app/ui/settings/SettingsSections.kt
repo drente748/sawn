@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.BuildConfig
 import com.sawn.app.R
-import com.sawn.app.block.web.BrowserConfig
+import com.sawn.domain.block.web.BrowserConfig
 import com.sawn.app.ui.SettingsControls
 import com.sawn.app.ui.SettingsSectionScreen
 import com.sawn.app.ui.SawnViewModel

@@ -3,10 +3,10 @@ package com.sawn.app.accessibility
 import android.accessibilityservice.AccessibilityService
 import android.os.SystemClock
 import android.util.Log
-import com.sawn.app.block.AdultHosts
-import com.sawn.app.block.DomainMatcher
-import com.sawn.app.block.web.BrowserConfig
-import com.sawn.app.block.web.WebUrlExtractor
+import com.sawn.domain.block.AdultHosts
+import com.sawn.domain.block.DomainMatcher
+import com.sawn.domain.block.web.BrowserConfig
+import com.sawn.domain.block.web.WebUrlExtractor
 import com.sawn.app.sawnContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
  * Ported from Block 11.3.0's FGAccessibilityService web engine (see
  * docs/RE-block-11.3.0-ar.md): each known browser ships an exact view-id list for its
  * URL bar ([BrowserConfig], 116 browsers), a raw-tree fallback covers Firefox-family
- * toolbars, and the whole-string [com.sawn.app.block.web.WebAddressPattern] gate
+ * toolbars, and the whole-string [com.sawn.domain.block.web.WebAddressPattern] gate
  * rejects search queries so an address bar reading "cats" is never a domain. Browsers
  * without a config entry keep the old heuristic text scan.
  *
@@ -63,7 +63,7 @@ class BrowserUrlMonitor(private val service: AccessibilityService) {
      * Returns true when an adult URL was on screen and the intercept was launched.
      * Called from the accessibility hot path, so it launches its own coroutine.
      */
-    fun onWindowChanged(pkg: String, rootNodeFactory: () -> com.sawn.app.feature.UiNode?) {
+    fun onWindowChanged(pkg: String, rootNodeFactory: () -> com.sawn.domain.feature.UiNode?) {
         val known = BrowserConfig.byPackage(pkg) != null
         if (!known && pkg !in HEURISTIC_BROWSERS) {
             clearLastIntercepted()
@@ -123,7 +123,7 @@ class BrowserUrlMonitor(private val service: AccessibilityService) {
      */
     private fun readAddressBar(
         pkg: String,
-        root: com.sawn.app.feature.UiNode?,
+        root: com.sawn.domain.feature.UiNode?,
     ): String? {
         if (root == null) return null
         val config = BrowserConfig.byPackage(pkg)
@@ -156,10 +156,10 @@ class BrowserUrlMonitor(private val service: AccessibilityService) {
 
     /** Bounded BFS (Block aborts past 2000 nodes) for a node whose viewId is in [ids]. */
     private fun findByTraversal(
-        root: com.sawn.app.feature.UiNode,
+        root: com.sawn.domain.feature.UiNode,
         ids: Set<String>,
-    ): com.sawn.app.feature.UiNode? {
-        val stack = ArrayDeque<com.sawn.app.feature.UiNode>()
+    ): com.sawn.domain.feature.UiNode? {
+        val stack = ArrayDeque<com.sawn.domain.feature.UiNode>()
         stack.addLast(root)
         var visited = 0
         while (stack.isNotEmpty()) {
@@ -185,11 +185,11 @@ class BrowserUrlMonitor(private val service: AccessibilityService) {
     }
 
     private inline fun runNodeScan(
-        root: com.sawn.app.feature.UiNode?,
+        root: com.sawn.domain.feature.UiNode?,
         onText: (String) -> Unit,
     ) {
         if (root == null) return
-        val stack = ArrayDeque<com.sawn.app.feature.UiNode>()
+        val stack = ArrayDeque<com.sawn.domain.feature.UiNode>()
         stack.addLast(root)
         var visited = 0
         while (stack.isNotEmpty() && visited < MAX_NODES) {
