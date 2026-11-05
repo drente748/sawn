@@ -97,8 +97,6 @@ import com.sawn.domain.model.BlockType
 import com.sawn.core.data.BlockedItem
 import com.sawn.domain.model.InterceptMode
 import com.sawn.core.data.Schedule
-import com.sawn.app.ui.ads.AdSlot
-import com.sawn.app.ui.ads.AdSlotBanner
 import com.sawn.app.ui.status.CoverageLevel
 import com.sawn.app.ui.status.CoverageState
 import com.sawn.app.ui.status.coverageLevel
@@ -422,7 +420,6 @@ fun StatsScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
                         }
                         HorizontalDivider()
                     }
-                    item { AdSlotBanner(slot = AdSlot.STATS_NATIVE, modifier = Modifier.padding(top = 12.dp)) }
                 }
             }
         }

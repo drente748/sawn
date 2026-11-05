@@ -3,29 +3,22 @@ package com.sawn.app
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import com.sawn.app.billing.Entitlements
-import com.sawn.app.billing.FreeEntitlements
-import com.sawn.domain.block.AccessController
-import com.sawn.domain.block.BlockEngine
 import com.sawn.core.data.BlockRepository
 import com.sawn.core.data.SettingsStore
-import com.sawn.core.data.SawnDatabase
-import com.sawn.app.usage.UsageStatsHelper
+import com.sawn.domain.block.AccessController
+import com.sawn.domain.block.BlockEngine
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.components.SingletonComponent
 
-/**
- * Poor-man's DI: a single container of app-scoped singletons reachable from
- * services and activities via [SawnApp.container]. Keeps v1 dependency-free;
- * swap for Hilt later if the graph grows.
- */
+@HiltAndroidApp
 class SawnApp : Application() {
-
-    lateinit var container: AppContainer
-        private set
 
     override fun onCreate() {
         super.onCreate()
         instance = this
-        container = AppContainer(this)
         createNotificationChannel()
         // NetGuard-style watchdog: periodic backstop that posts/clears the health
         // notification when the accessibility service dies silently. 15-minute minimum
@@ -51,19 +44,23 @@ class SawnApp : Application() {
     }
 }
 
-class AppContainer(app: Application) {
-    val settings = SettingsStore(app)
-    val repository = BlockRepository(SawnDatabase.get(app).blockDao())
-    val blockEngine = BlockEngine(repository, settings)
-    val entitlements: Entitlements = FreeEntitlements() // paid tier arrives later; ads check this first
-    val accessController = AccessController(
-        repository, blockEngine,
-        usageMinutesToday = { pkg -> UsageStatsHelper.todayUsageMinutesFor(app, pkg) },
-        trustedNow = { settings.trustedNow() },
-        pauseDefeatsToday = { settings.pauseDefeatsToday(settings.trustedNow()) },
-    )
+/**
+ * Legacy entry point for the pre-Hilt call sites that still reach the graph through a
+ * Context. Reads the SAME Hilt singletons — there is only one wiring path.
+ * Call sites migrate to proper injection (@Inject / hiltViewModel) one screen at a time.
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface LegacyContainer {
+    val settings: SettingsStore
+    val repository: BlockRepository
+    val blockEngine: BlockEngine
+    val accessController: AccessController
 }
 
 /** Convenience accessor from any Context. */
-val android.content.Context.sawnContainer: AppContainer
-    get() = (applicationContext as SawnApp).container
+val android.content.Context.sawnContainer: LegacyContainer
+    get() = EntryPointAccessors.fromApplication(
+        applicationContext as SawnApp,
+        LegacyContainer::class.java,
+    )
