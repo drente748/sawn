@@ -20,4 +20,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Sawn"
-include(":app")
+include(":app", ":core:domain", ":core:data")
