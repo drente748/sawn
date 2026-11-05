@@ -13,6 +13,7 @@ import com.sawn.core.data.DisableOutcome
 import com.sawn.domain.model.InterceptMode
 import com.sawn.core.data.Schedule
 import com.sawn.core.data.toDomain
+import com.sawn.domain.OnboardingAnswers
 import com.sawn.domain.feature.JournalSnapshot
 import com.sawn.domain.feature.ShieldPreset
 import com.sawn.domain.feature.StreakPolicy
@@ -60,6 +61,19 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun setOnboardingDone() = viewModelScope.launch { container.settings.setOnboardingDone() }
+
+    val profileName: StateFlow<String?> =
+        container.settings.profileName.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val profileAge: StateFlow<Int?> =
+        container.settings.profileAge.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** يخزّن ملف البروفايل المحلي + إجابات الترحيب، ويختم الترحيب كمكتمل. */
+    fun completeOnboarding(answers: OnboardingAnswers) = viewModelScope.launch {
+        container.settings.setProfile(answers.name, answers.age)
+        container.settings.setOnboardingAnswers(answers.serialize())
+        container.settings.setOnboardingDone()
+    }
     val strictMode: StateFlow<Boolean> =
         container.settings.strictMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     /**

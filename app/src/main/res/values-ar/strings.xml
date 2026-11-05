@@ -1,4 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- صَوْن — Sawn: Arabic strings (built for AR devices; default values/strings.xml holds English until Task 13's full swap). -->
 <resources>
     <string name="app_name">صَوْن</string>
+
+    <!-- ===== الترحيب — «فجر الأمل» ===== -->
+    <string name="onboarding_badge">صَوْن 2.0</string>
+    <string name="onboarding_welcome_title">صباحٌ بلا ضجيج</string>
+    <string name="onboarding_welcome_sub">احجب الإباحية والإعلانات والتشتيت — محليًا على هاتفك، بلا حساب ولا تتبّع.</string>
+    <string name="onboarding_welcome_cta">ابدأ رحلتك النظيفة</string>
+    <string name="onboarding_welcome_hint">4 أسئلة فقط — أقل من دقيقة</string>
+    <string name="onboarding_trust_noaccount">بدون حساب</string>
+    <string name="onboarding_trust_notrack">بلا تتبع</string>
+    <string name="onboarding_trust_local">١٠٠٪ محلي</string>
+
+    <string name="onboarding_profile_title">ما اسمك؟</string>
+    <string name="onboarding_profile_sub">نستخدمه للتحية فقط — يُحفظ على جهازك.</string>
+    <string name="onboarding_profile_name_hint">الاسم (اختياري)</string>
+    <string name="onboarding_profile_age_hint">العمر (اختياري)</string>
+    <string name="onboarding_profile_skip">تخطي</string>
+    <string name="onboarding_profile_next">متابعة</string>
+
+    <string name="onboarding_q_progress">%1$d / %2$d</string>
+    <string name="onboarding_prev">السابق</string>
+
+    <string name="onboarding_q1_title">من أين تعرفت على صَوْن؟</string>
+    <string name="onboarding_q1_sub">اختيار واحد — يساعدنا نوصل لأكثر ناس تحتاج الحماية.</string>
+    <string name="onboarding_q1_x">إكس (تويتر)</string>
+    <string name="onboarding_q1_instagram">إنستغرام</string>
+    <string name="onboarding_q1_youtube">يوتيوب</string>
+    <string name="onboarding_q1_tiktok">تيك توك</string>
+    <string name="onboarding_q1_google">بحث جوجل</string>
+    <string name="onboarding_q1_friend">صديق نصحني</string>
+    <string name="onboarding_q1_store">متجر التطبيقات / إعلان</string>
+    <string name="onboarding_q1_other">أخرى</string>
+
+    <string name="onboarding_q2_title">ما هدفك الأساسي؟</string>
+    <string name="onboarding_q2_sub">اختيار واحد — نبني الخطة حوله.</string>
+    <string name="onboarding_q2_porn">التخلص من الإباحية</string>
+    <string name="onboarding_q2_distraction">تقليل تشتيت السوشيال</string>
+    <string name="onboarding_q2_ads">حجب الإعلانات والمتتبعات</string>
+    <string name="onboarding_q2_focus">تركيز وإنتاجية</string>
+    <string name="onboarding_q2_family">حماية العائلة</string>
+
+    <string name="onboarding_q3_title">ما مستوى التزامك؟</string>
+    <string name="onboarding_q3_sub">بكل أمانة — نضبط الخطة على قدرك.</string>
+    <string name="onboarding_q3_soft">بداية هادئة</string>
+    <string name="onboarding_q3_soft_sub">تعريف بالأدوات بلا ضغط</string>
+    <string name="onboarding_q3_serious">جاد</string>
+    <string name="onboarding_q3_serious_sub">أحتاج الانضباط والمتابعة</string>
+    <string name="onboarding_q3_strict">صارم — لا استثناءات</string>
+    <string name="onboarding_q3_strict_sub">أقفال وقفل لا يُكسر في لحظة ضعف</string>
+
+    <string name="onboarding_q4_title">ما المحتوى المراد حجبه؟</string>
+    <string name="onboarding_q4_sub">اختر كل ما ينطبق — يمكن تغييره لاحقًا.</string>
+    <string name="onboarding_q4_porn">إباحية</string>
+    <string name="onboarding_q4_ads">إعلانات ومتتبعات</string>
+    <string name="onboarding_q4_feeds">ريلز · شورتات · استكشف</string>
+    <string name="onboarding_q4_apps">تطبيقات مشتتة</string>
+    <string name="onboarding_q4_search">فرض البحث الآمن</string>
+    <string name="onboarding_q4_hint">اختيار «إباحية» يفعّل تلقائيًا: فلتر DNS محلي + فرض البحث الآمن</string>
+    <string name="onboarding_q4_cta">ابنِ خطتي</string>
+
+    <string name="onboarding_plan_kicker">✦ خطتك الشخصية ✦</string>
+    <string name="onboarding_plan_title">فجرٌ جديد يبدأ الآن</string>
+    <string name="onboarding_plan_sub">بناءً على إجاباتك — هذا ما سنفعله معًا.</string>
+    <string name="onboarding_plan_counter">%1$d / %2$d جاهزة</string>
+    <string name="onboarding_plan_cta">فعّل الحماية — خطوات سريعة</string>
+    <string name="onboarding_plan_explore">استكشف كل ميزات صَوْن</string>
+    <string name="onboarding_plan_note">تظهر العناصر بتعاقب — كلها تعمل محليًا على جهازك</string>
+
+    <string name="plan_feature_porn_title">حظر الإباحية عبر VPN محلي</string>
+    <string name="plan_feature_porn_sub">يشتغل في كل المتصفحات والتطبيقات</string>
+    <string name="plan_feature_safesearch_title">فرض البحث الآمن</string>
+    <string name="plan_feature_safesearch_sub">بحث Google · Bing · YouTube — تلقائيًا</string>
+    <string name="plan_feature_ads_title">إسكات الإعلانات والمتتبعات</string>
+    <string name="plan_feature_ads_sub">قائمة محلية محدّثة — بلا إنترنت ولا حسابات</string>
+    <string name="plan_feature_doh_title">حجب DNS المشفر المموه</string>
+    <string name="plan_feature_doh_sub">يمنع المواقع من الالتفاف على الفلتر</string>
+    <string name="plan_feature_strict_title">وضع الانضباط مع قفل PIN</string>
+    <string name="plan_feature_strict_sub">لا كسر للحماية في لحظة ضعف</string>
+    <string name="plan_feature_apps_title">حجب التطبيقات المشتتة</string>
+    <string name="plan_feature_apps_sub">ريلز وشورتات تُكتشف وتُحجب فوريًا</string>
+    <string name="plan_feature_focus_title">جلسات تركيز + سلسلة أيام</string>
+    <string name="plan_feature_focus_sub">٢٥ دقيقة حماية عميقة، وتتبّع نجاحك</string>
+    <string name="plan_feature_notifications_title">كاتم إشعارات التطبيقات المحجوبة</string>
+    <string name="plan_feature_notifications_sub">لا رسائل تُغري بالفتح</string>
+
+    <string name="onboarding_greet">أهلًا، %1$s</string>
 </resources>

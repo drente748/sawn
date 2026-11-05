@@ -76,6 +76,9 @@ class SettingsStore(private val context: Context) {
         val PIN_LOCK_ELAPSED_UNTIL = longPreferencesKey("pin_lock_elapsed_until")
         val PIN_LOCK_BOOT_COUNT = intPreferencesKey("pin_lock_boot_count")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        val PROFILE_NAME = stringPreferencesKey("profile_name")
+        val PROFILE_AGE = intPreferencesKey("profile_age")
+        val ONBOARDING_ANSWERS = stringPreferencesKey("onboarding_answers")
         val SEEN_TIME_HIGHWAT = longPreferencesKey("seen_time_highwat")
         val PAUSE_DEFEATS_DATE = longPreferencesKey("pause_defeats_date")
         val PAUSE_DEFEATS = intPreferencesKey("pause_defeats")
@@ -129,6 +132,30 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setOnboardingDone() =
         context.dataStore.edit { it[Keys.ONBOARDING_DONE] = true }.let { }
+
+    /** يعيد تفعيل الترحيب («إعادة عرض المقدمة» من الإعدادات — لا يمسح بيانات الحماية). */
+    suspend fun clearOnboardingDone() =
+        context.dataStore.edit { it.remove(Keys.ONBOARDING_DONE) }.let { }
+
+    // --- الملف الشخصي المحلي ---------------------------------------------------
+    // اسم + عمر محليان 100% — لا يغادران الجهاز أبداً (انظر PRIVACY.md).
+    val profileName: Flow<String?> =
+        context.dataStore.data.map { it[Keys.PROFILE_NAME] }.distinctUntilChanged()
+    val profileAge: Flow<Int?> =
+        context.dataStore.data.map { it[Keys.PROFILE_AGE] }.distinctUntilChanged()
+
+    suspend fun setProfile(name: String?, age: Int?) =
+        context.dataStore.edit { p ->
+            if (name == null) p.remove(Keys.PROFILE_NAME) else p[Keys.PROFILE_NAME] = name
+            if (age == null) p.remove(Keys.PROFILE_AGE) else p[Keys.PROFILE_AGE] = age
+        }.let { }
+
+    /** الإجابات كما هي (نص خام مفصول بـ |) — تُستخدم لإعادة بناء الخطة لاحقاً. */
+    val onboardingAnswers: Flow<String?> =
+        context.dataStore.data.map { it[Keys.ONBOARDING_ANSWERS] }.distinctUntilChanged()
+
+    suspend fun setOnboardingAnswers(value: String) =
+        context.dataStore.edit { it[Keys.ONBOARDING_ANSWERS] = value }.let { }
 
     val alwaysOn: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.ALWAYS_ON] ?: true }.distinctUntilChanged()

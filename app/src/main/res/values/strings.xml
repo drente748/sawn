@@ -520,4 +520,88 @@
     <string name="stats_hero_label">سلسلتك الآن</string>
     <string name="stats_days_unit">يوم</string>
     <string name="setup_battery_direct">السماح الآن</string>
+    <!-- ===== Onboarding — «Dawn of Hope» (values/strings.xml = English for these keys) ===== -->
+    <string name="onboarding_badge">Sawn 2.0</string>
+    <string name="onboarding_welcome_title">A quieter morning</string>
+    <string name="onboarding_welcome_sub">Block adult content, ads and distraction — locally on your phone. No account, no tracking.</string>
+    <string name="onboarding_welcome_cta">Start your clean slate</string>
+    <string name="onboarding_welcome_hint">4 questions, less than a minute</string>
+    <string name="onboarding_trust_noaccount">No account</string>
+    <string name="onboarding_trust_notrack">No tracking</string>
+    <string name="onboarding_trust_local">100% local</string>
+
+    <string name="onboarding_profile_title">What should we call you?</string>
+    <string name="onboarding_profile_sub">Used for the greeting only — saved on your device.</string>
+    <string name="onboarding_profile_name_hint">Name (optional)</string>
+    <string name="onboarding_profile_age_hint">Age (optional)</string>
+    <string name="onboarding_profile_skip">Skip</string>
+    <string name="onboarding_profile_next">Continue</string>
+
+    <string name="onboarding_q_progress">%1$d / %2$d</string>
+    <string name="onboarding_prev">Back</string>
+
+    <string name="onboarding_q1_title">How did you hear about Sawn?</string>
+    <string name="onboarding_q1_sub">One pick — helps us reach more people who need protection.</string>
+    <string name="onboarding_q1_x">X (Twitter)</string>
+    <string name="onboarding_q1_instagram">Instagram</string>
+    <string name="onboarding_q1_youtube">YouTube</string>
+    <string name="onboarding_q1_tiktok">TikTok</string>
+    <string name="onboarding_q1_google">Google search</string>
+    <string name="onboarding_q1_friend">A friend recommended it</string>
+    <string name="onboarding_q1_store">App store / an ad</string>
+    <string name="onboarding_q1_other">Something else</string>
+
+    <string name="onboarding_q2_title">What is your main goal?</string>
+    <string name="onboarding_q2_sub">One pick — your plan is built around it.</string>
+    <string name="onboarding_q2_porn">Quit adult content</string>
+    <string name="onboarding_q2_distraction">Less social-media distraction</string>
+    <string name="onboarding_q2_ads">Block ads &amp; trackers</string>
+    <string name="onboarding_q2_focus">Focus &amp; productivity</string>
+    <string name="onboarding_q2_family">Protect my family</string>
+
+    <string name="onboarding_q3_title">How committed are you?</string>
+    <string name="onboarding_q3_sub">Honestly — we\'ll match the plan to you.</string>
+    <string name="onboarding_q3_soft">A gentle start</string>
+    <string name="onboarding_q3_soft_sub">Meet the tools, no pressure</string>
+    <string name="onboarding_q3_serious">Serious</string>
+    <string name="onboarding_q3_serious_sub">I need structure and follow-through</string>
+    <string name="onboarding_q3_strict">Strict — no exceptions</string>
+    <string name="onboarding_q3_strict_sub">Locks that won\'t break in a weak moment</string>
+
+    <string name="onboarding_q4_title">What should be blocked?</string>
+    <string name="onboarding_q4_sub">Pick everything that applies — you can change it later.</string>
+    <string name="onboarding_q4_porn">Adult content</string>
+    <string name="onboarding_q4_ads">Ads &amp; trackers</string>
+    <string name="onboarding_q4_feeds">Reels · Shorts · Explore</string>
+    <string name="onboarding_q4_apps">Distracting apps</string>
+    <string name="onboarding_q4_search">Force SafeSearch</string>
+    <string name="onboarding_q4_hint">Picking “Adult content” auto-enables: local DNS filter + SafeSearch forcing</string>
+    <string name="onboarding_q4_cta">Build my plan</string>
+
+    <string name="onboarding_plan_kicker">✦ Your personal plan ✦</string>
+    <string name="onboarding_plan_title">A new dawn begins now</string>
+    <string name="onboarding_plan_sub">Based on your answers — here\'s what we\'ll do together.</string>
+    <string name="onboarding_plan_counter">%1$d / %2$d ready</string>
+    <string name="onboarding_plan_cta">Turn on protection — quick steps</string>
+    <string name="onboarding_plan_explore">Explore all of Sawn\'s features</string>
+    <string name="onboarding_plan_note">Everything below runs locally on your phone</string>
+
+    <string name="plan_feature_porn_title">Adult content blocked via local VPN</string>
+    <string name="plan_feature_porn_sub">Works in every browser and app</string>
+    <string name="plan_feature_safesearch_title">SafeSearch forced</string>
+    <string name="plan_feature_safesearch_sub">Google · Bing · YouTube — automatically</string>
+    <string name="plan_feature_ads_title">Ads &amp; trackers silenced</string>
+    <string name="plan_feature_ads_sub">A local, regularly updated list — no account needed</string>
+    <string name="plan_feature_doh_title">Encrypted-DNS bypass blocked</string>
+    <string name="plan_feature_doh_sub">Sites can\'t slip around the filter</string>
+    <string name="plan_feature_strict_title">Discipline mode with a PIN</string>
+    <string name="plan_feature_strict_sub">No breaking protection in a weak moment</string>
+    <string name="plan_feature_apps_title">Distracting apps blocked</string>
+    <string name="plan_feature_apps_sub">Reels and Shorts detected and blocked</string>
+    <string name="plan_feature_focus_title">Focus sessions + day streaks</string>
+    <string name="plan_feature_focus_sub">25 quiet minutes, and your wins counted</string>
+    <string name="plan_feature_notifications_title">Notifications silenced for blocked apps</string>
+    <string name="plan_feature_notifications_sub">No pings inviting you to open</string>
+
+    <string name="onboarding_greet">Hello, %1$s</string>
 </resources>

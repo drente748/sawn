@@ -37,7 +37,7 @@ import com.sawn.app.ui.AppPickerScreen
 import com.sawn.app.ui.BlocklistScreen
 import com.sawn.app.ui.HomeScreen
 import com.sawn.app.ui.ManagementPinGate
-import com.sawn.app.ui.OnboardingScreen
+import com.sawn.app.ui.onboarding.OnboardingHost
 import com.sawn.app.ui.SchedulesScreen
 import com.sawn.app.ui.SettingsScreen
 import com.sawn.app.ui.SetupScreen
@@ -201,7 +201,7 @@ private fun SawnScaffold(
         return
     }
     if (!onboardingDone) {
-        OnboardingScreen(onDone = vm::setOnboardingDone)
+        OnboardingHost(vm = vm, onDone = vm::setOnboardingDone)
         return
     }
 
