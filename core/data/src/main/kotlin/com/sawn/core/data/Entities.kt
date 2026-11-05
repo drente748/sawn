@@ -1,19 +1,10 @@
-package com.sawn.app.data
+package com.sawn.core.data
 
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
-
-/** What kind of thing is being blocked. */
-enum class BlockType { WEBSITE, APP }
-
-/**
- * How a target is enforced when opened during an active block:
- * - [BLOCK]: hard block — a full-screen wall, no way through.
- * - [PAUSE]: a mindful pause (breathe + intention + a wait) that can grant temporary,
- *   time-boxed access — the ScreenZen-style "delayed gratification" flow.
- */
-enum class InterceptMode { BLOCK, PAUSE }
+import com.sawn.domain.model.BlockType
+import com.sawn.domain.model.InterceptMode
 
 /**
  * A single blocked target.
@@ -42,7 +33,7 @@ data class BlockedItem(
 )
 
 /** Convert the Room entity to the pure domain model the policies consume. */
-internal fun Schedule.toDomain(): com.sawn.domain.model.Schedule =
+fun Schedule.toDomain(): com.sawn.domain.model.Schedule =
     com.sawn.domain.model.Schedule(
         id = id,
         name = name,

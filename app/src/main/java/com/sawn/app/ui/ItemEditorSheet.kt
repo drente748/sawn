@@ -32,9 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.sawn.app.R
-import com.sawn.app.data.BlockType
-import com.sawn.app.data.BlockedItem
-import com.sawn.app.data.InterceptMode
+import com.sawn.domain.model.BlockType
+import com.sawn.core.data.BlockedItem
+import com.sawn.domain.model.InterceptMode
 
 /**
  * Bottom-sheet editor for a blocked item's enforcement: hard block vs mindful pause, and

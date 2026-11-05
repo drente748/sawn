@@ -1,4 +1,4 @@
-package com.sawn.app.data
+package com.sawn.core.data
 
 import android.content.Context
 import android.os.SystemClock

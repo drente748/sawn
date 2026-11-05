@@ -1,8 +1,8 @@
 package com.sawn.domain.block
 
-import com.sawn.app.data.BlockType
-import com.sawn.app.data.BlockedItem
-import com.sawn.app.data.InterceptMode
+import com.sawn.domain.model.BlockType
+import com.sawn.core.data.BlockedItem
+import com.sawn.domain.model.InterceptMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

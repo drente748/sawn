@@ -1,4 +1,4 @@
-package com.sawn.app.data
+package com.sawn.core.data
 
 import android.content.Context
 import androidx.room.Database
@@ -8,6 +8,8 @@ import androidx.room.TypeConverters
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.sawn.domain.model.BlockType
+import com.sawn.domain.model.InterceptMode
 
 class Converters {
     @TypeConverter fun toBlockType(value: String): BlockType = BlockType.valueOf(value)
@@ -17,22 +19,33 @@ class Converters {
 }
 
 @Database(
-    entities = [BlockedItem::class, Schedule::class, AccessGrant::class],
-    version = 2,
+    entities = [BlockedItem::class, Schedule::class, AccessGrant::class, ProtectedDayEntity::class],
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
 abstract class SawnDatabase : RoomDatabase() {
     abstract fun blockDao(): BlockDao
+    abstract fun protectedDaysDao(): ProtectedDaysDao
 
     companion object {
         @Volatile private var instance: SawnDatabase? = null
 
         /**
-         * v1 → v2: add the intercept-mode / limit columns to blocked_items and create the
-         * access_grants table. Column/table/index shapes match what Room generates for the
-         * v2 entities so the schema validates on open — existing blocklists survive upgrades.
+         * v2 → v3: add the protected_days source of truth for the rebuilt day-streak.
+         * Additive only — existing blocklists/schedules are untouched.
          */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS protected_days (" +
+                        "date TEXT PRIMARY KEY NOT NULL, " +
+                        "source TEXT NOT NULL, " +
+                        "recordedAt INTEGER NOT NULL)",
+                )
+            }
+        }
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE blocked_items ADD COLUMN interceptMode TEXT NOT NULL DEFAULT 'BLOCK'")
@@ -59,7 +72,7 @@ abstract class SawnDatabase : RoomDatabase() {
                     SawnDatabase::class.java,
                     "sawn.db",
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     // Only wipe on a downgrade (dev rollback); real upgrades migrate cleanly.
                     .fallbackToDestructiveMigrationOnDowngrade()
                     .build()

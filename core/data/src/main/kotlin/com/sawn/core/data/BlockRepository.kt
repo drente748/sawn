@@ -1,7 +1,8 @@
-package com.sawn.app.data
+package com.sawn.core.data
 
 import kotlinx.coroutines.flow.Flow
 import java.util.Calendar
+import com.sawn.domain.model.BlockType
 
 /** Single access point for blocklist + schedule + grant persistence. */
 class BlockRepository(private val dao: BlockDao) {

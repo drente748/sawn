@@ -1,4 +1,4 @@
-package com.sawn.app.data
+package com.sawn.core.data
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import com.sawn.domain.model.BlockType
 
 @Dao
 interface BlockDao {

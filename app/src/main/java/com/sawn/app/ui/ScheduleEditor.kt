@@ -28,7 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sawn.app.R
-import com.sawn.app.data.Schedule
+import com.sawn.core.data.Schedule
 
 /** ترتيب الأيام يطابق قناع [Schedule.daysMask]: البت 0 = الاثنين … البت 6 = الأحد. */
 private val DAY_LETTERS = listOf(

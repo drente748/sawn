@@ -93,10 +93,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
-import com.sawn.app.data.BlockType
-import com.sawn.app.data.BlockedItem
-import com.sawn.app.data.InterceptMode
-import com.sawn.app.data.Schedule
+import com.sawn.domain.model.BlockType
+import com.sawn.core.data.BlockedItem
+import com.sawn.domain.model.InterceptMode
+import com.sawn.core.data.Schedule
 import com.sawn.app.ui.ads.AdSlot
 import com.sawn.app.ui.ads.AdSlotBanner
 import com.sawn.app.ui.status.CoverageLevel

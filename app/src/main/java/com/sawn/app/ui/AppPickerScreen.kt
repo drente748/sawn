@@ -33,7 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
-import com.sawn.app.data.BlockType
+import com.sawn.domain.model.BlockType
 import com.sawn.app.usage.AppsHelper
 import com.sawn.app.usage.InstalledApp
 import kotlinx.coroutines.Dispatchers

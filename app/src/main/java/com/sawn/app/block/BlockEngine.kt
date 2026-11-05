@@ -1,10 +1,10 @@
 package com.sawn.domain.block
 
 import android.os.SystemClock
-import com.sawn.app.data.BlockRepository
-import com.sawn.app.data.ProtectionSnapshot
-import com.sawn.app.data.SettingsStore
-import com.sawn.app.data.toDomain
+import com.sawn.core.data.BlockRepository
+import com.sawn.core.data.ProtectionSnapshot
+import com.sawn.core.data.SettingsStore
+import com.sawn.core.data.toDomain
 import java.util.Calendar
 import com.sawn.domain.block.AdultHosts
 

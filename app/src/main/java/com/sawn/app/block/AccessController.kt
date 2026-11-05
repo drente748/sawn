@@ -1,8 +1,8 @@
 package com.sawn.domain.block
 
-import com.sawn.app.data.BlockRepository
-import com.sawn.app.data.BlockedItem
-import com.sawn.app.data.InterceptMode
+import com.sawn.core.data.BlockRepository
+import com.sawn.core.data.BlockedItem
+import com.sawn.domain.model.InterceptMode
 
 enum class LimitReason { OPENS, TIME, COOLDOWN }
 

@@ -7,9 +7,9 @@ import com.sawn.app.billing.Entitlements
 import com.sawn.app.billing.FreeEntitlements
 import com.sawn.domain.block.AccessController
 import com.sawn.domain.block.BlockEngine
-import com.sawn.app.data.BlockRepository
-import com.sawn.app.data.SettingsStore
-import com.sawn.app.data.SawnDatabase
+import com.sawn.core.data.BlockRepository
+import com.sawn.core.data.SettingsStore
+import com.sawn.core.data.SawnDatabase
 import com.sawn.app.usage.UsageStatsHelper
 
 /**
