@@ -1,55 +1,129 @@
 package com.sawn.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sawn.app.R
+import com.sawn.app.ui.theme.SawnPalette
 import com.sawn.domain.feature.JournalSnapshot
 import java.time.LocalDate
+import java.util.Locale
 
-/**
- * مكوّنات مشتركة بين الرئيسية والإنجازات. الهدف لغةٌ بصرية واحدة: عنوان قسمٍ هادئ،
- * رسم أسبوعي متكرر، وبطاقة رقمٍ ذات تباينٍ مضمون.
- */
+/** أرقام لاتينية دائماً — بغض النظر عن لغة النظام. */
+object SawnNumbers {
+    fun format(n: Long): String = String.format(Locale.US, "%d", n)
+    fun format(n: Int): String = String.format(Locale.US, "%d", n)
+}
 
+/** خلفية «الفجر»: تدرج دافئ من الخوخي الكريمي إلى الأبيض الناعم + قرص شمس خفيف. */
+fun Modifier.dawnBackground(): Modifier = this.drawBehind {
+    val width = size.width
+    val height = size.height
+    drawRect(
+        Brush.verticalGradient(
+            colors = listOf(
+                SawnPalette.DawnBg,
+                Color(0xFFFFF1E4),
+                Color(0xFFFFFDF8),
+            ),
+        ),
+    )
+    // قرص الشمس (شعاعي ناعم) في الثلث العلوي
+    val radius = minOf(width, height) * 0.55f
+    drawCircle(
+        brush = Brush.radialGradient(
+            colorStops = arrayOf(
+                0f to SawnPalette.Gold.copy(alpha = 0.55f),
+                0.55f to SawnPalette.Gold.copy(alpha = 0.18f),
+                1f to SawnPalette.Gold.copy(alpha = 0f),
+            ),
+            center = Offset(width * 0.5f, height * 0.16f),
+            radius = radius,
+        ),
+        radius = radius,
+        center = Offset(width * 0.5f, height * 0.16f),
+    )
+}
+
+/** بطاقة صَوْن: سطح أبيض بحافة خوخي ناعمة وظل دافئ. */
+@Composable
+fun DawnCard(
+    modifier: Modifier = Modifier,
+    shape: androidx.compose.ui.graphics.Shape = MaterialTheme.shapes.large,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Surface(
+        modifier = modifier
+            .shadow(8.dp, shape, ambientColor = Color(0x1FEA580C), spotColor = Color(0x26EA580C))
+            .border(1.dp, SawnPalette.Line, shape),
+        shape = shape,
+        color = SawnPalette.Card,
+    ) {
+        androidx.compose.foundation.layout.Column(Modifier.padding(16.dp), content = content)
+    }
+}
+
+/** عنوان قسم هادئ — شريط عمودي برتقالي + عنوان + تلميح. */
 @Composable
 fun SectionHeader(title: String, hint: String? = null, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier
-                    .width(3.dp)
-                    .height(16.dp)
+                    .width(4.dp)
+                    .height(18.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(SawnPalette.Primary),
             )
             Spacer(Modifier.width(8.dp))
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(title, style = MaterialTheme.typography.titleMedium, color = SawnPalette.Ink)
         }
         if (hint != null) {
             Text(
                 hint,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 11.dp),
+                color = SawnPalette.InkSoft,
+                modifier = Modifier.padding(start = 12.dp),
             )
         }
     }
@@ -83,21 +157,20 @@ fun ProtectionWeekChart(snapshot: JournalSnapshot, modifier: Modifier = Modifier
                         .height((8 + 36 * count / peak).dp)
                         .clip(MaterialTheme.shapes.extraSmall)
                         .background(
-                            if (count > 0) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceVariant,
+                            if (count > 0) SawnPalette.Primary else SawnPalette.Track,
                         ),
                 )
                 Text(
                     stringResource(letters[day.dayOfWeek.value - 1]),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = SawnPalette.InkSoft,
                 )
             }
         }
     }
 }
 
-/** بطاقة رقم مختصرة. [highlight] يجعلها بلون العلامة، ويبقى النص مقروءاً دائماً. */
+/** بطاقة رقم مختصرة. [highlight] تجعلها بلون العلامة، ويبقى النص مقروءاً دائماً. */
 @Composable
 fun MetricCard(
     value: String,
@@ -107,25 +180,318 @@ fun MetricCard(
 ) {
     Surface(
         shape = MaterialTheme.shapes.medium,
-        color = if (highlight) MaterialTheme.colorScheme.primaryContainer
-        else MaterialTheme.colorScheme.surface,
-        modifier = modifier,
+        color = if (highlight) SawnPalette.PrimarySoft else SawnPalette.Card,
+        modifier = modifier
+            .border(1.dp, SawnPalette.Line, MaterialTheme.shapes.medium),
     ) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text(
                 value,
                 style = MaterialTheme.typography.headlineSmall,
-                color = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer
-                else MaterialTheme.colorScheme.onSurface,
+                color = if (highlight) SawnPalette.PrimaryDeep else SawnPalette.Ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 label,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = SawnPalette.InkSoft,
                 maxLines = 2,
+            )
+        }
+    }
+}
+
+/** شريط التقدّم الداكن — «سلسلتك حيّة». */
+@Composable
+fun ProgressStrip(
+    streak: Int,
+    longest: Int,
+    sessions: Int,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+) {
+    val base = if (onClick != null) {
+        modifier.clickable(
+            interactionSource = MutableInteractionSource(),
+            indication = null,
+        ) { onClick() }
+    } else {
+        modifier
+    }
+    Surface(
+        modifier = base,
+        shape = MaterialTheme.shapes.large,
+        color = SawnPalette.Ink,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            StripNumber(SawnNumbers.format(streak.toLong()), stringResource(R.string.stats_days_unit), Modifier.weight(1f))
+            DividerV()
+            StripNumber(SawnNumbers.format(longest.toLong()), stringResource(R.string.best_streak), Modifier.weight(1f))
+            DividerV()
+            StripNumber(SawnNumbers.format(sessions.toLong()), stringResource(R.string.stat_sessions), Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun StripNumber(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            value,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = SawnPalette.Gold,
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFFFDE8D8).copy(alpha = 0.85f),
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun DividerV() {
+    Box(
+        Modifier
+            .width(1.dp)
+            .height(34.dp)
+            .background(Color(0xFFFDE8D8).copy(alpha = 0.2f)),
+    )
+}
+
+/** بلاطة أداة: أيقونة + عنوان + سطر وصفي. */
+@Composable
+fun ToolTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    detail: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = SawnPalette.Card,
+        modifier = modifier.border(1.dp, SawnPalette.Line, MaterialTheme.shapes.medium),
+    ) {
+        Column(
+            Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(SawnPalette.PrimarySoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = SawnPalette.Primary, modifier = Modifier.size(22.dp))
+            }
+            Text(title, style = MaterialTheme.typography.labelLarge, color = SawnPalette.Ink, textAlign = TextAlign.Center)
+            Text(detail, style = MaterialTheme.typography.labelSmall, color = SawnPalette.InkSoft, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+/** صف ميزة مضغوط: أيقونة ملونة + عنوان + سطر + إجراء اختياري. */
+@Composable
+fun FeatureRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconBackground: Color,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Row(
+        modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(iconBackground),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge, color = SawnPalette.Ink)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = SawnPalette.InkSoft, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        trailing?.invoke()
+    }
+}
+
+/** زر صَوْن الكبير — الكبسولة البرتقالية بظل دافئ. */
+@Composable
+fun PillCTA(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    androidx.compose.material3.Button(
+        onClick = onClick,
+        enabled = enabled,
+        shape = CircleShape,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .shadow(10.dp, CircleShape, ambientColor = Color(0x4DEA580C), spotColor = Color(0x4DEA580C)),
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = SawnPalette.Primary,
+            contentColor = SawnPalette.OnPrimary,
+        ),
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+    }
+}
+
+/** بطاقة مفتاح «الحماية المباشرة» — أيقونة + عنوان + سطر + سويتش. */
+@Composable
+fun ProtectionToggleCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = SawnPalette.Card,
+        modifier = modifier.border(1.dp, SawnPalette.Line, MaterialTheme.shapes.medium),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(icon, contentDescription = null, tint = SawnPalette.Primary, modifier = Modifier.size(22.dp))
+            Text(title, style = MaterialTheme.typography.labelLarge, color = SawnPalette.Ink, maxLines = 1)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = SawnPalette.InkSoft, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled,
+                modifier = Modifier.align(Alignment.Start),
+            )
+        }
+    }
+}
+
+/** شرائح «خفيف/متوازن/الحد الأقصى». */
+@Composable
+fun PresetChips(
+    selected: Int,
+    options: List<String>,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEachIndexed { index, label ->
+            val active = index == selected
+            Surface(
+                onClick = { onSelect(index) },
+                shape = CircleShape,
+                color = if (active) SawnPalette.Primary else SawnPalette.Card,
+                modifier = if (active) {
+                    Modifier
+                } else {
+                    Modifier.border(1.dp, SawnPalette.Line, CircleShape)
+                },
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                    color = if (active) SawnPalette.OnPrimary else SawnPalette.InkSoft,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+/** الدرع/الشمس داخل حلقة التقدم — «بطل» الهوية. */
+enum class HeroState { PROTECTED, PARTIAL, DOWN, NEEDS_SETUP, LOCKDOWN }
+
+@Composable
+fun HeroShield(
+    state: HeroState,
+    progress: Float,
+    modifier: Modifier = Modifier,
+) {
+    val ringColor = when (state) {
+        HeroState.PROTECTED -> SawnPalette.Primary
+        HeroState.PARTIAL -> SawnPalette.GoldDeep
+        HeroState.DOWN -> SawnPalette.Error
+        HeroState.NEEDS_SETUP -> SawnPalette.OnGoldContainer
+        HeroState.LOCKDOWN -> SawnPalette.Ink
+    }
+    Canvas(modifier.aspectRatio(1f)) {
+        val stroke = size.minDimension * 0.105f
+        val radius = (size.minDimension - stroke) / 2
+        val center = Offset(size.width / 2, size.height / 2)
+        // المسار
+        drawCircle(SawnPalette.Track, radius, center, style = Stroke(stroke, cap = StrokeCap.Round))
+        // التقدّم (0..1)
+        val clamped = progress.coerceIn(0f, 1f)
+        drawArc(
+            color = ringColor,
+            startAngle = -90f,
+            sweepAngle = 360f * clamped,
+            useCenter = false,
+            topLeft = Offset(center.x - radius, center.y - radius),
+            size = Size(radius * 2, radius * 2),
+            style = Stroke(stroke, cap = StrokeCap.Round),
+        )
+        // قرص داخلي متدرج
+        drawCircle(
+            Brush.radialGradient(
+                colorStops = arrayOf(
+                    0f to SawnPalette.Gold.copy(alpha = 0.9f),
+                    0.6f to SawnPalette.PrimarySoft,
+                    1f to SawnPalette.DawnBg,
+                ),
+                radius = radius * 0.78f,
+            ),
+            radius * 0.78f,
+            center,
+        )
+        // درع الشمس: دائرة شمس + أفق + خط أشعّة
+        val sunR = radius * 0.30f
+        drawCircle(SawnPalette.Primary, sunR, Offset(center.x, center.y - radius * 0.08f))
+        val horizon = center.y + radius * 0.24f
+        drawPath(
+            path = Path().apply {
+                moveTo(center.x - radius * 0.44f, horizon)
+                lineTo(center.x + radius * 0.44f, horizon)
+            },
+            color = SawnPalette.PrimaryDeep,
+            style = Stroke(radius * 0.06f, cap = StrokeCap.Round),
+        )
+        val rayColor = SawnPalette.PrimaryDeep
+        val rayLen = radius * 0.13f
+        val sunCenter = Offset(center.x, center.y - radius * 0.08f)
+        for (angleDeg in listOf(-90f, -135f, -45f, -180f, 0f)) {
+            val a = Math.toRadians(angleDeg.toDouble())
+            val dir = Offset(Math.cos(a).toFloat(), Math.sin(a).toFloat())
+            drawPath(
+                path = Path().apply {
+                    moveTo(sunCenter.x + dir.x * (sunR + rayLen * 0.35f), sunCenter.y + dir.y * (sunR + rayLen * 0.35f))
+                    lineTo(sunCenter.x + dir.x * (sunR + rayLen), sunCenter.y + dir.y * (sunR + rayLen))
+                },
+                color = rayColor,
+                style = Stroke(radius * 0.05f, cap = StrokeCap.Round),
             )
         }
     }
