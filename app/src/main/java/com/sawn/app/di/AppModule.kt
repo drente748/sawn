@@ -11,6 +11,11 @@ import com.sawn.domain.block.BlockEngine
 import com.sawn.domain.repo.ProtectedDaysRepository
 import com.sawn.domain.repo.StatsRepository
 import com.sawn.app.usage.UsageStatsHelper
+import com.sawn.app.entitlement.EntitlementService
+import com.sawn.app.entitlement.NoopEntitlementService
+import com.sawn.app.ads.AdsController
+import com.sawn.app.update.UpdateChecker
+import com.sawn.app.update.DisabledUpdateChecker
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -71,4 +76,19 @@ object AppModule {
     @Singleton
     fun stats(days: ProtectedDaysRepository): StatsRepository =
         RoomStatsRepository(days)
+
+    // ===== البنية المعطلة مسبقًا (unused في 2.0.0) =====
+    // تُجمع هنا فقط لتصبح "البنية جاهزة": تفعيل مستقبلًا = استبدال التنفيذ هنا فقط.
+
+    @Provides
+    @Singleton
+    fun entitlementService(): EntitlementService = NoopEntitlementService
+
+    @Provides
+    @Singleton
+    fun updateChecker(): UpdateChecker = DisabledUpdateChecker
+
+    @Provides
+    @Singleton
+    fun adsController(): AdsController = com.sawn.app.ads.NoopAdsController
 }
