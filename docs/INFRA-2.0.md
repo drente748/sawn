@@ -13,32 +13,35 @@
 | `docs/PROGRESS-2.0.md` | دليل الإنجاز العام. |
 | `docs/PRIVACY.md` | سياسة الخصوصية العربية. |
 | `docs/PLAY_COMPLIANCE.md` | امتثال بلاي + فصل "البنية المعطلة مسبقًا". |
-| `docs/install-ar.md`, `docs/install-en.md` | دليل تثبيت APK (منعكس/إنجليزي). |
+| `docs/install-ar.md`, `docs/install-en.md` | دليل تثبيت APK. |
 
-## ما أنجزته (التسلسل الحقيقي)
+## التسلسل المنفذ
 
-1. **`entitlement/EntitlementService.kt`** — B2B: FREE/PAID؛ Noop يجعل كل شيء مجاني.
-2. **`AdsController.kt`** — العقد الأولي: Noop؛ تالٍ تم تعديله إلى "معطل بالكامل بلا SDK".
-3. **`entitlement/EntitlementService.kt`** — تم إعادة كتابتها مع نص B2B الكامل.
-4. **`ads/AdsController.kt`** — إعادة كتابة نهائية (النص الموجود).
-5. **`docs/PLAY_COMPLIANCE.md`** — قسم البنية المعطلة (النص الحالي).
-6. **`update/UpdateChecker.kt`** — عقد + Noop + RemoteManifestUpdateChecker.
-7. **`docs/CHANGELOG.md`**, **`docs/PROGRESS-2.0.md`**, **`docs/PRIVACY.md`**, **`docs/install-ar.md`**, **`docs/install-en.md`**.
-8. **`app/build.gradle.kts`** — 2.0.0 / 19.
-9. **`app/src/main/java/com/sawn/app/di/AppModule.kt`** — نقاط حقن + تصحيح `NoopAdsController`.
-10. **`docs/SANDBOX-2.0.md`** — تم إنشاؤها ثم حذفها (`git rm --cached` + `git reset --hard`).
+1. `entitlement/EntitlementService.kt` — FREE/PAID؛ Noop يجعل كل شيء مجاني.
+2. `ads/AdsController.kt` — عقد أولي Noop؛ عُدّل لاحقًا إلى "معطل بالكامل بلا SDK".
+3. `entitlement/EntitlementService.kt` — إعادة كتابة مع نص التوزيع خارج المتجر.
+4. `ads/AdsController.kt` — إعادة كتابة نهائية (النص الموجود).
+5. `docs/PLAY_COMPLIANCE.md` — فصل "البنية المعطلة مسبقًا".
+6. `update/UpdateChecker.kt` — عقد + Noop + `RemoteManifestUpdateChecker` معطل.
+7. `docs/CHANGELOG.md`, `docs/PROGRESS-2.0.md`, `docs/PRIVACY.md`, `docs/install-ar.md`, `docs/install-en.md`.
+8. `app/build.gradle.kts` — versionCode 19 / versionName 2.0.0.
+9. `app/src/main/java/com/sawn/app/di/AppModule.kt` — نقاط حقن + تصحيح `com.sawn.app.ads.NoopAdsController`.
+10. `docs/SANDBOX-2.0.md` — **لُغيت**: حذفها عبر `git reset --hard HEAD` (آخر commit `24449ba`).
 
-**نقطة مهمة:** تم حذف `docs/SANDBOX-2.0.md` نهائيًا عبر `git reset --hard HEAD` (آخر commit `24449ba`).
+**ملاحظة:** ملف `docs/SANDBOX-2.0.md` **مُحذوف** في مستودع Git.
 
 ## حالة البناء
 
-- **غير مؤكد**: بناء `assembleRelease` بعد التعديلات (كان في الخلفية وانقطع بسبب إعادة تشغيل الخادم).
-- يُرجى التحقق يدويًا: `.\\gradlew.bat :app:assembleRelease lint --console=plain`.
+- **غير مؤكد**: `assembleRelease` + `lint` بعد التعديلات (انقطع البناء بالخلفية بسبب إعادة تشغيل الخادم).
+- **أمر التحقق:**
+  ```
+  .\\gradlew.bat :app:assembleRelease lint --console=plain
+  ```
 - `versionCode` 19 / `versionName` 2.0.0 مُعدّ في `build.gradle.kts`.
 
 ## شروط تفعيل الإعلانات والاشتراك (PLAY_COMPLIANCE.md)
 
 1. تحديث PRIVACY.md (المعريفات + الغرض + الاحتفاظ بالبيانات).
-2. إضافة SDK مصرّح به + تصريح Play Console (إعلانات/شراء) + Data Safety متطابق.
+2. إضافة SDK مصرّح به + التصريح في Play Console + Data Safety متطابق.
 3. زر "إزالة الإعلانات" واضح في الإعدادات لكل مستخدم.
 4. إعلان السعر/التفعيل قبل أي ميزة مدفوعة.
