@@ -333,7 +333,7 @@ fun StatsScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
                     )
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            streak.toString(),
+                            SawnNumbers.format(streak.toLong()),
                             style = MaterialTheme.typography.displaySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
