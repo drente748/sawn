@@ -8,6 +8,7 @@ import com.sawn.domain.block.BlockingPolicy
 import com.sawn.domain.block.ScheduleEvaluator
 import com.sawn.domain.block.StrictPolicy
 import com.sawn.domain.model.BlockType
+import com.sawn.core.data.SawnDatabase
 import com.sawn.core.data.BlockedItem
 import com.sawn.core.data.DisableOutcome
 import com.sawn.domain.model.InterceptMode
@@ -208,6 +209,38 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
 
     fun discardStagedLockdown() {
         pendingLockdownDurationMs = null
+    }
+
+    /** "" تابع للنظام · "ar" العربية · "en" الإنجليزية. */
+    val sawnLocale: StateFlow<String> =
+        container.settings.locale.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    fun setLocale(value: String) {
+        viewModelScope.launch { container.settings.setLocale(value) }
+    }
+
+    /** يحرّر ملف البروفايل المحلي من الإعدادات. */
+    fun setProfile(name: String?, age: Int?) = viewModelScope.launch {
+        container.settings.setProfile(name, age)
+    }
+
+    /** يعيد تفعيل ظهور الترحيب — يُستخدم من «إعادة عرض المقدمة» في الإعدادات. */
+    fun resetOnboarding() = viewModelScope.launch {
+        container.settings.clearOnboardingDone()
+    }
+
+    /**
+     * «مسح كل بياناتي» — يمسح قاعدة البيانات كاملة وكل التفضيلات ويوقف الحماية.
+     * يُستدعى من الإعدادات بعد تأكيد PIN. لا يمكن التراجع — المستخدم أخبرَنا صراحةً.
+     */
+    fun wipeAllData() {
+        viewModelScope.launch {
+            runCatching {
+                SawnDatabase.get(getApplication()).clearAllTables()
+                container.settings.clearAllData()
+                VpnController.stop(getApplication())
+            }
+        }
     }
 
     /** Pull open blocklist updates while preserving the last valid list on failure. */

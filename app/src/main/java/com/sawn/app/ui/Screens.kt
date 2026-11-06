@@ -486,49 +486,6 @@ fun ManagementPinGate(
     content()
 }
 
-/** قائمة أقسام الإعدادات. البوابة يتكفل بها [ManagementPinGate] خارجياً. */
-@Composable
-fun SettingsScreen(
-    onOpenSetup: () -> Unit,
-    onBack: () -> Unit = {},
-    onOpenProtection: () -> Unit = {},
-    onOpenBrowser: () -> Unit = {},
-    onOpenPrivacy: () -> Unit = {},
-) {
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        BackHeader(
-            stringResource(R.string.settings_title),
-            onBack,
-            stringResource(R.string.settings_subtitle),
-        )
-        SettingsSectionCard(
-            icon = Icons.Filled.Shield,
-            title = stringResource(R.string.settings_protection),
-            subtitle = stringResource(R.string.settings_protection_subtitle),
-            onClick = onOpenProtection,
-        )
-        SettingsSectionCard(
-            icon = Icons.Filled.Search,
-            title = stringResource(R.string.settings_browser),
-            subtitle = stringResource(R.string.settings_browser_subtitle),
-            onClick = onOpenBrowser,
-        )
-        SettingsSectionCard(
-            icon = Icons.Filled.Info,
-            title = stringResource(R.string.settings_privacy),
-            subtitle = stringResource(R.string.settings_privacy_subtitle),
-            onClick = onOpenPrivacy,
-        )
-        HorizontalDivider()
-        OutlinedButton(onClick = onOpenSetup, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.settings_setup))
-        }
-    }
-}
-
 /** هيكل شاشة قسم داخل الإعدادات: عنوان مع رجوع + عمود قابل للتمرير. */
 @Composable
 fun SettingsSectionScreen(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
@@ -538,40 +495,6 @@ fun SettingsSectionScreen(title: String, onBack: () -> Unit, content: @Composabl
     ) {
         BackHeader(title, onBack)
         content()
-    }
-}
-
-/** بطاقة قسم في قائمة الإعدادات الرئيسية. */
-@Composable
-private fun SettingsSectionCard(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(44.dp)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-            }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
     }
 }
 

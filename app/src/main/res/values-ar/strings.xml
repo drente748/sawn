@@ -91,4 +91,37 @@
     <string name="home_pause_protection">إيقاف مؤقت</string>
     <string name="home_hero_running">الحماية تعمل الآن</string>
     <string name="home_lockdown_note">قفل الحماية نشط — التعديلات مجمّدة حتى ينتهي</string>
+
+    <!-- ===== الإعدادات — الفجر ===== -->
+    <string name="settings_profile">ملفي الشخصي</string>
+    <string name="settings_profile_sub">الاسم والعمر — يُحفظان على جهازك فقط</string>
+    <string name="settings_profile_name_label">الاسم</string>
+    <string name="settings_profile_age_label">العمر</string>
+    <string name="settings_profile_edit">تعديل</string>
+
+    <string name="settings_locale">اللغة</string>
+    <string name="settings_locale_sub">تطبّق فورًا</string>
+    <string name="settings_locale_system">النظام</string>
+    <string name="settings_locale_ar">العربية</string>
+    <string name="settings_locale_en">الإنجليزية</string>
+
+    <string name="settings_security_title">الأمان</string>
+    <string name="settings_security_sub">رمز القفل وقفل التطبيق</string>
+
+    <string name="settings_reset_onboarding">إعادة عرض المقدمة</string>
+    <string name="settings_reset_onboarding_sub">جولة الترحيب وخطتك الشخصية مرة أخرى</string>
+
+    <string name="settings_privacy_wipe">مسح كل بياناتي</string>
+    <string name="settings_privacy_wipe_sub">يحذف قائمتك وسلسلتك وإعداداتك — لا يمكن التراجع</string>
+    <string name="settings_privacy_wipe_confirm_title">مسح كل شيء؟</string>
+    <string name="settings_privacy_wipe_confirm_body">سيتم حذف قائمة الحجب والجداول والسلسلة وكل الإعدادات من هذا الجهاز نهائيًا.</string>
+    <string name="settings_privacy_wipe_confirm_action">امسح كل شيء</string>
+
+    <string name="settings_about_title">عن صَوْن</string>
+    <string name="settings_about_sub">الإصدار والبصمة والتواصل</string>
+    <string name="settings_about_version">الإصدار</string>
+    <string name="settings_about_fingerprint">بصمة الملف (SHA-256)</string>
+    <string name="settings_about_contact">تواصل مع المطوّر</string>
+    <string name="settings_about_rate">قيّم صَوْن</string>
+    <string name="settings_about_opening_soon">ستتوفر مع الموقع الرسمي</string>
 </resources>

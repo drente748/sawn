@@ -6,7 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -39,7 +39,6 @@ import com.sawn.app.ui.HomeScreen
 import com.sawn.app.ui.ManagementPinGate
 import com.sawn.app.ui.onboarding.OnboardingHost
 import com.sawn.app.ui.SchedulesScreen
-import com.sawn.app.ui.SettingsScreen
 import com.sawn.app.ui.SetupScreen
 import com.sawn.app.ui.StatsScreen
 import com.sawn.app.ui.SawnViewModel
@@ -54,7 +53,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -293,7 +292,8 @@ private fun SawnScaffold(
             }
             composable("settings") {
                 protectedScreen(stringResource(R.string.settings_title)) {
-                    SettingsScreen(
+                    com.sawn.app.ui.settings.SettingsScreen(
+                        vm = vm,
                         onOpenSetup = { navController.navigate("setup") },
                         onBack = { navController.popBackStack() },
                         onOpenProtection = { navController.navigate("settings/protection") },

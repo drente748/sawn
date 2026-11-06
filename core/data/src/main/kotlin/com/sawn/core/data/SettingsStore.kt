@@ -89,6 +89,7 @@ class SettingsStore(
         val SAFE_SEARCH_FORCE = booleanPreferencesKey("safe_search_force")
         val ADULT_EXTRA_DOMAINS = stringSetPreferencesKey("adult_extra_domains")
         val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
+        val APP_LOCALE = stringPreferencesKey("app_locale")
         val LOCKDOWN_UNTIL = longPreferencesKey("lockdown_until")
         val LOCKDOWN_ELAPSED_END = longPreferencesKey("lockdown_elapsed_end")
         val LOCKDOWN_BOOT_AT_START = intPreferencesKey("lockdown_boot_at_start")
@@ -203,6 +204,18 @@ class SettingsStore(
 
     suspend fun setReduceMotion(value: Boolean) =
         context.dataStore.edit { it[Keys.REDUCE_MOTION] = value }.let { }
+
+    // --- اللغة ----------------------------------------------------------------
+    /** "" = تابع للنظام · "ar" / "en" — تُطبّق في SawnApp.onCreate. */
+    val locale: Flow<String> =
+        context.dataStore.data.map { it[Keys.APP_LOCALE] ?: "" }.distinctUntilChanged()
+
+    suspend fun setLocale(value: String) =
+        context.dataStore.edit { it[Keys.APP_LOCALE] = value }.let { }
+
+    /** يمسح كل التفضيلات — للخصوصية: «مسح كل بياناتي». */
+    suspend fun clearAllData() =
+        context.dataStore.edit { it.clear() }.let { }
 
     suspend fun setBlockDoh(value: Boolean) {
         context.dataStore.edit { p ->

@@ -3,6 +3,7 @@ package com.sawn.app
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import com.sawn.app.util.LocaleUtils
 import com.sawn.core.data.BlockRepository
 import com.sawn.core.data.SettingsStore
 import com.sawn.domain.block.AccessController
@@ -12,6 +13,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 @HiltAndroidApp
 class SawnApp : Application() {
@@ -19,6 +22,16 @@ class SawnApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        // اللغة تُطبّق قبل أي UI يُبنى (القنوات والإشعارات والصفحات).
+        runBlocking {
+            val locale = EntryPointAccessors.fromApplication(
+                this@SawnApp,
+                LegacyContainer::class.java,
+            ).settings.locale.first()
+            LocaleUtils.apply(this@SawnApp, locale)
+        }
+
         createNotificationChannel()
         // NetGuard-style watchdog: periodic backstop that posts/clears the health
         // notification when the accessibility service dies silently. 15-minute minimum

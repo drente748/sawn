@@ -609,4 +609,37 @@
     <string name="home_pause_protection">Pause protection</string>
     <string name="home_hero_running">Protection is on</string>
     <string name="home_lockdown_note">Lockdown is active — changes are frozen until it ends</string>
+    <!-- ===== Settings — dawn (values/strings.xml = English for these keys) ===== -->
+    <string name="settings_profile">My profile</string>
+    <string name="settings_profile_sub">Name and age — stored locally, never shared</string>
+    <string name="settings_profile_name_label">Name</string>
+    <string name="settings_profile_age_label">Age</string>
+    <string name="settings_profile_edit">Edit</string>
+
+    <string name="settings_locale">Language</string>
+    <string name="settings_locale_sub">Applies immediately</string>
+    <string name="settings_locale_system">System</string>
+    <string name="settings_locale_ar">العربية</string>
+    <string name="settings_locale_en">English</string>
+
+    <string name="settings_security_title">Security</string>
+    <string name="settings_security_sub">PIN and app lock</string>
+
+    <string name="settings_reset_onboarding">Show intro again</string>
+    <string name="settings_reset_onboarding_sub">Walk through the welcome and your plan once more</string>
+
+    <string name="settings_privacy_wipe">Erase all my data</string>
+    <string name="settings_privacy_wipe_sub">Deletes your blocklists, streak and settings — irreversible</string>
+    <string name="settings_privacy_wipe_confirm_title">Erase everything?</string>
+    <string name="settings_privacy_wipe_confirm_body">This deletes your blocklist, schedules, streak history and all settings from this device. It cannot be undone.</string>
+    <string name="settings_privacy_wipe_confirm_action">Erase everything</string>
+
+    <string name="settings_about_title">About Sawn</string>
+    <string name="settings_about_sub">Version, fingerprint and contact</string>
+    <string name="settings_about_version">Version</string>
+    <string name="settings_about_fingerprint">APK fingerprint (SHA-256)</string>
+    <string name="settings_about_contact">Contact the developer</string>
+    <string name="settings_about_rate">Rate Sawn</string>
+    <string name="settings_about_opening_soon">Coming with the official website</string>
+
 </resources>
