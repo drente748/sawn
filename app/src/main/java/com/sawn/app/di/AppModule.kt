@@ -30,8 +30,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun settings(@ApplicationContext ctx: Context): SettingsStore =
-        SettingsStore(ctx)
+    fun settings(
+        @ApplicationContext ctx: Context,
+        protectedDays: ProtectedDaysRepository,
+    ): SettingsStore =
+        SettingsStore(ctx, protectedDays)
 
     @Provides
     @Singleton

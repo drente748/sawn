@@ -16,7 +16,6 @@ import com.sawn.core.data.toDomain
 import com.sawn.domain.OnboardingAnswers
 import com.sawn.domain.feature.JournalSnapshot
 import com.sawn.domain.feature.ShieldPreset
-import com.sawn.domain.feature.StreakPolicy
 import com.sawn.app.security.AdultListFetcher
 import com.sawn.domain.security.PinHasher
 import com.sawn.domain.security.PinResult
@@ -224,32 +223,14 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.hasPin
             .map<Boolean, Boolean?> { it }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-    /** نبضٌ دقيقي يجعل «اليوم» يتغيّر في الواجهة عند منتصف الليل بلا إعادة فتح. */
-    private val minuteTicker: Flow<Unit> = flow {
-        while (true) {
-            emit(Unit)
-            delay(60_000L)
-        }
-    }
-
-    /**
-     * السلسلة كما يراها المستخدم: تُشتق مقابل اليوم الحالي، فاليومُ الفائت يصفّرها
-     * فوراً بدل أن تبقى تعرض رقماً قديماً حتى تُفتح الواجهة من جديد.
-     */
-    val currentStreak: StateFlow<Int> = combine(
-        container.settings.currentStreak,
-        container.settings.lastActiveDay,
-        minuteTicker,
-    ) { raw, lastDay, _ -> StreakPolicy.visibleStreak(raw, lastDay, StreakPolicy.todayEpochDay()) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val currentStreak: StateFlow<Int> =
+        container.stats.currentStreak()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /** السلسلة حيّة لكن اليوم لم يُسجَّل بعد — تستخدمها الرئيسية تذكيراً هادئاً. */
-    val streakAtRisk: StateFlow<Boolean> = combine(
-        container.settings.currentStreak,
-        container.settings.lastActiveDay,
-        minuteTicker,
-    ) { raw, lastDay, _ -> StreakPolicy.isAtRisk(raw, lastDay, StreakPolicy.todayEpochDay()) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val streakAtRisk: StateFlow<Boolean> =
+        container.stats.isAtRisk()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val blockJournal: StateFlow<JournalSnapshot> =
         container.settings.blockJournal.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), JournalSnapshot())
@@ -257,7 +238,8 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     /** نمط حماية بضغطة واحدة (خفيف / متوازن / أقصى). */
     fun applyPreset(preset: ShieldPreset) = viewModelScope.launch { container.settings.applyPreset(preset) }
     val longestStreak: StateFlow<Int> =
-        container.settings.longestStreak.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+        container.stats.longestStreak()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val focusSessionsDone: StateFlow<Int> =
         container.settings.focusSessionsDone.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
@@ -319,8 +301,6 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         runCatching {
             if (container.blockEngine.isBlockingActiveNow()) {
                 container.settings.recordActiveDay()
-            } else {
-                container.settings.reconcileStreak()
             }
         }
     }

@@ -16,7 +16,7 @@ import com.sawn.domain.block.StrictPolicy
 import com.sawn.domain.feature.BlockJournal
 import com.sawn.domain.feature.JournalSnapshot
 import com.sawn.domain.feature.ShieldPreset
-import com.sawn.domain.feature.StreakPolicy
+import com.sawn.domain.repo.ProtectedDaysRepository
 import com.sawn.domain.security.PinLockoutPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -50,7 +50,10 @@ data class DisableOutcome(val disabled: Boolean, val focusActive: Boolean)
 /**
  * User settings & protection state. The PIN is stored as a salted hash — never plaintext.
  */
-class SettingsStore(private val context: Context) {
+class SettingsStore(
+    private val context: Context,
+    private val protectedDays: ProtectedDaysRepository? = null,
+) {
 
     private object Keys {
         val MASTER_ENABLED = booleanPreferencesKey("master_enabled")
@@ -58,9 +61,6 @@ class SettingsStore(private val context: Context) {
         val STRICT_MODE = booleanPreferencesKey("strict_mode")
         val PIN_HASH = stringPreferencesKey("pin_hash")
         val PIN_SALT = stringPreferencesKey("pin_salt")
-        val CURRENT_STREAK = intPreferencesKey("current_streak")
-        val LONGEST_STREAK = intPreferencesKey("longest_streak")
-        val LAST_ACTIVE_DAY = longPreferencesKey("last_active_day")
         val ENABLED_FEATURES = stringSetPreferencesKey("enabled_features")
         val SOCIAL_GUARD = booleanPreferencesKey("social_guard")
         val ENABLED_SOCIAL_PLATFORMS = stringSetPreferencesKey("enabled_social_platforms")
@@ -226,14 +226,10 @@ class SettingsStore(private val context: Context) {
     }
     val hasPin: Flow<Boolean> =
         context.dataStore.data.map { pinPresent(it) }.distinctUntilChanged()
-    /** الطول الخام للسلسلة كما هو مخزَّن؛ العرض يشتقّ منه قيمة اليوم الحالي. */
-    val currentStreak: Flow<Int> =
-        context.dataStore.data.map { it[Keys.CURRENT_STREAK] ?: 0 }.distinctUntilChanged()
-    /** آخر يوم محمي (epochDay) — يُشتق منه العداد المرئي بعد اليوم الفائت. */
-    val lastActiveDay: Flow<Long> =
-        context.dataStore.data.map { it[Keys.LAST_ACTIVE_DAY] ?: -1L }.distinctUntilChanged()
-    val longestStreak: Flow<Int> =
-        context.dataStore.data.map { it[Keys.LONGEST_STREAK] ?: 0 }.distinctUntilChanged()
+    /**
+     * سُجلّ "أيام الحماية" — مصدر الحقيقة للسلسلة في Room (protected_days).
+     * مُحقون عبر [protectedDays] عند توفره (إنتاج)، وهنا يبدأ من صفر.
+     */
     val enabledFeatureKeys: Flow<Set<String>> =
         context.dataStore.data.map { it[Keys.ENABLED_FEATURES] ?: emptySet() }.distinctUntilChanged()
     // socialGuard/enabledSocialPlatforms: أُزيلت الميزة من السطح في 1.0.0؛ المفتاحان
@@ -271,34 +267,12 @@ class SettingsStore(private val context: Context) {
     }
 
     /**
-     * Mark today as a protected day and update the focus streak. Called once per app open
-     * while blocking is enabled. A gap of more than a day resets the streak to 1.
+     * Mark today as a protected day — مصدر الحقيقة هو جدول protected_days في Room.
+     * إذا وُفِّر [protectedDays] (إنتاج) يُسجَّل اليوم هناك (idempotent)؛ وإلا لا شيء
+     * يُخزَّن محليًا. آمنة للتكرار في اليوم الواحد.
      */
     suspend fun recordActiveDay() {
-        val today = StreakPolicy.todayEpochDay()
-        context.dataStore.edit { p ->
-            val last = p[Keys.LAST_ACTIVE_DAY] ?: -1L
-            if (last == today) return@edit
-            val (next, day) = StreakPolicy.afterActiveDay(p[Keys.CURRENT_STREAK] ?: 0, last, today)
-            p[Keys.CURRENT_STREAK] = next
-            p[Keys.LONGEST_STREAK] = maxOf(p[Keys.LONGEST_STREAK] ?: 0, next)
-            p[Keys.LAST_ACTIVE_DAY] = day
-        }
-    }
-
-    /**
-     * يصفّر الطول الخام إن انقضى يوم كامل بلا حماية، كي لا يعود العدّاد القديم عند أول
-     * تفعيلٍ بعد انقطاع. يُحفظ الطول بعد التصفير حتى تبدأ السلسلة من 1 لا من رقمٍ قديم.
-     */
-    suspend fun reconcileStreak() {
-        val today = StreakPolicy.todayEpochDay()
-        context.dataStore.edit { p ->
-            val raw = p[Keys.CURRENT_STREAK] ?: 0
-            val last = p[Keys.LAST_ACTIVE_DAY] ?: -1L
-            if (raw > 0 && StreakPolicy.visibleStreak(raw, last, today) == 0) {
-                p[Keys.CURRENT_STREAK] = 0
-            }
-        }
+        protectedDays?.upsert(LocalDate.now(), "VPN")
     }
 
     /**
@@ -306,7 +280,7 @@ class SettingsStore(private val context: Context) {
      * عدّاد فقط لكل يوم محلي، ويُقلَّم بعد أسبوعين. لا يُخزَّن اسم موقع ولا تطبيق.
      */
     suspend fun recordBlockEvent() {
-        val today = StreakPolicy.todayEpochDay()
+        val today = LocalDate.now().toEpochDay()
         context.dataStore.edit { p ->
             val log = BlockJournal.bump(BlockJournal.decode(p[Keys.BLOCK_LOG]), today)
             p[Keys.BLOCK_LOG] = BlockJournal.encode(log)
@@ -319,7 +293,7 @@ class SettingsStore(private val context: Context) {
             BlockJournal.snapshot(
                 log = BlockJournal.decode(p[Keys.BLOCK_LOG]),
                 total = p[Keys.BLOCK_TOTAL] ?: 0,
-                today = StreakPolicy.todayEpochDay(),
+                today = LocalDate.now().toEpochDay(),
             )
         }
         .distinctUntilChanged()

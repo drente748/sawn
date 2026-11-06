@@ -87,4 +87,8 @@
     <string name="plan_feature_notifications_sub">لا رسائل تُغري بالفتح</string>
 
     <string name="onboarding_greet">أهلًا، %1$s</string>
+    <string name="home_enable_protection">فعّل الحماية</string>
+    <string name="home_pause_protection">إيقاف مؤقت</string>
+    <string name="home_hero_running">الحماية تعمل الآن</string>
+    <string name="home_lockdown_note">قفل الحماية نشط — التعديلات مجمّدة حتى ينتهي</string>
 </resources>

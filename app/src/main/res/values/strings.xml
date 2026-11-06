@@ -604,4 +604,9 @@
     <string name="plan_feature_notifications_sub">No pings inviting you to open</string>
 
     <string name="onboarding_greet">Hello, %1$s</string>
+    <!-- ===== Home — dawn (values/strings.xml = English for these keys) ===== -->
+    <string name="home_enable_protection">Turn on protection</string>
+    <string name="home_pause_protection">Pause protection</string>
+    <string name="home_hero_running">Protection is on</string>
+    <string name="home_lockdown_note">Lockdown is active — changes are frozen until it ends</string>
 </resources>

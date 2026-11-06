@@ -56,6 +56,7 @@ interface LegacyContainer {
     val repository: BlockRepository
     val blockEngine: BlockEngine
     val accessController: AccessController
+    val stats: com.sawn.domain.repo.StatsRepository
 }
 
 /** Convenience accessor from any Context. */
