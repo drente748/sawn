@@ -160,6 +160,19 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Widget 2x2: streak + status + tap to open. Updated on protection toggle. -->
+        <receiver
+            android:name=".widget.SawnWidgetProvider"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sawn_widget_info" />
+        </receiver>
+
         <!-- Device admin: uninstall protection only (no enforcement policies declared). -->
         <receiver
             android:name=".system.SawnDeviceAdminReceiver"

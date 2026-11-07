@@ -645,4 +645,49 @@
     <string name="settings_about_rate">Rate Sawn</string>
     <string name="settings_about_opening_soon">Coming with the official website</string>
 
+
+    <!-- Plan B (2.1) features -->
+    <string name="feature_challenge_title">30-Day Challenge</string>
+    <string name="feature_challenge_progress">Day %1$d of %2$d</string>
+    <string name="feature_challenge_remaining">%1$d days remaining</string>
+    <string name="feature_challenge_stage">Stage reached: day %1$d</string>
+    <string name="feature_challenge_victory">Victory! 30 days complete.</string>
+    <string name="feature_challenge_how">How it works</string>
+    <string name="feature_challenge_how_body">Only protected days advance the challenge. A slip is not a punishment — restart without guilt.</string>
+    <string name="feature_challenge_start">Start challenge</string>
+    <string name="feature_challenge_record">Record today</string>
+    <string name="feature_challenge_restart">Restart</string>
+    <string name="feature_night_guard_title">Night Guard</string>
+    <string name="feature_night_guard_sub">Auto-engages strict protection at night (default 22:00–06:00). Calls, messages and maps stay allowed.</string>
+    <string name="feature_night_guard_enable">Enabled</string>
+    <string name="feature_night_guard_start_h">Start hour (24h)</string>
+    <string name="feature_night_guard_end_h">End hour (24h)</string>
+    <string name="feature_night_guard_note">Unlock = PIN + 15 minutes, then it returns automatically. Unlocks are logged.</string>
+    <string name="feature_night_guard_unlock">Unlock for 15 minutes</string>
+    <string name="feature_deep_focus_title">Deep Focus</string>
+    <string name="feature_deep_focus_sub">Only your whitelist is allowed. Everything else is blocked until focus ends.</string>
+    <string name="feature_deep_focus_enable">Enabled</string>
+    <string name="feature_deep_focus_whitelist">Whitelist: %1$d apps</string>
+    <string name="feature_deep_focus_note">Calls, messages and maps are allowed by default. Unlock requires PIN + 10 seconds.</string>
+    <string name="feature_deep_focus_unlock">Unlock deep focus</string>
+    <string name="feature_accountability_title">Accountability partner</string>
+    <string name="feature_accountability_sub">Local only. No automatic sending — you press share yourself.</string>
+    <string name="feature_accountability_name">Partner name</string>
+    <string name="feature_accountability_contact">WhatsApp / email</string>
+    <string name="feature_accountability_share">Share weekly report</string>
+    <string name="feature_backup_title">Encrypted backup (.sawnbak)</string>
+    <string name="feature_backup_sub">AES-256-GCM with a passphrase you choose. Files never leave your device unless you share them. PIN is never included in a backup.</string>
+    <string name="feature_backup_passphrase">Passphrase (8+ chars)</string>
+    <string name="feature_backup_export">Export .sawnbak</string>
+    <string name="feature_backup_import">Import .sawnbak</string>
+    <string name="feature_backup_note">Import can merge or replace — you confirm before anything changes.</string>
+    <string name="feature_triggers_title">Trigger analyzer</string>
+    <string name="feature_triggers_sub">After any slip, tag what triggered it. Everything stays local.</string>
+    <string name="feature_triggers_top">Most common trigger: %1$s</string>
+    <string name="feature_triggers_peak">Peak hour: %1$s</string>
+    <string name="feature_parent_title">Parent mode</string>
+    <string name="feature_parent_sub">On the child device. A second PIN locks all management. Device Admin becomes required. This is a parent tool, not a child app.</string>
+    <string name="feature_parent_enable">Enabled</string>
+    <string name="feature_parent_pin">Parent PIN (4 digits)</string>
+    
 </resources>

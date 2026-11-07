@@ -37,6 +37,13 @@ import com.sawn.app.ui.AppPickerScreen
 import com.sawn.app.ui.BlocklistScreen
 import com.sawn.app.ui.HomeScreen
 import com.sawn.app.ui.ManagementPinGate
+import com.sawn.app.ui.ChallengeScreen
+import com.sawn.app.ui.NightGuardScreen
+import com.sawn.app.ui.DeepFocusScreen
+import com.sawn.app.ui.TriggersScreen
+import com.sawn.app.ui.AccountabilityScreen
+import com.sawn.app.ui.BackupScreen
+import com.sawn.app.ui.ParentModeScreen
 import com.sawn.app.ui.onboarding.OnboardingHost
 import com.sawn.app.ui.SchedulesScreen
 import com.sawn.app.ui.SetupScreen
@@ -327,6 +334,42 @@ private fun SawnScaffold(
                         onOpenSetup = { navController.navigate("setup") },
                         onBack = { navController.popBackStack() },
                     )
+                }
+            }
+            // --- Plan B (2.1) ---
+            composable("challenge") {
+                protectedScreen(stringResource(R.string.feature_challenge_title)) {
+                    ChallengeScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("night_guard") {
+                protectedScreen(stringResource(R.string.feature_night_guard_title)) {
+                    NightGuardScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("deep_focus") {
+                protectedScreen(stringResource(R.string.feature_deep_focus_title)) {
+                    DeepFocusScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("triggers") {
+                protectedScreen(stringResource(R.string.feature_triggers_title)) {
+                    TriggersScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("accountability") {
+                protectedScreen(stringResource(R.string.feature_accountability_title)) {
+                    AccountabilityScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("backup") {
+                protectedScreen(stringResource(R.string.feature_backup_title)) {
+                    BackupScreen(onBack = { navController.popBackStack() })
+                }
+            }
+            composable("parent_mode") {
+                protectedScreen(stringResource(R.string.feature_parent_title)) {
+                    ParentModeScreen(onBack = { navController.popBackStack() })
                 }
             }
         }

@@ -100,6 +100,19 @@ class SettingsStore(
         // التطبيق (زر الإيقاف مع PIN عند وضع الانضباط/القفل الزمني). السحب من قائمة
         // المهام الأخيرة لا يلمسه أبدًا؛ هو وحده "المُوقِف" وفق المخطط.
         val USER_DISABLED_PROTECTION = booleanPreferencesKey("user_disabled_protection")
+        // --- Plan B (2.1) -----------------------------------------------------
+        val NIGHT_GUARD_ENABLED = booleanPreferencesKey("night_guard_enabled")
+        val NIGHT_GUARD_START_MIN = intPreferencesKey("night_guard_start_min")
+        val NIGHT_GUARD_END_MIN = intPreferencesKey("night_guard_end_min")
+        val NIGHT_GUARD_UNLOCK_UNTIL = longPreferencesKey("night_guard_unlock_until")
+        val DEEP_FOCUS_ENABLED = booleanPreferencesKey("deep_focus_enabled")
+        val DEEP_FOCUS_WHITELIST = stringSetPreferencesKey("deep_focus_whitelist")
+        val PARENT_MODE_ENABLED = booleanPreferencesKey("parent_mode_enabled")
+        val PARENT_PIN_HASH = stringPreferencesKey("parent_pin_hash")
+        val PARENT_PIN_SALT = stringPreferencesKey("parent_pin_salt")
+        val ACCOUNTABILITY_NAME = stringPreferencesKey("accountability_name")
+        val ACCOUNTABILITY_CONTACT = stringPreferencesKey("accountability_contact")
+        val NUDGES_ENABLED = booleanPreferencesKey("nudges_enabled")
     }
 
     /** A PIN is only usable when both its hash and salt are present. */
@@ -636,4 +649,47 @@ class SettingsStore(
         val prefs = context.dataStore.data.first()
         return if ((prefs[Keys.PAUSE_DEFEATS_DATE] ?: 0L) == dayOfNow) prefs[Keys.PAUSE_DEFEATS] ?: 0 else 0
     }
+    // --- Plan B (2.1) accessors -------------------------------------------
+    val nightGuardEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.NIGHT_GUARD_ENABLED] ?: false }.distinctUntilChanged()
+    val nightGuardStartMin: Flow<Int> =
+        context.dataStore.data.map { it[Keys.NIGHT_GUARD_START_MIN] ?: 1320 }.distinctUntilChanged()
+    val nightGuardEndMin: Flow<Int> =
+        context.dataStore.data.map { it[Keys.NIGHT_GUARD_END_MIN] ?: 360 }.distinctUntilChanged()
+    val nightGuardUnlockUntil: Flow<Long> =
+        context.dataStore.data.map { it[Keys.NIGHT_GUARD_UNLOCK_UNTIL] ?: 0L }.distinctUntilChanged()
+    suspend fun setNightGuard(enabled: Boolean, startMin: Int, endMin: Int) =
+        context.dataStore.edit { p ->
+            p[Keys.NIGHT_GUARD_ENABLED] = enabled
+            p[Keys.NIGHT_GUARD_START_MIN] = startMin
+            p[Keys.NIGHT_GUARD_END_MIN] = endMin
+        }.let { }
+    suspend fun setNightGuardUnlock(untilMs: Long) =
+        context.dataStore.edit { it[Keys.NIGHT_GUARD_UNLOCK_UNTIL] = untilMs }.let { }
+    val deepFocusEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.DEEP_FOCUS_ENABLED] ?: false }.distinctUntilChanged()
+    val deepFocusWhitelist: Flow<Set<String>> =
+        context.dataStore.data.map { it[Keys.DEEP_FOCUS_WHITELIST] ?: emptySet() }.distinctUntilChanged()
+    suspend fun setDeepFocus(enabled: Boolean) =
+        context.dataStore.edit { it[Keys.DEEP_FOCUS_ENABLED] = enabled }.let { }
+    suspend fun setDeepFocusWhitelist(values: Set<String>) =
+        context.dataStore.edit { it[Keys.DEEP_FOCUS_WHITELIST] = values }.let { }
+    val parentModeEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.PARENT_MODE_ENABLED] ?: false }.distinctUntilChanged()
+    suspend fun setParentModeEnabled(value: Boolean) =
+        context.dataStore.edit { it[Keys.PARENT_MODE_ENABLED] = value }.let { }
+    val accountabilityName: Flow<String?> =
+        context.dataStore.data.map { it[Keys.ACCOUNTABILITY_NAME] }.distinctUntilChanged()
+    val accountabilityContact: Flow<String?> =
+        context.dataStore.data.map { it[Keys.ACCOUNTABILITY_CONTACT] }.distinctUntilChanged()
+    suspend fun setAccountability(name: String?, contact: String?) =
+        context.dataStore.edit { p ->
+            if (name == null) p.remove(Keys.ACCOUNTABILITY_NAME) else p[Keys.ACCOUNTABILITY_NAME] = name
+            if (contact == null) p.remove(Keys.ACCOUNTABILITY_CONTACT) else p[Keys.ACCOUNTABILITY_CONTACT] = contact
+        }.let { }
+    val nudgesEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.NUDGES_ENABLED] ?: false }.distinctUntilChanged()
+    suspend fun setNudgesEnabled(value: Boolean) =
+        context.dataStore.edit { it[Keys.NUDGES_ENABLED] = value }.let { }
+
 }

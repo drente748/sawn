@@ -642,4 +642,49 @@
     <string name="settings_about_rate">Rate Sawn</string>
     <string name="settings_about_opening_soon">Coming with the official website</string>
 
+
+    <!-- مزايا Plan B (2.1) -->
+    <string name="feature_challenge_title">تحدّي 30 يومًا</string>
+    <string name="feature_challenge_progress">اليوم %1$d من %2$d</string>
+    <string name="feature_challenge_remaining">متبقي %1$d أيام</string>
+    <string name="feature_challenge_stage">المرحلة المحققة: يوم %1$d</string>
+    <string name="feature_challenge_victory">النصر! 30 يومًا مكتملة.</string>
+    <string name="feature_challenge_how">كيف يعمل</string>
+    <string name="feature_challenge_how_body">الأيام المحمية فقط تُقدِّم التحدي. الانتكاسة ليست عقابًا — أعد البدء بلا ذنب.</string>
+    <string name="feature_challenge_start">ابدأ التحدي</string>
+    <string name="feature_challenge_record">سجِّل اليوم</string>
+    <string name="feature_challenge_restart">أعد البدء</string>
+    <string name="feature_night_guard_title">الحارس الليلي</string>
+    <string name="feature_night_guard_sub">يُفعِّل وضع الانضباط تلقائيًا ليلًا (الافتراضي 22:00–06:00). الاتصال والرسائل والخرائط تبقى مسموحة.</string>
+    <string name="feature_night_guard_enable">مفعّل</string>
+    <string name="feature_night_guard_start_h">ساعة البدء (24)</string>
+    <string name="feature_night_guard_end_h">ساعة الانتهاء (24)</string>
+    <string name="feature_night_guard_note">الفك = PIN + 15 دقيقة، ثم يعود تلقائيًا. الفك يُسجَّل.</string>
+    <string name="feature_night_guard_unlock">افكّ 15 دقيقة</string>
+    <string name="feature_deep_focus_title">التركيز العميق</string>
+    <string name="feature_deep_focus_sub">القائمة البيضاء فقط تُسمح. كل شيء آخر يُحجب حتى انتهاء التركيز.</string>
+    <string name="feature_deep_focus_enable">مفعّل</string>
+    <string name="feature_deep_focus_whitelist">القائمة البيضاء: %1$d تطبيقات</string>
+    <string name="feature_deep_focus_note">الاتصال والرسائل والخرائط مسموحة افتراضيًا. الفك يتطلب PIN + 10 ثوانٍ.</string>
+    <string name="feature_deep_focus_unlock">افكّ التركيز العميق</string>
+    <string name="feature_accountability_title">شريك المساءلة</string>
+    <string name="feature_accountability_sub">محلي فقط. لا إرسال تلقائي — أنت تضغط المشاركة بنفسك.</string>
+    <string name="feature_accountability_name">اسم الشريك</string>
+    <string name="feature_accountability_contact">واتساب / بريد</string>
+    <string name="feature_accountability_share">أرسل تقرير الأسبوع</string>
+    <string name="feature_backup_title">نسخة احتياطية مشفرة (.sawnbak)</string>
+    <string name="feature_backup_sub">AES-256-GCM بعبارة مرور تختارها. الملفات لا تغادر جهازك إلا بمشاركتك. الرقم السري لا يُضمَّن في النسخة أبدًا.</string>
+    <string name="feature_backup_passphrase">عبارة مرور (8+ أحرف)</string>
+    <string name="feature_backup_export">تصدير .sawnbak</string>
+    <string name="feature_backup_import">استيراد .sawnbak</string>
+    <string name="feature_backup_note">الاستيراد يمكن أن يدمج أو يستبدل — تؤكد قبل أي تغيير.</string>
+    <string name="feature_triggers_title">محلل المحفزات</string>
+    <string name="feature_triggers_sub">بعد أي انتكاسة، وسم ما حفّزها. كل شيء يبقى محليًا.</string>
+    <string name="feature_triggers_top">أكثر محفز: %1$s</string>
+    <string name="feature_triggers_peak">ساعة الذروة: %1$s</string>
+    <string name="feature_parent_title">وضع ولي الأمر</string>
+    <string name="feature_parent_sub">على جهاز الطفل. رمز ثانٍ يُقفل كل الإدارة. حماية الحذف تصبح مطلوبة. هذه أداة للوالدين لا تطبيق موجّه للأطفال.</string>
+    <string name="feature_parent_enable">مفعّل</string>
+    <string name="feature_parent_pin">رمز الولي (4 أرقام)</string>
+
 </resources>

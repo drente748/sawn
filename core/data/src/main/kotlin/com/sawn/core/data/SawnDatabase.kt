@@ -19,17 +19,48 @@ class Converters {
 }
 
 @Database(
-    entities = [BlockedItem::class, Schedule::class, AccessGrant::class, ProtectedDayEntity::class],
-    version = 3,
+    entities = [BlockedItem::class, Schedule::class, AccessGrant::class, ProtectedDayEntity::class,
+        ChallengeRunEntity::class, ChallengeDayEntity::class, TriggerLogEntity::class],
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
 abstract class SawnDatabase : RoomDatabase() {
     abstract fun blockDao(): BlockDao
     abstract fun protectedDaysDao(): ProtectedDaysDao
+    abstract fun challengeDao(): ChallengeDao
+    abstract fun triggerDao(): TriggerDao
 
     companion object {
         @Volatile private var instance: SawnDatabase? = null
+
+        /**
+         * v3 → v4: تحدي 30 يوم + سجلات المحفزات (Plan B).
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS challenge_runs (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "startedAt INTEGER NOT NULL, " +
+                        "endedAt INTEGER, " +
+                        "completed INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS challenge_days (" +
+                        "date TEXT PRIMARY KEY NOT NULL, " +
+                        "runId INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS trigger_logs (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "tag TEXT NOT NULL, " +
+                        "hourOfDay INTEGER NOT NULL, " +
+                        "note TEXT, " +
+                        "timestampMs INTEGER NOT NULL)",
+                )
+            }
+        }
 
         /**
          * v2 → v3: add the protected_days source of truth for the rebuilt day-streak.
@@ -72,7 +103,7 @@ abstract class SawnDatabase : RoomDatabase() {
                     SawnDatabase::class.java,
                     "sawn.db",
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     // Only wipe on a downgrade (dev rollback); real upgrades migrate cleanly.
                     .fallbackToDestructiveMigrationOnDowngrade()
                     .build()

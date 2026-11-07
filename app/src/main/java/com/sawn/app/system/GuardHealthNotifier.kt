@@ -25,6 +25,27 @@ object GuardHealthNotifier {
     private const val NOTIF_ACCESSIBILITY = 1002
     private const val NOTIF_ADMIN = 1003
     private const val NOTIF_VPN = 1004
+    private const val NOTIF_NUDGE = 1005
+
+    /** إشعار نية صامت (صباحي/مسائي). */
+    fun notifyNudge(context: Context, message: String) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        ensureChannel(nm)
+        val openApp = PendingIntent.getActivity(
+            context, 4, Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification: Notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("صَوْن — نية")
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentIntent(openApp)
+            .setAutoCancel(true)
+            .build()
+        runCatching { nm.notify(NOTIF_NUDGE, notification) }
+    }
 
     fun notifyAccessibilityDown(context: Context) {
         val settings = PendingIntent.getActivity(

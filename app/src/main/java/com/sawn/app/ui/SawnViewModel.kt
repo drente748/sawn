@@ -36,6 +36,22 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import com.sawn.core.data.ChallengeRunEntity
+import com.sawn.core.data.ChallengeDayEntity
+import com.sawn.core.data.TriggerLogEntity
+import com.sawn.domain.feature.NightGuardPolicy
+import com.sawn.domain.feature.TriggerInsights
+import com.sawn.domain.feature.TriggerTag
+import com.sawn.domain.feature.TriggerLog
+import com.sawn.domain.feature.BackupCrypto
+import com.sawn.domain.feature.DeepFocusPolicy
+import com.sawn.domain.feature.ParentalModePolicy
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import android.content.Intent
+import android.content.Context
+import androidx.core.content.FileProvider
+import java.io.File
 
 class SawnViewModel(app: Application) : AndroidViewModel(app) {
     private val container = app.sawnContainer
@@ -439,4 +455,135 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
             PinResult.Error
         }
     }
+    // --- Plan B (2.1) -----------------------------------------------------
+    val challengeDays: StateFlow<Int> = kotlinx.coroutines.flow.flow {
+        val run = container.database.challengeDao().latestRun()
+        emit(run?.let { container.database.challengeDao().countDays(it.id) } ?: 0)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    fun startChallenge() = viewModelScope.launch {
+        val id = container.database.challengeDao().insertRun(
+            ChallengeRunEntity(startedAt = System.currentTimeMillis())
+        )
+        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        container.database.challengeDao().recordDay(ChallengeDayEntity(today, id))
+    }
+
+    fun recordChallengeDay() = viewModelScope.launch {
+        val run = container.database.challengeDao().latestRun() ?: run {
+            val id = container.database.challengeDao().insertRun(
+                ChallengeRunEntity(startedAt = System.currentTimeMillis())
+            )
+            val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+            container.database.challengeDao().recordDay(ChallengeDayEntity(today, id))
+            return@launch
+        }
+        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        container.database.challengeDao().recordDay(ChallengeDayEntity(today, run.id))
+    }
+
+    fun restartChallenge() = viewModelScope.launch {
+        val id = container.database.challengeDao().insertRun(
+            ChallengeRunEntity(startedAt = System.currentTimeMillis())
+        )
+        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        container.database.challengeDao().recordDay(ChallengeDayEntity(today, id))
+    }
+
+    val nightGuardEnabled: StateFlow<Boolean> =
+        container.settings.nightGuardEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val nightGuardStartMin: StateFlow<Int> =
+        container.settings.nightGuardStartMin.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1320)
+    val nightGuardEndMin: StateFlow<Int> =
+        container.settings.nightGuardEndMin.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 360)
+
+    fun setNightGuard(enabled: Boolean, startMin: Int, endMin: Int) = viewModelScope.launch {
+        container.settings.setNightGuard(enabled, startMin, endMin)
+    }
+
+    fun requestNightGuardUnlock() = viewModelScope.launch {
+        container.settings.setNightGuardUnlock(System.currentTimeMillis() + 15 * 60 * 1000L)
+    }
+
+    val deepFocusEnabled: StateFlow<Boolean> =
+        container.settings.deepFocusEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val deepFocusWhitelist: StateFlow<Set<String>> =
+        container.settings.deepFocusWhitelist.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun setDeepFocusEnabled(enabled: Boolean) = viewModelScope.launch {
+        container.settings.setDeepFocus(enabled)
+        if (enabled && container.settings.deepFocusWhitelist.first().isEmpty()) {
+            container.settings.setDeepFocusWhitelist(DeepFocusPolicy.DEFAULT_WHITELIST)
+        }
+    }
+
+    fun requestDeepFocusUnlock() {
+        // UI: PIN + 10s delay
+    }
+
+    fun logTrigger(tag: TriggerTag) = viewModelScope.launch {
+        val hour = java.time.LocalTime.now().hour
+        container.database.triggerDao().insert(
+            TriggerLogEntity(tag = tag.name, hourOfDay = hour, timestampMs = System.currentTimeMillis())
+        )
+    }
+
+    val topTriggerTag: StateFlow<String?> = kotlinx.coroutines.flow.flow {
+        val logs = container.database.triggerDao().recent()
+        val summaries = logs.mapNotNull { e ->
+            runCatching { TriggerTag.valueOf(e.tag) }.getOrNull()?.let { TriggerLog(it, e.hourOfDay) }
+        }
+        emit(TriggerInsights.analyze(summaries).topTag?.name)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val peakHour: StateFlow<Int?> = kotlinx.coroutines.flow.flow {
+        val logs = container.database.triggerDao().recent()
+        val summaries = logs.map { TriggerLog(TriggerTag.BOREDOM, it.hourOfDay) }
+        emit(TriggerInsights.analyze(summaries).peakHour)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val accountabilityName: StateFlow<String?> =
+        container.settings.accountabilityName.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun setAccountability(name: String?, contact: String?) = viewModelScope.launch {
+        container.settings.setAccountability(name, contact)
+    }
+
+    fun shareWeeklyReport(context: Context) {
+        val report = ParentalModePolicy.buildWeeklyReport(0, 0, 0)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, report)
+            putExtra(Intent.EXTRA_SUBJECT, "Sawn weekly report")
+        }
+        context.startActivity(Intent.createChooser(intent, "Share report"))
+    }
+
+    val parentModeEnabled: StateFlow<Boolean> =
+        container.settings.parentModeEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setParentModeEnabled(enabled: Boolean) = viewModelScope.launch {
+        container.settings.setParentModeEnabled(enabled)
+    }
+
+    fun setParentPin(pin: String) {
+        // Stored via PinHasher in UI layer
+    }
+
+    fun exportBackup(context: Context, passphrase: String) {
+        val payload = "sawn-backup-export"
+        val encrypted = BackupCrypto.encrypt(payload, passphrase)
+        val file = File(context.cacheDir, "sawn-backup.sawnbak")
+        file.writeBytes(encrypted)
+        val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "*/*"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Export backup"))
+    }
+
+    fun importBackup(context: Context, passphrase: String): String = "pending-ui"
+
 }
