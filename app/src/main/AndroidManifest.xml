@@ -20,6 +20,11 @@
          (one dialog) instead of sending the user hunting through a long app list. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Required (API 26+) to install an APK delivered by the in-app updater.
+         Granted only after the user accepts the system dialog; the app never
+         installs silently. Used exclusively for self-updates from the manifest. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- tensorflow-lite-task-vision declares these transitively. The classifier reads a model
          bundled in assets/ and never touches shared storage or telephony, so least privilege
          means dropping them — Play review would otherwise flag a wellbeing app holding them.
@@ -142,6 +147,18 @@
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
+
+        <!-- FileProvider: shares the downloaded update APK with the system installer.
+             Required for in-app updates (Android 7+). Scoped to the app's cache dir. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Device admin: uninstall protection only (no enforcement policies declared). -->
         <receiver
