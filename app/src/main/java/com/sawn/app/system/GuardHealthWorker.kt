@@ -28,6 +28,10 @@ class GuardHealthWorker(context: Context, params: WorkerParameters) : CoroutineW
     override suspend fun doWork(): Result {
         val container = applicationContext.sawnContainer
         val settings = container.settings
+        // المستخدم أوقف الحماية من داخل التطبيق — "المُوقِف الوحيد": لا تنبيهات/إيقاظ.
+        if (settings.userDisabledProtection.first()) {
+            return Result.success()
+        }
         val lockdownActive = settings.isLockdownActiveNow()
         val needsScreening = lockdownActive || (
             settings.masterEnabled.first() &&

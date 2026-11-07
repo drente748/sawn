@@ -96,6 +96,10 @@ class SettingsStore(
         // سجل محلي لعدد المحاولات المصدودة يومياً — لا يغادر الجهاز.
         val BLOCK_LOG = stringPreferencesKey("block_log")
         val BLOCK_TOTAL = intPreferencesKey("block_total")
+        // العلم الوحيد الذي يمنع أي إيقاظ تلقائي للحماية — لا يضبطه إلا السحب من داخل
+        // التطبيق (زر الإيقاف مع PIN عند وضع الانضباط/القفل الزمني). السحب من قائمة
+        // المهام الأخيرة لا يلمسه أبدًا؛ هو وحده "المُوقِف" وفق المخطط.
+        val USER_DISABLED_PROTECTION = booleanPreferencesKey("user_disabled_protection")
     }
 
     /** A PIN is only usable when both its hash and salt are present. */
@@ -213,6 +217,20 @@ class SettingsStore(
     suspend fun setLocale(value: String) =
         context.dataStore.edit { it[Keys.APP_LOCALE] = value }.let { }
 
+    /** هل أوقف المستخدم الحماية يدويًا من داخل التطبيق؟ — هو وحده يمنع الإيقاظ التلقائي. */
+    val userDisabledProtection: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.USER_DISABLED_PROTECTION] ?: false }.distinctUntilChanged()
+
+    /**
+     * يمنع إيقاظ الحماية أبدًا ما لم يُطلب من داخل التطبيق (زر إيقاف مع PIN عند الانضباط).
+     * يُعاد تفعيله عبر [startProtectionRequested] عند أي محاولة حماية ناجحة من داخل التطبيق.
+     */
+    suspend fun setUserDisabledProtection(value: Boolean) =
+        context.dataStore.edit { it[Keys.USER_DISABLED_PROTECTION] = value }.let { }
+
+    suspend fun clearUserDisabledProtection() =
+        context.dataStore.edit { it.remove(Keys.USER_DISABLED_PROTECTION) }.let { }
+
     /** يمسح كل التفضيلات — للخصوصية: «مسح كل بياناتي». */
     suspend fun clearAllData() =
         context.dataStore.edit { it.clear() }.let { }
@@ -237,6 +255,8 @@ class SettingsStore(
             p[Keys.BLOCK_NOTIFICATIONS] = value
         }
     }
+
+    /** وجود رقم سري = استخدام صالح. */
     val hasPin: Flow<Boolean> =
         context.dataStore.data.map { pinPresent(it) }.distinctUntilChanged()
     /**
@@ -336,7 +356,12 @@ class SettingsStore(
         }
         // تفعيل الحماية اليوم = يوم محمي. بلا هذا السطر يبقى عدّاد الأيام صفراً حتى
         // يُغلق المستخدم التطبيق ويفتحه من جديد.
-        if (value) recordActiveDay()
+        if (value) {
+            recordActiveDay()
+            clearUserDisabledProtection()
+        } else {
+            setUserDisabledProtection(true)
+        }
     }
 
     suspend fun setAlwaysOn(value: Boolean) {

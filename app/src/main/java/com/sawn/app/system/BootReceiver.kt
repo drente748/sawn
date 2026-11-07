@@ -9,6 +9,7 @@ import com.sawn.app.sawnContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 /** Re-arms the DNS filter after a reboot or an app update if protection should be live. */
 class BootReceiver : BroadcastReceiver() {
@@ -25,6 +26,9 @@ class BootReceiver : BroadcastReceiver() {
                 // notification from an accessibility loss during shutdown gets resolved.
                 GuardHealthWorker.schedule(context)
                 val settings = context.sawnContainer.settings
+                // المستخدم أوقف الحماية من داخل التطبيق — "المُوقِف الوحيد":
+                // لا إيقاظ تلقائي بعد إعادة التشغيل أو تحديث التطبيق.
+                if (settings.userDisabledProtection.first()) return@launch
                 if (boot) {
                     // The monotonic anchor belongs to the previous boot; rebuild it from the
                     // wall deadline protected by the high-water mark.

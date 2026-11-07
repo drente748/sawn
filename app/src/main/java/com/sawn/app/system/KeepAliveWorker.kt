@@ -9,6 +9,7 @@ import androidx.work.WorkerParameters
 import com.sawn.app.vpn.VpnController
 import com.sawn.app.vpn.SawnVpnService
 import com.sawn.app.sawnContainer
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import java.util.concurrent.TimeUnit
 
@@ -24,6 +25,11 @@ class KeepAliveWorker(context: Context, params: WorkerParameters) : CoroutineWor
 
     override suspend fun doWork(): Result {
         val container = applicationContext.sawnContainer
+        // المستخدم أوقف الحماية من داخل التطبيق — "المُوقِف الوحيد": لا نعيد تشغيل anything.
+        if (runCatching { container.settings.userDisabledProtection.first() }.getOrDefault(false)) {
+            GuardHealthNotifier.clearVpn(applicationContext)
+            return Result.success()
+        }
         val active = runCatching { container.blockEngine.isBlockingActiveNow() }.getOrDefault(false)
         if (!active) {
             // المستخدم أوقف الحماية من داخل التطبيق: لا نعيد تشغيل شيء، ونمحي تنبيهاً
