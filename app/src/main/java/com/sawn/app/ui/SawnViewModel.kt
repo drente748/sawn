@@ -82,6 +82,9 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.focusEndsAt,
         container.settings.onboardingDone,
     ) { _, _, _, _, _ -> true }
+        // Fail-open: a DataStore read that throws must not pin the UI to the loading
+        // spinner forever (the black screen). Each source already has its own catch.
+        .catch { emit(true) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun setOnboardingDone() = viewModelScope.launch { container.settings.setOnboardingDone() }

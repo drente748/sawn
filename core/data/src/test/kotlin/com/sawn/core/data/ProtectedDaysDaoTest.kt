@@ -73,6 +73,32 @@ class ProtectedDaysDaoTest {
         assertTrue(stats.isAtRisk().first())
     }
 
+    // Regression: a corrupted protected_days row (garbage date) used to throw from
+    // LocalDate.parse inside a Flow map, kill every streak/stats collector, and blank the
+    // whole Home screen. Reading stats must never take the UI down.
+    @Test
+    fun corrupt_date_rows_do_not_crash_readers() = runBlocking {
+        db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO protected_days (date, source, recordedAt) VALUES ('not-a-date', 'VPN', 0)",
+        )
+        val days = RoomProtectedDaysRepository(db.protectedDaysDao())
+        assertEquals(emptyList<LocalDate>(), days.allDays())
+        val stats = RoomStatsRepository(days)
+        assertEquals(0, stats.currentStreak().first())
+        assertEquals(0, stats.longestStreak().first())
+        assertFalse(stats.isAtRisk().first())
+    }
+
+    @Test
+    fun observe_ignores_corrupt_rows_but_keeps_valid_ones() = runBlocking {
+        val repo = RoomProtectedDaysRepository(db.protectedDaysDao())
+        repo.upsert(yesterday, "VPN")
+        db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO protected_days (date, source, recordedAt) VALUES ('2026-13-40', 'VPN', 0)",
+        )
+        assertEquals(setOf(yesterday), repo.observeProtectedDays().first())
+    }
+
     @Test
     fun empty_history_yields_zero_streaks() = runBlocking {
         val days = RoomProtectedDaysRepository(db.protectedDaysDao())

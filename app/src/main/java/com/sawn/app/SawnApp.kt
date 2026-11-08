@@ -3,9 +3,9 @@ package com.sawn.app
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.os.Build
-import android.os.Looper
-import android.widget.Toast
+import android.os.Process
 import com.sawn.app.util.LocaleUtils
 import com.sawn.core.data.BlockRepository
 import com.sawn.core.data.SettingsStore
@@ -26,15 +26,21 @@ class SawnApp : Application() {
         super.onCreate()
         instance = this
 
-        // معالج تعطل عام: أي استثناء غير مرصود يُعرض رسالة بدلاً من إغلاق التطبيق المفاجئ.
-        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
-            Looper.prepare()
-            Toast.makeText(
-                this@SawnApp,
-                "خطأ مؤقت — يُرجى إعادة فتح التطبيق:\n${throwable.message ?: throwable::class.simpleName}",
-                Toast.LENGTH_LONG,
-            ).show()
-            Looper.loop()
+        // معالج تعطل عام: يسجّل الأثر ثم يُسلّم الاستثناء للمنصة لتنهي العملية نظيفاً.
+        // السابق (Looper.prepare + Looper.loop) كان يرمي "Only one Looper may be created
+        // per thread" على الخيط الرئيسي → تعطل مزدوج، ويجمّد خيوط العمال للأبد.
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            runCatching {
+                // release يحذف Log.* (proguard-rules.pro) — الملف هو السجل الوحيد.
+                val trace = "thread=${thread.name} at=${System.currentTimeMillis()}\n" +
+                    android.util.Log.getStackTraceString(throwable) + "\n\n"
+                openFileOutput("last-crash.txt", Context.MODE_APPEND).use { out ->
+                    out.write(trace.toByteArray())
+                }
+            }
+            previousHandler?.uncaughtException(thread, throwable)
+                ?: Process.killProcess(Process.myPid())
         }
 
         // اللغة تُطبّق قبل أي UI يُبنى. أي فشل لا يوقف التطبيق.

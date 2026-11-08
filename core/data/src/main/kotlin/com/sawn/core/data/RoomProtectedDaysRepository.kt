@@ -14,10 +14,14 @@ class RoomProtectedDaysRepository(private val dao: ProtectedDaysDao) : Protected
     }
 
     override fun observeProtectedDays(): Flow<Set<LocalDate>> =
-        dao.observe().map { rows -> rows.map(LocalDate::parse).toSet() }
+        dao.observe().map { rows ->
+            // A corrupt row must never take every stats collector (and the Home screen)
+            // down with it: skip unparseable dates, keep the valid ones.
+            rows.mapNotNull { row -> runCatching { LocalDate.parse(row) }.getOrNull() }.toSet()
+        }
 
     override suspend fun allDays(): List<LocalDate> =
-        dao.all().map(LocalDate::parse).sorted()
+        dao.all().mapNotNull { row -> runCatching { LocalDate.parse(row) }.getOrNull() }.sorted()
 }
 
 /**

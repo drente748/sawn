@@ -443,7 +443,14 @@ class SettingsStore(
 
     /** Consistent snapshot for enforcement paths that must not mix values from different edits. */
     suspend fun protectionSnapshot(): ProtectionSnapshot {
-        val p = context.dataStore.data.first()
+        // A corrupted/unreadable DataStore must fail safe, not throw into the UI thread.
+        val p = runCatching { context.dataStore.data.first() }.getOrNull()
+            ?: return ProtectionSnapshot(
+                masterEnabled = false, alwaysOn = true, strictMode = false,
+                focusEndsAt = 0L, focusStrict = false, blockDoh = false, blockAds = true,
+                hasPin = false, pornGuard = true, safeSearchForce = true,
+                lockdownUntil = 0L, lockdownElapsedEnd = 0L, lockdownBootAtStart = -1,
+            )
         val pin = pinPresent(p)
         return ProtectionSnapshot(
             masterEnabled = p[Keys.MASTER_ENABLED] ?: false,
@@ -488,7 +495,7 @@ class SettingsStore(
 
     // --- PIN brute-force protection ---
     suspend fun pinLockRemainingMillis(): Long {
-        val p = context.dataStore.data.first()
+        val p = runCatching { context.dataStore.data.first() }.getOrNull() ?: return 0L
         return PinLockoutPolicy.remainingMillis(
             wallLockUntil = p[Keys.PIN_LOCK_UNTIL] ?: 0L,
             elapsedLockUntil = p[Keys.PIN_LOCK_ELAPSED_UNTIL] ?: 0L,
@@ -534,7 +541,7 @@ class SettingsStore(
 
     /** Returns (hash, salt) or null if no PIN configured. */
     suspend fun pinCredentials(): Pair<String, String>? {
-        val prefs = context.dataStore.data.first()
+        val prefs = runCatching { context.dataStore.data.first() }.getOrNull() ?: return null
         val h = prefs[Keys.PIN_HASH]
         val s = prefs[Keys.PIN_SALT]
         return if (h != null && s != null) h to s else null
@@ -555,10 +562,10 @@ class SettingsStore(
 
     /** True while the lockdown window is live (elapsed-anchored within a boot). */
     suspend fun isLockdownActiveNow(): Boolean =
-        lockdownWindow(context.dataStore.data.first()).isActive
+        runCatching { lockdownWindow(context.dataStore.data.first()).isActive }.getOrDefault(false)
 
     suspend fun lockdownRemainingMillis(): Long =
-        lockdownWindow(context.dataStore.data.first()).remainingMillis
+        runCatching { lockdownWindow(context.dataStore.data.first()).remainingMillis }.getOrDefault(0L)
 
     /** Returns true when the value was applied or cleared; false when a live lock refused it. */
     suspend fun setLockdownUntil(endsAtMs: Long): Boolean {
@@ -613,10 +620,12 @@ class SettingsStore(
     suspend fun trustedNow(): Long {
         val sys = System.currentTimeMillis()
         var now = sys
-        context.dataStore.edit { p ->
-            val hw = p[Keys.SEEN_TIME_HIGHWAT] ?: 0L
-            if (sys > hw) { p[Keys.SEEN_TIME_HIGHWAT] = sys; }
-            now = maxOf(sys, hw)
+        runCatching {
+            context.dataStore.edit { p ->
+                val hw = p[Keys.SEEN_TIME_HIGHWAT] ?: 0L
+                if (sys > hw) { p[Keys.SEEN_TIME_HIGHWAT] = sys; }
+                now = maxOf(sys, hw)
+            }
         }
         return now
     }
@@ -627,7 +636,9 @@ class SettingsStore(
      */
     suspend fun peekNow(): Long {
         val sys = System.currentTimeMillis()
-        val hw = context.dataStore.data.first()[Keys.SEEN_TIME_HIGHWAT] ?: 0L
+        val hw = runCatching {
+            context.dataStore.data.first()[Keys.SEEN_TIME_HIGHWAT] ?: 0L
+        }.getOrDefault(0L)
         return maxOf(sys, hw)
     }
 
@@ -646,7 +657,7 @@ class SettingsStore(
 
     suspend fun pauseDefeatsToday(now: Long): Int {
         val dayOfNow = now / 86_400_000L
-        val prefs = context.dataStore.data.first()
+        val prefs = runCatching { context.dataStore.data.first() }.getOrNull() ?: return 0
         return if ((prefs[Keys.PAUSE_DEFEATS_DATE] ?: 0L) == dayOfNow) prefs[Keys.PAUSE_DEFEATS] ?: 0 else 0
     }
     // --- Plan B (2.1) accessors -------------------------------------------
