@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -57,15 +58,22 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     private val container = app.sawnContainer
 
     val items: StateFlow<List<BlockedItem>> =
-        container.repository.items.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        container.repository.items
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val schedules: StateFlow<List<Schedule>> =
-        container.repository.schedules.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        container.repository.schedules
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val masterEnabled: StateFlow<Boolean> =
-        container.settings.masterEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        container.settings.masterEnabled
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     val onboardingDone: StateFlow<Boolean> =
-        container.settings.onboardingDone.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
+        container.settings.onboardingDone
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     /** False until DataStore has produced its first snapshot; UI treats that as locked. */
     val settingsReady: StateFlow<Boolean> = combine(
         container.settings.masterEnabled,
@@ -79,11 +87,13 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     fun setOnboardingDone() = viewModelScope.launch { container.settings.setOnboardingDone() }
 
     val profileName: StateFlow<String?> =
-        container.settings.profileName.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
+        container.settings.profileName
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val profileAge: StateFlow<Int?> =
-        container.settings.profileAge.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
+        container.settings.profileAge
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     /** يخزّن ملف البروفايل المحلي + إجابات الترحيب، ويختم الترحيب كمكتمل. */
     fun completeOnboarding(answers: OnboardingAnswers) = viewModelScope.launch {
         container.settings.setProfile(answers.name, answers.age)
@@ -91,7 +101,9 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.setOnboardingDone()
     }
     val strictMode: StateFlow<Boolean> =
-        container.settings.strictMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        container.settings.strictMode
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     /**
      * Global strict lock only. A strict focus session is time-bounded, so the Home screen
      * applies that part against its own ticking clock instead of a flow value that would go
@@ -101,49 +113,59 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.strictMode,
         container.settings.masterEnabled,
     ) { strict, enabled -> StrictPolicy.isMasterLocked(strict, enabled) }
+        .catch { emit(false) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     val alwaysOn: StateFlow<Boolean> =
-        container.settings.alwaysOn.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
-
+        container.settings.alwaysOn
+        .catch { emit(true) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     fun setAlwaysOn(value: Boolean) = viewModelScope.launch { container.settings.setAlwaysOn(value) }
 
     val blockDoh: StateFlow<Boolean> =
-        container.settings.blockDoh.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
+        container.settings.blockDoh
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     fun setBlockDoh(value: Boolean) = viewModelScope.launch { container.settings.setBlockDoh(value) }
 
     val blockAds: StateFlow<Boolean> =
-        container.settings.blockAds.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
-
+        container.settings.blockAds
+        .catch { emit(true) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     fun setBlockAds(value: Boolean) = viewModelScope.launch { container.settings.setBlockAds(value) }
 
     val blockNotifications: StateFlow<Boolean> =
-        container.settings.blockNotifications.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
+        container.settings.blockNotifications
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     fun setBlockNotifications(value: Boolean) = viewModelScope.launch { container.settings.setBlockNotifications(value) }
 
     // --- Porn Guard ---
     val pornGuard: StateFlow<Boolean> =
-        container.settings.pornGuard.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        container.settings.pornGuard
+        .catch { emit(true) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val safeSearchForce: StateFlow<Boolean> =
-        container.settings.safeSearchForce.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        container.settings.safeSearchForce
+        .catch { emit(true) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val adultExtraCount: StateFlow<Int> =
         container.settings.adultExtraDomains
             .map { it.size }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-    // --- Accessibility (graphics) ---
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)// --- Accessibility (graphics) ---
     val reduceMotion: StateFlow<Boolean> =
-        container.settings.reduceMotion.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
+        container.settings.reduceMotion
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     fun setPornGuard(value: Boolean) = viewModelScope.launch { container.settings.setPornGuard(value) }
     fun setSafeSearchForce(value: Boolean) = viewModelScope.launch { container.settings.setSafeSearchForce(value) }
     fun setReduceMotion(value: Boolean) = viewModelScope.launch { container.settings.setReduceMotion(value) }
 
     // --- القفل الزمني (Lockdown) ---
     val lockdownUntil: StateFlow<Long> =
-        container.settings.lockdownUntil.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
-
+        container.settings.lockdownUntil
+        .catch { emit(0L) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
     /**
      * عدّاد حي مشتق من النافذة الموثوقة (elapsedRealtime داخل الإقلاع، ووقت الجدار
      * المحمي بـ high-water بعده). لا نستخدم System.currentTimeMillis مباشرة في الواجهة
@@ -160,12 +182,12 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.lockdownWindowState,
         oneSecondTicker,
     ) { window, _ -> window.remainingAt(SystemClock.elapsedRealtime(), System.currentTimeMillis()) }
+        .catch { emit(0L) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
-
     val lockdownActive: StateFlow<Boolean> = lockdownRemaining
         .map { it > 0L }
+        .catch { emit(false) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     /** True only when the policy actually enforces blocking at the current trusted time. */
     val enforcementActive: StateFlow<Boolean> = combine(
         combine(masterEnabled, alwaysOn, container.settings.focusEndsAt, schedules, oneSecondTicker) { master, on, focusAt, list, _ ->
@@ -181,8 +203,9 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         lockdownActive,
     ) { policyActive, lockdown ->
         policyActive || lockdown
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
+    }
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     /** المدة المنتظرة — لا تُكتب أي قيمة قبل موافقة Device Admin. */
     private var pendingLockdownDurationMs: Long? = null
 
@@ -229,8 +252,9 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
 
     /** "" تابع للنظام · "ar" العربية · "en" الإنجليزية. */
     val sawnLocale: StateFlow<String> =
-        container.settings.locale.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
-
+        container.settings.locale
+        .catch { emit("") }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
     fun setLocale(value: String) {
         viewModelScope.launch { container.settings.setLocale(value) }
     }
@@ -266,40 +290,52 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val hasPin: StateFlow<Boolean> =
-        container.settings.hasPin.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        container.settings.hasPin
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     /** null until DataStore resolves, so PIN-gated screens can stay hidden on first frame. */
     val pinConfigured: StateFlow<Boolean?> =
         container.settings.hasPin
             .map<Boolean, Boolean?> { it }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val currentStreak: StateFlow<Int> =
         container.stats.currentStreak()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     /** السلسلة حيّة لكن اليوم لم يُسجَّل بعد — تستخدمها الرئيسية تذكيراً هادئاً. */
     val streakAtRisk: StateFlow<Boolean> =
         container.stats.isAtRisk()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     val blockJournal: StateFlow<JournalSnapshot> =
-        container.settings.blockJournal.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), JournalSnapshot())
+        container.settings.blockJournal
+        .catch { emit(JournalSnapshot()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), JournalSnapshot())
 
     /** نمط حماية بضغطة واحدة (خفيف / متوازن / أقصى). */
     fun applyPreset(preset: ShieldPreset) = viewModelScope.launch { container.settings.applyPreset(preset) }
     val longestStreak: StateFlow<Int> =
         container.stats.longestStreak()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val focusSessionsDone: StateFlow<Int> =
-        container.settings.focusSessionsDone.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
+        container.settings.focusSessionsDone
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val enabledFeatureKeys: StateFlow<Set<String>> =
-        container.settings.enabledFeatureKeys.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+        container.settings.enabledFeatureKeys
+        .catch { emit(emptySet()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     val focusEndsAt: StateFlow<Long> =
-        container.settings.focusEndsAt.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+        container.settings.focusEndsAt
+        .catch { emit(0L) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
     val focusStrict: StateFlow<Boolean> =
-        container.settings.focusStrict.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
+        container.settings.focusStrict
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     /** Begin a focus session that forces blocking on for [minutes]. */
     fun startFocus(minutes: Int, strict: Boolean) = viewModelScope.launch {
         val globalStrict = container.settings.strictMode.first()
@@ -460,8 +496,9 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         val run = runCatching { container.database.challengeDao().latestRun() }.getOrNull()
         val days = run?.let { runCatching { container.database.challengeDao().countDays(it.id) }.getOrDefault(0) } ?: 0
         emit(days)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
+    }
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     fun startChallenge() = viewModelScope.launch {
         val id = container.database.challengeDao().insertRun(
             ChallengeRunEntity(startedAt = System.currentTimeMillis())
@@ -492,12 +529,17 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val nightGuardEnabled: StateFlow<Boolean> =
-        container.settings.nightGuardEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        container.settings.nightGuardEnabled
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     val nightGuardStartMin: StateFlow<Int> =
-        container.settings.nightGuardStartMin.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1320)
+        container.settings.nightGuardStartMin
+        .catch { emit(1320) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1320)
     val nightGuardEndMin: StateFlow<Int> =
-        container.settings.nightGuardEndMin.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 360)
-
+        container.settings.nightGuardEndMin
+        .catch { emit(360) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 360)
     fun setNightGuard(enabled: Boolean, startMin: Int, endMin: Int) = viewModelScope.launch {
         container.settings.setNightGuard(enabled, startMin, endMin)
     }
@@ -507,9 +549,13 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val deepFocusEnabled: StateFlow<Boolean> =
-        container.settings.deepFocusEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        container.settings.deepFocusEnabled
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     val deepFocusWhitelist: StateFlow<Set<String>> =
-        container.settings.deepFocusWhitelist.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+        container.settings.deepFocusWhitelist
+        .catch { emit(emptySet()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     fun setDeepFocusEnabled(enabled: Boolean) = viewModelScope.launch {
         container.settings.setDeepFocus(enabled)
@@ -535,17 +581,20 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
             runCatching { TriggerTag.valueOf(e.tag) }.getOrNull()?.let { TriggerLog(it, e.hourOfDay) }
         }
         emit(TriggerInsights.analyze(summaries).topTag?.name)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
+    }
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val peakHour: StateFlow<Int?> = kotlinx.coroutines.flow.flow {
         val logs = container.database.triggerDao().recent()
         val summaries = logs.map { TriggerLog(TriggerTag.BOREDOM, it.hourOfDay) }
         emit(TriggerInsights.analyze(summaries).peakHour)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
+    }
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val accountabilityName: StateFlow<String?> =
-        container.settings.accountabilityName.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
+        container.settings.accountabilityName
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     fun setAccountability(name: String?, contact: String?) = viewModelScope.launch {
         container.settings.setAccountability(name, contact)
     }
@@ -561,7 +610,9 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val parentModeEnabled: StateFlow<Boolean> =
-        container.settings.parentModeEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        container.settings.parentModeEnabled
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun setParentModeEnabled(enabled: Boolean) = viewModelScope.launch {
         container.settings.setParentModeEnabled(enabled)

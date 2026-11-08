@@ -3,6 +3,9 @@ package com.sawn.app
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.os.Build
+import android.os.Looper
+import android.widget.Toast
 import com.sawn.app.util.LocaleUtils
 import com.sawn.core.data.BlockRepository
 import com.sawn.core.data.SettingsStore
@@ -23,8 +26,18 @@ class SawnApp : Application() {
         super.onCreate()
         instance = this
 
-        // اللغة تُطبّق قبل أي UI يُبنى (القنوات والإشعارات والصفحات).
-        // الحماية: أي فشل مهما كان لا يوقف التطبيق (tester build).
+        // معالج تعطل عام: أي استثناء غير مرصود يُعرض رسالة بدلاً من إغلاق التطبيق المفاجئ.
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            Looper.prepare()
+            Toast.makeText(
+                this@SawnApp,
+                "خطأ مؤقت — يُرجى إعادة فتح التطبيق:\n${throwable.message ?: throwable::class.simpleName}",
+                Toast.LENGTH_LONG,
+            ).show()
+            Looper.loop()
+        }
+
+        // اللغة تُطبّق قبل أي UI يُبنى. أي فشل لا يوقف التطبيق.
         runBlocking {
             runCatching {
                 val locale = EntryPointAccessors.fromApplication(
@@ -36,15 +49,13 @@ class SawnApp : Application() {
         }
 
         runCatching { createNotificationChannel() }
-        // NetGuard-style watchdog: periodic backstop that posts/clears the health
-        // notification when the accessibility service dies silently. 15-minute minimum
-        // is WorkManager's floor; the real-time signal is the service's onUnbind.
         runCatching { com.sawn.app.system.GuardHealthWorker.schedule(this) }
         runCatching { com.sawn.app.system.NightGuardWorker.schedule(this) }
         runCatching { com.sawn.app.system.NudgesWorker.schedule(this) }
     }
 
     private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val channel = NotificationChannel(
             VPN_CHANNEL_ID,
             getString(R.string.vpn_notification_channel),
