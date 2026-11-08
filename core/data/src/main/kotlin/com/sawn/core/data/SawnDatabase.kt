@@ -104,8 +104,9 @@ abstract class SawnDatabase : RoomDatabase() {
                     "sawn.db",
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
-                    // Only wipe on a downgrade (dev rollback); real upgrades migrate cleanly.
-                    .fallbackToDestructiveMigrationOnDowngrade()
+                    // قاعدة بيانات محلية للتجريب — 2.1 مخصصة للتوزيع الخاص.
+                    // أي فشل في الهجرة (أو اختلاف مخطط) لن يوقف التطبيق أبدًا.
+                    .fallbackToDestructiveMigration()
                     .build()
                     .also { instance = it }
             }

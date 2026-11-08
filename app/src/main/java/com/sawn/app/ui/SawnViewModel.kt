@@ -457,8 +457,9 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     }
     // --- Plan B (2.1) -----------------------------------------------------
     val challengeDays: StateFlow<Int> = kotlinx.coroutines.flow.flow {
-        val run = container.database.challengeDao().latestRun()
-        emit(run?.let { container.database.challengeDao().countDays(it.id) } ?: 0)
+        val run = runCatching { container.database.challengeDao().latestRun() }.getOrNull()
+        val days = run?.let { runCatching { container.database.challengeDao().countDays(it.id) }.getOrDefault(0) } ?: 0
+        emit(days)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     fun startChallenge() = viewModelScope.launch {

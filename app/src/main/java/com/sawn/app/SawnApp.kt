@@ -24,19 +24,24 @@ class SawnApp : Application() {
         instance = this
 
         // اللغة تُطبّق قبل أي UI يُبنى (القنوات والإشعارات والصفحات).
+        // الحماية: أي فشل مهما كان لا يوقف التطبيق (tester build).
         runBlocking {
-            val locale = EntryPointAccessors.fromApplication(
-                this@SawnApp,
-                LegacyContainer::class.java,
-            ).settings.locale.first()
-            LocaleUtils.apply(this@SawnApp, locale)
+            runCatching {
+                val locale = EntryPointAccessors.fromApplication(
+                    this@SawnApp,
+                    LegacyContainer::class.java,
+                ).settings.locale.first()
+                LocaleUtils.apply(this@SawnApp, locale)
+            }
         }
 
-        createNotificationChannel()
+        runCatching { createNotificationChannel() }
         // NetGuard-style watchdog: periodic backstop that posts/clears the health
         // notification when the accessibility service dies silently. 15-minute minimum
         // is WorkManager's floor; the real-time signal is the service's onUnbind.
-        com.sawn.app.system.GuardHealthWorker.schedule(this)
+        runCatching { com.sawn.app.system.GuardHealthWorker.schedule(this) }
+        runCatching { com.sawn.app.system.NightGuardWorker.schedule(this) }
+        runCatching { com.sawn.app.system.NudgesWorker.schedule(this) }
     }
 
     private fun createNotificationChannel() {
