@@ -13,6 +13,8 @@ local.properties
 !debug.keystore
 /app/build/
 /app/release/
+/release/
+*.apk
 core/*/build/
 .superpowers/
 .kotlin/

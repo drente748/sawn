@@ -80,6 +80,23 @@ class ProtectionDayPolicyTest {
     }
 
     @Test
+    fun `longest streak ignores future dates when a today is supplied`() {
+        val days = setOf(d(11, 1), d(11, 2), d(11, 3), d(11, 20), d(11, 21), d(11, 22), d(11, 23))
+        assertEquals(3, ProtectionDayPolicy.longestStreak(days, d(11, 5)))
+        assertEquals(4, ProtectionDayPolicy.longestStreak(days, d(11, 23)))
+        // Without a cutoff the legacy history-only behaviour is unchanged.
+        assertEquals(4, ProtectionDayPolicy.longestStreak(days))
+    }
+
+    @Test
+    fun `total protected days counts recorded days up to today only`() {
+        val days = setOf(d(11, 1), d(11, 2), d(11, 3), d(11, 9))
+        assertEquals(3, ProtectionDayPolicy.totalProtectedDays(days, d(11, 5)))
+        assertEquals(4, ProtectionDayPolicy.totalProtectedDays(days, d(11, 9)))
+        assertEquals(0, ProtectionDayPolicy.totalProtectedDays(emptySet(), d(11, 5)))
+    }
+
+    @Test
     fun `heatmap returns pastDays cells ending today`() {
         val days = setOf(d(11, 1), d(11, 3))
         val cells = ProtectionDayPolicy.heatmap(days, d(11, 3), pastDays = 3)

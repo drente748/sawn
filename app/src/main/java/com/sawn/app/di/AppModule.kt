@@ -16,6 +16,7 @@ import com.sawn.app.entitlement.NoopEntitlementService
 import com.sawn.app.ads.AdsController
 import com.sawn.app.update.UpdateChecker
 import com.sawn.app.update.DisabledUpdateChecker
+import com.sawn.app.update.RemoteManifestUpdateChecker
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -86,7 +87,12 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun updateChecker(): UpdateChecker = DisabledUpdateChecker
+    fun updateChecker(): UpdateChecker =
+        if (com.sawn.app.BuildConfig.UPDATE_MANIFEST_URL.isBlank()) {
+            DisabledUpdateChecker
+        } else {
+            RemoteManifestUpdateChecker(com.sawn.app.BuildConfig.UPDATE_MANIFEST_URL)
+        }
 
     @Provides
     @Singleton

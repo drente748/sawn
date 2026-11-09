@@ -40,6 +40,9 @@ class BlockJournalTest {
         assertEquals(7, snapshot.weekTotal)
         assertEquals(4, snapshot.peak)
         assertEquals(42, snapshot.total)
+        assertEquals(0, snapshot.urgesToday)
+        assertEquals(0, snapshot.urgesLast7)
+        assertEquals(0, snapshot.urgesTotal)
     }
 
     @Test
@@ -48,5 +51,23 @@ class BlockJournalTest {
         assertEquals(0, snapshot.today)
         assertEquals(0, snapshot.weekTotal)
         assertTrue(snapshot.last7.all { it == 0 })
+        assertEquals(0, snapshot.urgesToday)
+        assertEquals(0, snapshot.urgesLast7)
+        assertEquals(0, snapshot.urgesTotal)
+    }
+
+    @Test
+    fun `snapshot counts completed urge pauses separately from blocked attempts`() {
+        val snapshot = BlockJournal.snapshot(
+            log = mapOf(today to 8, today - 1 to 3),
+            total = 100,
+            today = today,
+            urges = mapOf(today to 2, today - 2 to 1),
+            urgeTotal = 9,
+        )
+        assertEquals(8, snapshot.today)
+        assertEquals(2, snapshot.urgesToday)
+        assertEquals(3, snapshot.urgesLast7)
+        assertEquals(9, snapshot.urgesTotal)
     }
 }

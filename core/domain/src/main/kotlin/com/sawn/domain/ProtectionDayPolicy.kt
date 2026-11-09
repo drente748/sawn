@@ -28,9 +28,14 @@ object ProtectionDayPolicy {
         return streak
     }
 
-    fun longestStreak(days: Set<LocalDate>): Int {
-        if (days.isEmpty()) return 0
-        val sorted = days.sorted()
+    /**
+     * Longest run in history. When [today] is supplied, future dates are ignored so a clock
+     * jump forward cannot manufacture a "best streak" the user never earned.
+     */
+    fun longestStreak(days: Set<LocalDate>, today: LocalDate? = null): Int {
+        val eligible = if (today == null) days else days.filter { it <= today }.toSet()
+        if (eligible.isEmpty()) return 0
+        val sorted = eligible.sorted()
         var best = 1
         var run = 1
         var prev = sorted.first()
@@ -45,6 +50,10 @@ object ProtectionDayPolicy {
         }
         return best
     }
+
+    /** Days actually counted towards the streak: recorded and not in the future. */
+    fun totalProtectedDays(days: Set<LocalDate>, today: LocalDate): Int =
+        days.count { it <= today }
 
     fun isAtRisk(days: Set<LocalDate>, today: LocalDate): Boolean =
         today !in days && today.minusDays(1) in days

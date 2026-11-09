@@ -8,7 +8,9 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -32,6 +36,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -125,6 +131,15 @@ fun SetupScreen(onBack: () -> Unit = {}) {
     )
 
     val openSettings = stringResource(R.string.open_settings)
+    val essential = listOf(state.accessibility, state.vpnConsent, state.filter)
+    val extras = buildList {
+        add(state.notifications)
+        add(state.notificationListener)
+        add(state.usage)
+        add(state.alwaysOnVpn)
+        add(state.batteryFree)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) add(!state.privateDnsStrict)
+    }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp).verticalScroll(rememberScrollState())) {
         BackHeader(
@@ -137,7 +152,11 @@ fun SetupScreen(onBack: () -> Unit = {}) {
         ScoreCard(checkup.score, checkup.essentialMissing, checkup.complete)
         Spacer(Modifier.height(16.dp))
 
-        SectionLabel(stringResource(R.string.checkup_layers))
+        SectionLabel(
+            stringResource(R.string.checkup_layers),
+            passed = essential.count { it },
+            total = essential.size,
+        )
 
         SetupRow(
             title = stringResource(R.string.setup_accessibility_title),
@@ -182,7 +201,11 @@ fun SetupScreen(onBack: () -> Unit = {}) {
             if (consent != null) consentLauncher.launch(consent) else VpnController.start(context)
         }
 
-        SectionLabel(stringResource(R.string.checkup_extras))
+        SectionLabel(
+            stringResource(R.string.checkup_extras),
+            passed = extras.count { it },
+            total = extras.size,
+        )
 
         SetupRow(
             title = stringResource(R.string.setup_notifications_title),
@@ -396,17 +419,39 @@ private fun RestrictedSourceCard(onOpenAppInfo: () -> Unit) {
     }
 }
 
+/** عنوان قسم مع عدّاد صغير (منجز/الإجمالي) حتى يعرف المستخدم حجم ما تبقّى بنظرة. */
 @Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(top = 10.dp, bottom = 8.dp),
-    )
+private fun SectionLabel(text: String, passed: Int? = null, total: Int? = null) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        if (passed != null && total != null) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)) {
+                Text(
+                    SawnNumbers.format(passed) + "/" + SawnNumbers.format(total),
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+    }
 }
 
+/**
+ * بطاقة إذن واحدة: أيقونة في مربع ملون، عنوان وسطر شرح بخطين منظّمين، شارة حالة،
+ * وزر الإجراء وحده أسفل البطاقة عند النقص — فيبقى الصف مقروءاً ولا يتزاحم النص مع الزر.
+ */
 @Composable
 private fun SetupRow(
     title: String,
@@ -415,22 +460,75 @@ private fun SetupRow(
     actionLabel: String,
     onAction: () -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                if (granted) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                contentDescription = stringResource(if (granted) R.string.granted else R.string.not_granted),
-                tint = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-            )
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    val accent = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+    Card(
+        Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (granted) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                        contentDescription = stringResource(if (granted) R.string.granted else R.string.not_granted),
+                        tint = accent,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                StatusChip(granted)
             }
-            if (!granted) OutlinedButton(onClick = onAction) { Text(actionLabel) }
+            if (!granted) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    OutlinedButton(onClick = onAction, modifier = Modifier.height(40.dp)) {
+                        Text(actionLabel, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun StatusChip(granted: Boolean) {
+    val container = if (granted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer
+    val content = if (granted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer
+    Surface(shape = CircleShape, color = container) {
+        Text(
+            stringResource(if (granted) R.string.checkup_ready else R.string.checkup_pending),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = content,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }

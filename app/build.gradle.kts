@@ -18,6 +18,13 @@ fun signingValue(name: String): String? =
         ?: localProperties.getProperty(name)?.takeIf { it.isNotBlank() }
 
 val sawnStoreFile = signingValue("SAWN_STORE_FILE")
+val sawnManifestUrl = providers.gradleProperty("SAWN_UPDATE_MANIFEST_URL")
+    .orElse(providers.environmentVariable("SAWN_UPDATE_MANIFEST_URL"))
+    .orElse("")
+    .get()
+require(sawnManifestUrl.isBlank() || sawnManifestUrl.startsWith("https://")) {
+    "SAWN_UPDATE_MANIFEST_URL must be a public HTTPS manifest URL, or omitted to disable update checks."
+}
 val sawnStorePassword = signingValue("SAWN_STORE_PASSWORD")
 val sawnKeyAlias = signingValue("SAWN_KEY_ALIAS")
 val sawnKeyPassword = signingValue("SAWN_KEY_PASSWORD")
@@ -34,8 +41,9 @@ android {
         applicationId = "com.sawn.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 22
-        versionName = "2.1.1"
+        versionCode = 28
+        versionName = "2.1.8"
+        buildConfigField("String", "UPDATE_MANIFEST_URL", "\"$sawnManifestUrl\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -52,7 +60,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            // Skip R8 for the sideloaded APK: it exceeds the memory limit of the build machine.
+            isMinifyEnabled = false
             isDebuggable = false
             if (sawnSigningValues.all { it != null }) {
                 signingConfig = signingConfigs.getByName("release")
@@ -87,6 +96,9 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true // for BuildConfig.DEBUG (FLAG_SECURE only in release)
+    }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -125,6 +137,7 @@ dependencies {
 
     testImplementation(project(":core:domain"))
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

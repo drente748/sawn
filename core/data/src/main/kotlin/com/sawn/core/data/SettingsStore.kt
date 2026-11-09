@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.sawn.domain.block.LockdownPolicy
 import com.sawn.domain.block.LockdownWindow
 import com.sawn.domain.block.StrictPolicy
 import com.sawn.domain.feature.BlockJournal
@@ -96,6 +97,8 @@ class SettingsStore(
         // سجل محلي لعدد المحاولات المصدودة يومياً — لا يغادر الجهاز.
         val BLOCK_LOG = stringPreferencesKey("block_log")
         val BLOCK_TOTAL = intPreferencesKey("block_total")
+        val URGE_LOG = stringPreferencesKey("urge_log")
+        val URGE_TOTAL = intPreferencesKey("urge_total")
         // العلم الوحيد الذي يمنع أي إيقاظ تلقائي للحماية — لا يضبطه إلا السحب من داخل
         // التطبيق (زر الإيقاف مع PIN عند وضع الانضباط/القفل الزمني). السحب من قائمة
         // المهام الأخيرة لا يلمسه أبدًا؛ هو وحده "المُوقِف" وفق المخطط.
@@ -156,7 +159,7 @@ class SettingsStore(
         context.dataStore.edit { it.remove(Keys.ONBOARDING_DONE) }.let { }
 
     // --- الملف الشخصي المحلي ---------------------------------------------------
-    // اسم + عمر محليان 100% — لا يغادران الجهاز أبداً (انظر PRIVACY.md).
+    // اسم + عمر محليان 100% — لا يغادران الجهاز أبداً (انظر docs/privacy.md).
     val profileName: Flow<String?> =
         context.dataStore.data.map { it[Keys.PROFILE_NAME] }.distinctUntilChanged()
     val profileAge: Flow<Int?> =
@@ -334,12 +337,22 @@ class SettingsStore(
         }
     }
 
+    suspend fun recordUrgeSessionCompleted() {
+        val today = LocalDate.now().toEpochDay()
+        context.dataStore.edit { p ->
+            p[Keys.URGE_LOG] = BlockJournal.encode(BlockJournal.bump(BlockJournal.decode(p[Keys.URGE_LOG]), today))
+            p[Keys.URGE_TOTAL] = (p[Keys.URGE_TOTAL] ?: 0) + 1
+        }
+    }
+
     val blockJournal: Flow<JournalSnapshot> = context.dataStore.data
         .map { p ->
             BlockJournal.snapshot(
                 log = BlockJournal.decode(p[Keys.BLOCK_LOG]),
                 total = p[Keys.BLOCK_TOTAL] ?: 0,
                 today = LocalDate.now().toEpochDay(),
+                urges = BlockJournal.decode(p[Keys.URGE_LOG]),
+                urgeTotal = p[Keys.URGE_TOTAL] ?: 0,
             )
         }
         .distinctUntilChanged()
@@ -572,9 +585,10 @@ class SettingsStore(
         var applied = false
         context.dataStore.edit { p ->
             val wallNow = maxOf(System.currentTimeMillis(), p[Keys.SEEN_TIME_HIGHWAT] ?: 0L)
-            // Never let a caller clear or pre-date a live lockdown with a raw write.
-            // Replacing it with a future value is allowed (the user confirmed a new lock).
-            if (lockdownWindow(p, wallNow).isActive && endsAtMs <= wallNow) return@edit
+            // The lock belongs to the user's past self: while it is live only a strict extension
+            // is accepted. Clearing or shortening it is refused atomically here, so no UI path
+            // and no stray caller can lift it before its timer ends.
+            if (!LockdownPolicy.mayApplyLockdown(p[Keys.LOCKDOWN_UNTIL] ?: 0L, endsAtMs, wallNow)) return@edit
             p[Keys.LOCKDOWN_UNTIL] = endsAtMs
             if (endsAtMs > wallNow) {
                 val duration = endsAtMs - wallNow

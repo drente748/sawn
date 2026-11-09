@@ -18,6 +18,8 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.rememberScrollState
 
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,8 +31,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -311,9 +311,11 @@ fun StatsScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     val longest by vm.longestStreak.collectAsStateWithLifecycle()
     val sessions by vm.focusSessionsDone.collectAsStateWithLifecycle()
     val journal by vm.blockJournal.collectAsStateWithLifecycle()
-    Column(Modifier.fillMaxSize().padding(20.dp)) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         BackHeader(stringResource(R.string.stats_title), onBack)
-        Spacer(Modifier.height(12.dp))
 
         // بطل الشاشة: السلسلة أولاً لأنها الشيء الذي يعود المستخدم لرؤيته.
         Surface(
@@ -361,7 +363,6 @@ fun StatsScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             }
         }
 
-        Spacer(Modifier.height(12.dp))
         Surface(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
@@ -375,16 +376,19 @@ fun StatsScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
                 )
                 ProtectionWeekChart(journal)
                 Text(
-                    stringResource(R.string.stats_week_total, journal.last7.sum()),
+                    stringResource(R.string.stats_week_total, journal.weekTotal),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.stats_urge_week_total, journal.urgesLast7, journal.urgesTotal),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        Spacer(Modifier.height(20.dp))
         Text(stringResource(R.string.screen_time_today), style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
         if (!hasPermission) {
             Text(stringResource(R.string.usage_access_needed), style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(8.dp))
@@ -402,8 +406,8 @@ fun StatsScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             if (list != null && list.isEmpty()) {
                 Text(stringResource(R.string.no_usage_today), style = MaterialTheme.typography.bodyMedium)
             } else if (list != null) {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(list, key = { it.pkg }) { u ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    list.forEach { u ->
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,

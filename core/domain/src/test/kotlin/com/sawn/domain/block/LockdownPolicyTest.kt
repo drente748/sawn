@@ -144,4 +144,27 @@ class LockdownPolicyTest {
         assertNull(LockdownPolicy.parseManualAmount("abc"))
         assertNull(LockdownPolicy.parseManualAmount(""))
     }
+
+    @Test
+    fun newLockdown_isAllowedWhenNoLockIsActive() {
+        assertTrue(LockdownPolicy.mayApplyLockdown(currentUntil = 0L, newUntil = now + 5_000L, now = now))
+        assertTrue(LockdownPolicy.mayApplyLockdown(currentUntil = now - 1L, newUntil = now + 5_000L, now = now))
+    }
+
+    @Test
+    fun activeLockdown_rejectsClearingIt() {
+        assertFalse(LockdownPolicy.mayApplyLockdown(currentUntil = now + 10_000L, newUntil = 0L, now = now))
+        assertFalse(LockdownPolicy.mayApplyLockdown(currentUntil = now + 10_000L, newUntil = now, now = now))
+    }
+
+    @Test
+    fun activeLockdown_rejectsShorteningIt() {
+        assertFalse(LockdownPolicy.mayApplyLockdown(currentUntil = now + 10_000L, newUntil = now + 5_000L, now = now))
+        assertFalse(LockdownPolicy.mayApplyLockdown(currentUntil = now + 10_000L, newUntil = now + 10_000L, now = now))
+    }
+
+    @Test
+    fun activeLockdown_acceptsOnlyAStrictExtension() {
+        assertTrue(LockdownPolicy.mayApplyLockdown(currentUntil = now + 10_000L, newUntil = now + 10_001L, now = now))
+    }
 }

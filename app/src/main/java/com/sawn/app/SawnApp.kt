@@ -16,7 +16,13 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
+import com.sawn.app.vpn.VpnController
+import com.sawn.app.vpn.SawnVpnService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 @HiltAndroidApp
@@ -58,6 +64,30 @@ class SawnApp : Application() {
         runCatching { com.sawn.app.system.GuardHealthWorker.schedule(this) }
         runCatching { com.sawn.app.system.NightGuardWorker.schedule(this) }
         runCatching { com.sawn.app.system.NudgesWorker.schedule(this) }
+        restoreActiveLockdown()
+    }
+
+    /**
+     * A live time lock must not depend on a boot broadcast arriving. Some OEMs drop
+     * BOOT_COMPLETED, and a force-stop or a crash can skip it too, so every cold process
+     * start re-asserts the lock's core flags and re-arms the filter (idempotent: it only
+     * acts while the window is live and stops early when the tunnel already runs).
+     */
+    private fun restoreActiveLockdown() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching {
+                val settings = sawnContainer.settings
+                if (!settings.isLockdownActiveNow()) return@launch
+                // Restore the switches the lock guarantees before anything else reads them.
+                settings.enforceLockdownCore()
+                settings.recordActiveDay()
+                if (SawnVpnService.running) return@launch
+                if (VpnController.consentIntent(this@SawnApp) == null) {
+                    VpnController.start(this@SawnApp)
+                }
+                com.sawn.app.system.KeepAliveWorker.schedule(this@SawnApp, delaySeconds = 10L)
+            }
+        }
     }
 
     private fun createNotificationChannel() {
@@ -93,6 +123,7 @@ interface LegacyContainer {
     val accessController: AccessController
     val stats: com.sawn.domain.repo.StatsRepository
     val database: com.sawn.core.data.SawnDatabase
+    val updateChecker: com.sawn.app.update.UpdateChecker
 }
 
 /** Convenience accessor from any Context. */

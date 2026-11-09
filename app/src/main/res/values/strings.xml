@@ -167,17 +167,20 @@
 
     <!-- قفل الحماية -->
     <string name="lockdown_title">Time lock</string>
-    <string name="lockdown_body">Choose how long protection stays locked: no turning off, no deleting.</string>
-    <string name="lockdown_active_body_card">Absolute lock: protection cannot be turned off or the app deleted before the timer ends.</string>
-    <string name="lockdown_new">New lock</string>
-    <string name="lockdown_replaces">The new lock starts now and replaces the remaining time completely.</string>
-    <string name="lockdown_custom_label">Or a custom duration (1 minute – 12 months)</string>
+    <string name="lockdown_body">Choose how long Sawn stays locked: protection cannot be turned off, adult blocking cannot be disabled, and the app cannot be removed until the timer ends.</string>
+    <string name="lockdown_active_body_card">Absolute lock: protection cannot be turned off and the app cannot be deleted before the timer ends.</string>
+    <string name="lockdown_ends_automatically">The lock ends by itself when the timer runs out — there is no switch to turn it off now.</string>
+    <string name="lockdown_new">Extend the lock</string>
+    <string name="lockdown_replaces">The duration you pick is added to the remaining time. The lock cannot be shortened or turned off.</string>
+    <string name="lockdown_custom_label">Custom duration (1 minute – 12 months)</string>
+    <string name="lockdown_custom_open">Custom duration</string>
     <string name="lockdown_duration_field">Duration</string>
     <string name="lockdown_apply">Apply custom duration</string>
     <string name="lockdown_invalid_range">The duration must be between 1 minute and 12 months.</string>
     <string name="lockdown_no_filter">Could not start the protection filter — the lock was not written. Try again.</string>
     <string name="lockdown_no_admin">Uninstall protection was not enabled — the lock was not written.</string>
     <string name="lockdown_no_vpn_permission">Filter permission was not granted — the lock was not written.</string>
+    <string name="lockdown_not_applied">The lock was not applied. Check the filter permission and uninstall protection, then try again.</string>
     <string name="remaining_time">%1$s remaining</string>
 
     <!-- أقسام المتصفح والخصوصية -->
@@ -384,7 +387,9 @@
     <string name="home_journal_today">%1$d blocked attempts</string>
     <string name="home_journal_quiet">No attempts today — a quiet day.</string>
     <string name="home_journal_week">Last 7 days</string>
-    <string name="home_journal_total">Total so far: %1$d</string>
+    <string name="home_journal_total">So far: %1$d blocked attempts · %2$d completed urge sessions</string>
+    <string name="home_journal_week_total">Blocked this week</string>
+    <string name="home_journal_urge_week">Urge pauses</string>
     <string name="home_presets_title">Protection presets</string>
     <string name="home_presets_hint">One preset configures every switch — you can still tweak each one individually.</string>
     <string name="preset_light">Light</string>
@@ -408,7 +413,7 @@
     <string name="home_focus_quick">Focus session</string>
     <string name="home_focus_minutes">%1$d m</string>
     <string name="home_focus_strict_hint">Strict — cannot end before the timer finishes</string>
-    <string name="home_privacy_footer">Everything stays on your device: no account, no server, no browsing logs.</string>
+    <string name="home_privacy_footer">Your personal data stays on your device; lists and updates are fetched only when requested.</string>
     <string name="streak_label">consecutive days</string>
 
     <!-- فحص الحماية -->
@@ -488,9 +493,18 @@
     <string name="stat_sessions">sessions done</string>
     <string name="stat_blocked_week">Blocked this week</string>
     <string name="home_streak_at_risk">Today is not recorded yet — turn on protection today to keep your streak alive.</string>
+    <string name="home_streak_title">Your protection streak</string>
+    <string name="home_streak_unit">consecutive days</string>
+    <string name="home_streak_best">Best streak</string>
+    <string name="home_streak_total">Protected days</string>
+    <string name="home_streak_sessions">Focus sessions</string>
+    <string name="home_streak_today">Today is protected — keep going</string>
+    <string name="home_streak_today_pending">Today is not recorded yet</string>
     <string name="home_section_tools">Tools</string>
+    <string name="home_section_lock">Sawn lock</string>
+    <string name="home_section_lock_hint">A temporary lock that blocks turning protection off or uninstalling the app until the timer ends — it releases itself.</string>
     <string name="sos_title">A craving?</string>
-    <string name="sos_body">One minute of breathing is enough to ride the wave. Nothing is logged or sent.</string>
+    <string name="sos_body">Breathe, notice what is around you, or give yourself time before deciding. Your count stays on this device.</string>
     <string name="sos_open">Open the urge shield</string>
     <string name="sos_close">I am fine now</string>
     <string name="sos_inhale">Breathe in…</string>
@@ -501,7 +515,35 @@
     <string name="sos_done_body">An urge is a wave, not a command. Give it another minute if you need, then go do something absorbing.</string>
     <string name="sos_again">One more minute</string>
     <string name="sos_counter">%1$d seconds</string>
-    <string name="sos_note">4-7-8 breathing calms the nervous system. Keep the screen away from content now.</string>
+    <string name="sos_note">Breathe slowly and comfortably. Skip breath-holding if it feels uncomfortable; stop any time.</string>
+    <string name="sos_tool_breathe">Breathe</string>
+    <string name="sos_tool_ground">Ground yourself</string>
+    <string name="sos_tool_delay">Delay the urge</string>
+    <string name="sos_ground_title">Come back to the present</string>
+    <string name="sos_ground_step">Step %1$d of 3</string>
+    <string name="sos_ground_see">Name five things you can see around you.</string>
+    <string name="sos_ground_touch">Notice four things you can touch and how each feels.</string>
+    <string name="sos_ground_hear">Listen for three sounds, near or far.</string>
+    <string name="sos_ground_previous">Previous</string>
+    <string name="sos_ground_next">Next</string>
+    <string name="sos_ground_done">Finish exercise</string>
+    <string name="sos_delay_title">You do not have to decide right now</string>
+    <string name="sos_delay_body">Step away from the screen for ten minutes. Have some water or move around. You can come back whenever you choose.</string>
+    <string name="sos_delay_counter">%1$d:%2$02d</string>
+    <string name="sos_delay_start">Start timer</string>
+    <string name="sos_delay_running">Timer is running</string>
+    <string name="stats_urge_week_total">Urge pauses this week: %1$d · completed so far: %2$d</string>
+    <string name="update_title">Sawn updates</string>
+    <string name="update_privacy">Sawn checks for updates only when you tap the button. No usage data is sent.</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking for an update…</string>
+    <string name="update_downloading">Downloading the update and checking its integrity…</string>
+    <string name="update_up_to_date">You already have the latest version.</string>
+    <string name="update_available">Version %1$s is available. Review the details and approve installation.</string>
+    <string name="update_install">Download and install update</string>
+    <string name="update_failed">Could not complete update: %1$s</string>
+    <string name="update_host_not_configured">Update hosting is not configured yet. Set SAWN_UPDATE_MANIFEST_URL and rebuild the app.</string>
+    <string name="update_install_permission_missing">Permission to install apps from this source was not granted.</string>
 
     <!-- الترحيب v3 -->
     <string name="ob_features_page_title">Everything that matters in one place</string>
@@ -633,6 +675,7 @@
 
     <string name="settings_privacy_wipe">Erase all my data</string>
     <string name="settings_privacy_wipe_sub">Deletes your blocklists, streak and settings — irreversible</string>
+    <string name="settings_wipe_locked">Time lock is active: data cannot be wiped before the timer ends, because wiping would lift the lock.</string>
     <string name="settings_privacy_wipe_confirm_title">Erase everything?</string>
     <string name="settings_privacy_wipe_confirm_body">This deletes your blocklist, schedules, streak history and all settings from this device. It cannot be undone.</string>
     <string name="settings_privacy_wipe_confirm_action">Erase everything</string>

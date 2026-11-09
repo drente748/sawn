@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
@@ -147,24 +148,41 @@ fun ProtectionWeekChart(snapshot: JournalSnapshot, modifier: Modifier = Modifier
     ) {
         snapshot.last7.forEachIndexed { index, count ->
             val day = today.minusDays((6 - index).toLong())
+            val isToday = index == snapshot.last7.lastIndex
             Column(
                 Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
+                Text(
+                    SawnNumbers.format(count),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isToday) SawnPalette.PrimaryDeep else SawnPalette.InkSoft,
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
+                )
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height((8 + 36 * count / peak).dp)
-                        .clip(MaterialTheme.shapes.extraSmall)
-                        .background(
-                            if (count > 0) SawnPalette.Primary else SawnPalette.Track,
-                        ),
-                )
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(SawnPalette.Track),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    if (count > 0) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight((count.toFloat() / peak).coerceIn(0.08f, 1f))
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(if (isToday) SawnPalette.Primary else SawnPalette.GoldDeep),
+                        )
+                    }
+                }
                 Text(
                     stringResource(letters[day.dayOfWeek.value - 1]),
                     style = MaterialTheme.typography.labelSmall,
-                    color = SawnPalette.InkSoft,
+                    color = if (isToday) SawnPalette.PrimaryDeep else SawnPalette.InkSoft,
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                 )
             }
         }
@@ -201,70 +219,6 @@ fun MetricCard(
             )
         }
     }
-}
-
-/** شريط التقدّم الداكن — «سلسلتك حيّة». */
-@Composable
-fun ProgressStrip(
-    streak: Int,
-    longest: Int,
-    sessions: Int,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
-    val base = if (onClick != null) {
-        modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = androidx.compose.material3.ripple(),
-        ) { onClick() }
-    } else {
-        modifier
-    }
-    Surface(
-        modifier = base,
-        shape = MaterialTheme.shapes.large,
-        color = SawnPalette.Ink,
-    ) {
-        Row(
-            Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            StripNumber(SawnNumbers.format(streak.toLong()), stringResource(R.string.stats_days_unit), Modifier.weight(1f))
-            DividerV()
-            StripNumber(SawnNumbers.format(longest.toLong()), stringResource(R.string.best_streak), Modifier.weight(1f))
-            DividerV()
-            StripNumber(SawnNumbers.format(sessions.toLong()), stringResource(R.string.stat_sessions), Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun StripNumber(value: String, label: String, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            value,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = SawnPalette.Gold,
-        )
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color(0xFFFDE8D8).copy(alpha = 0.85f),
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun DividerV() {
-    Box(
-        Modifier
-            .width(1.dp)
-            .height(34.dp)
-            .background(Color(0xFFFDE8D8).copy(alpha = 0.2f)),
-    )
 }
 
 /** بلاطة أداة: أيقونة + عنوان + سطر وصفي. */

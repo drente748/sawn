@@ -1,10 +1,9 @@
 package com.sawn.domain.block.web
 
 /**
- * Per-browser address-bar configuration, ported verbatim from Block 11.3.0
- * (decompiled block.libraries.usage.web.BrowserConfig; see
- * docs/re-block-reference/BrowserConfig_decompiled.java). Each entry maps a
- * browser package to the view-id(s) of its URL bar (Block tries them in
+ * Per-browser address-bar configuration, rebuilt from a decompiled `BrowserConfig`
+ * constant from a mature blocker. Each entry maps a
+ * browser package to the view-id(s) of its URL bar (tried in
  * order — e.g. Chrome exposes both "origin" and "url_bar"), plus whether a
  * raw tree traversal may be used as a fallback for that browser (needed for
  * some Firefox-family builds where the toolbar node is not directly

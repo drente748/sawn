@@ -90,11 +90,12 @@ object BackupCodec {
                 age = parts[1].toIntOrNull(),
             ),
             settings = decodeSettings(parts[2]),
-            blockedItems = decodeItems(parts[3]),
-            schedules = decodeSchedules(parts[4]),
-            protectedDays = parts[5].splitList(),
-            enabledFeatures = parts[6].splitList(),
-            onboardingAnswers = parts[7].unb64()?.ifBlank { null },
+            // Must mirror [encode] exactly: name, age, settings, answers, items, schedules, days, features.
+            onboardingAnswers = parts[3].unb64()?.ifBlank { null },
+            blockedItems = decodeItems(parts[4]),
+            schedules = decodeSchedules(parts[5]),
+            protectedDays = parts[6].splitList(),
+            enabledFeatures = parts[7].splitList(),
         )
     }.getOrNull()
 
@@ -113,18 +114,21 @@ object BackupCodec {
     private fun decodeItems(raw: String): List<BackupItem> = raw.lines().filter { it.isNotBlank() }.mapNotNull { line ->
         val f = line.split('|')
         if (f.size != 10) return@mapNotNull null
-        val mode = f[4].unb64() ?: "BLOCK"
+        // Every field on the wire is base64 — decoding the numeric ones as plain text silently
+        // reset limits to their defaults, which made a restore look successful but lose data.
+        fun field(index: Int): String? = f[index].unb64()
+        val mode = field(4) ?: "BLOCK"
         BackupItem(
-            type = f[0].unb64() ?: return@mapNotNull null,
-            value = f[1].unb64() ?: return@mapNotNull null,
-            label = f[2].unb64() ?: return@mapNotNull null,
-            enabled = f[3].toBooleanStrictOrNull() ?: true,
+            type = field(0) ?: return@mapNotNull null,
+            value = field(1) ?: return@mapNotNull null,
+            label = field(2) ?: return@mapNotNull null,
+            enabled = field(3)?.toBooleanStrictOrNull() ?: true,
             interceptMode = if (mode == "PAUSE" || mode == "BLOCK") mode else "BLOCK",
-            pauseSeconds = f[5].toIntOrNull() ?: 15,
-            customPrompt = f[6].unb64()?.ifBlank { null },
-            openLimitPerDay = f[7].toIntOrNull() ?: 0,
-            dailyLimitMinutes = f[8].toIntOrNull() ?: 0,
-            cooldownMinutes = f[9].toIntOrNull() ?: 0,
+            pauseSeconds = field(5)?.toIntOrNull() ?: 15,
+            customPrompt = field(6)?.ifBlank { null },
+            openLimitPerDay = field(7)?.toIntOrNull() ?: 0,
+            dailyLimitMinutes = field(8)?.toIntOrNull() ?: 0,
+            cooldownMinutes = field(9)?.toIntOrNull() ?: 0,
         )
     }
 
@@ -136,9 +140,9 @@ object BackupCodec {
     private fun decodeSchedules(raw: String): List<BackupSchedule> = raw.lines().filter { it.isNotBlank() }.mapNotNull { line ->
         val f = line.split('|')
         if (f.size != 5) return@mapNotNull null
-        BackupSchedule(f[0].unb64() ?: return@mapNotNull null, f[1].toIntOrNull() ?: return@mapNotNull null,
-            f[2].toIntOrNull() ?: return@mapNotNull null, f[3].toIntOrNull() ?: return@mapNotNull null,
-            f[4].toBooleanStrictOrNull() ?: false)
+        BackupSchedule(f[0].unb64() ?: return@mapNotNull null, f[1].unb64()?.toIntOrNull() ?: return@mapNotNull null,
+            f[2].unb64()?.toIntOrNull() ?: return@mapNotNull null, f[3].unb64()?.toIntOrNull() ?: return@mapNotNull null,
+            f[4].unb64()?.toBooleanStrictOrNull() ?: false)
     }
 
     private fun b64(v: String): String = Base64.getEncoder().encodeToString(v.toByteArray(Charsets.UTF_8))

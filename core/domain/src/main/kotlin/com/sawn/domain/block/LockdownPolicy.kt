@@ -45,6 +45,14 @@ object LockdownPolicy {
     /** مدة يدوية من نص المستخدم (بأي أرقام عربية أو لاتينية)، أو null إن لم تكن رقماً. */
     fun parseManualAmount(input: String): Long? =
         normalizeDigits(input.trim()).toLongOrNull()
+
+    /**
+     * قاعدة تعديل قفل نشط: القفل ينتهي فقط بانتهاء مهلته، فلا يُمحى ولا يُقصّر.
+     * أثناء قفل نشط، الكتابة المقبولة الوحيدة هي تمديد صريح إلى ما بعد نهايته؛
+     * بعد انتهائه يُسمح بقفل جديد.
+     */
+    fun mayApplyLockdown(currentUntil: Long, newUntil: Long, now: Long): Boolean =
+        if (!isActive(currentUntil, now)) true else newUntil > currentUntil
 }
 
 /**

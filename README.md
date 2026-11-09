@@ -1,88 +1,110 @@
-# Sawn 2.0
+# Sawn 2.1.8
 
 **صَوْن (Sawn) — a local, account-free, tracking-free Android blocker.** Blocks websites (via an
 on-device DNS filter), apps, adult content, ads/trackers, and the endless scroll (Reels/Shorts
-only), with schedules, focus sessions, strict mode, time lock, and a streak rebuilt from a
+only), with schedules, focus sessions, strict mode, a time lock, and a streak rebuilt from a
 single source of truth. Arabic-first with full English; Latin digits everywhere.
 
-> **Distribution:** side-loaded APK from the owner's website in this release. Google Play
-> listing comes later. See [`docs/install-ar.md`](docs/install-ar.md) /
-> [`docs/install-en.md`](docs/install-en.md).
+> **Distribution:** side-loaded APK, later a Google Play listing. Install guides:
+> [`docs/install-ar.md`](docs/install-ar.md) · [`docs/install-en.md`](docs/install-en.md).
 
 ---
 
 ## How blocking works
 
-Sawn uses **two independent layers**, so there's no single point of bypass:
+Sawn uses **two independent layers**, so there is no single point of bypass:
 
 | Layer | Mechanism | Blocks |
 |-------|-----------|--------|
-| **Website filtering** | A local, on-device `VpnService` that intercepts DNS and blackholes queries for blocked domains. Non-blocked queries are forwarded to an upstream resolver. | Websites in **every** browser and app |
+| **Website filtering** | A local, on-device `VpnService` that intercepts DNS and blackholes queries for blocked domains. Non-blocked queries are forwarded to the resolver your network already uses. | Websites in **every** browser and app |
 | **App blocking** | An `AccessibilityService` detects when a blocked app comes to the foreground and shows a full-screen block screen. | Native apps |
 
-The VPN is **local-only** — DNS is filtered on-device, allowed lookups go to the resolver
-already configured on your network (with a fallback only when Android exposes none), and no
-query is logged. Other traffic is not proxied. Sawn adds itself to the disallowed-apps list
-so it never filters its own traffic. See [`SPEC.md`](SPEC.md) for the full architecture and
-privacy model.
+The VPN is **local-only**: DNS is filtered on-device, allowed lookups go to your network's
+resolver (with a fallback only when Android exposes none), and no query is logged. Other
+traffic is not proxied. Sawn excludes itself so it never filters its own traffic.
+Full architecture and privacy model: [`docs/spec.md`](docs/spec.md).
 
-## Design
+### Time lock
 
-"Dawn of Hope" — warm sunrise gradient (burnt orange `#EA580C` primary, cream `#FFF7ED`
-background, dark ink `#431407`), Cairo variable font (Google, OFL), drawn `HeroShield`,
-`ProgressStrip`, `DawnCard`. No stock illustrations; everything is Compose Canvas.
+A lock written from the home screen freezes protection: it cannot be turned off, its core
+switches (adult filter, SafeSearch, DoH blocking) are re-asserted, uninstall protection cannot
+be disabled, and **"wipe all data" is refused**. It can only be **extended**, never shortened or
+cleared, and it ends by itself when its timer expires. A live lock is restored after a reboot
+(and on any cold process start) by `BootRestorePolicy`.
 
-## Architecture
+## Project structure
 
-Three Gradle modules:
+```text
+warden/
+├── app/                     # Compose UI, services (VPN / Accessibility / DeviceAdmin /
+│                            #   boot / QS tile / workers), ViewModels, Hilt
+├── core/
+│   ├── domain/              # Pure Kotlin (no Android): policies, schedules, backup
+│   │                        #   codec, feature detectors — fully unit-tested
+│   └── data/                # Room (streak source of truth) + DataStore repos,
+│                            #   exported schemas in core/data/schemas/
+├── docs/                    # All documentation (table below)
+├── gradle/                  # Version catalog (libs.versions.toml) + wrapper
+├── .github/workflows/       # Release APK CI
+└── release/                 # Built APKs (git-ignored)
+```
 
-- `:core:domain` — pure Kotlin (no Android): `ProtectionDayPolicy`, `SchedulePolicy`,
-  `TriggerInsights`, `ChallengePolicy`, `BackupCrypto`, `PlanBuilder`, `AdultHostMatcher`.
-  Fully unit-tested.
-- `:core:data` — Room (v3, `protected_days` source of truth) + DataStore + repositories
+## Modules
+
+- `:core:domain` — pure Kotlin, no Android: day/streak policy, schedules, lock policy, backup
+  codec, feature detectors. Fully unit-tested.
+- `:core:data` — Room (`protected_days` is the streak source of truth) + DataStore repositories
   behind domain interfaces.
-- `:app` — Compose UI + services (VPN/Accessibility/DeviceAdmin/Tile/BootReceiver/Workers)
-  + ViewModels (StateFlow + events) + Hilt.
+- `:app` — Compose UI, services (VPN / Accessibility / DeviceAdmin / QS tile / boot / workers),
+  ViewModels, Hilt.
 
-## Feature status (2.0.0)
+## Feature status (2.1.8)
 
-**Rebuilt from scratch (Plan A — foundation):**
-- [x] Rename Warden → Sawn (`com.sawn.app`), three-module Gradle, Hilt, Dawn design system
-- [x] Onboarding: welcome + local profile (name/age) + 4 questions + "Personal Plan" reveal
-- [x] Home "لوحة الفجر": single page, no tabs, all features visible
-- [x] Settings: profile, language (AR/EN/system), PIN, sections, wipe-all-data, About (SHA-256)
-- [x] Streak rebuilt from `protected_days` (source of truth) — `ProtectionDayPolicy`
-- [x] Full i18n AR/EN, RTL/LTR, Latin digits via `SawnNumbers`
-- [x] `userDisabledProtection` flag: protection stops **only** from inside the app
-
-**Plan B (hardening):**
-- [x] Restart arbiter: `BootReceiver` + `KeepAliveWorker` + `GuardHealthWorker` honor the flag
-- [x] Setup wizard: sideload detection, restricted-settings deep-link, Play Protect guide
-- [x] Site activation guides (AR/EN)
-- [ ] 12 new features (challenge, triggers, night guard, accountability, week card,
-      year heatmap, intent nudges, widget, biometric, deep focus, `.sawnbak` backup,
-      parental mode) — scaffolded as dormant infrastructure; full implementation in
-      a follow-up release
-- [ ] Biometric unlock, encrypted backup, widget, heatmap — same as above
-
-**Dormant infrastructure (prepared, disabled):**
-- `ads/AdsController.kt` — no ads today; future: external ad networks for non-paying users only
-- `entitlement/EntitlementService.kt` — FREE/PAID; today everything is free
-- `update/UpdateChecker.kt` — disabled; no network calls
+- [x] Single-page home: protection hero, rich streak card, daily summary, focus, urge shield,
+      time lock, tools
+- [x] "لحظة رغبة": 4-7-8 breathing, three-step grounding, ten-minute delay timer — with a local
+      count of completed sessions
+- [x] Time lock with 30-minute → 6-month presets plus a custom duration
+- [x] Streak accuracy: recorded by the filter itself at midnight rollover, future-dated rows
+      ignored, total protected days derived from the same log
+- [x] Boot/update restore: `BootRestorePolicy` + `BootReceiver` + `KeepAliveWorker` +
+      `GuardHealthWorker`
+- [x] Encrypted-free, PIN-gated management sections; local profile; AR/EN with RTL
+- [x] Optional in-app update check against a free GitHub Pages manifest, with SHA-256 and
+      package/version verification before the Android installer opens
+- [ ] Year heatmap, widget, biometric unlock, `.sawnbak` encrypted backup
 
 ## Build
 
-```
+```bash
 ./gradlew :core:domain:test :core:data:testDebugUnitTest :app:testDebugUnitTest
-./gradlew lint assembleRelease
+./gradlew :app:assembleRelease
 ```
 
-Target: `minSdk 26`, `targetSdk 36`, `versionName 2.0.0`, `versionCode 20`.
+Target: `minSdk 26`, `targetSdk 36`, `versionName 2.1.8`, `versionCode 28`.
 
-## Privacy
+Release signing reads `SAWN_STORE_FILE`, `SAWN_STORE_PASSWORD`, `SAWN_KEY_ALIAS`,
+`SAWN_KEY_PASSWORD` from the environment or `local.properties` (all or none). Keep
+`sawn-release.keystore` and those secrets safe: losing them blocks all future updates of
+already-installed copies. The keystore and `local.properties` are git-ignored on purpose.
 
-No account, no server, no telemetry. Everything stays on-device. See
-[`docs/PRIVACY.md`](docs/PRIVACY.md) and [`docs/PLAY_COMPLIANCE.md`](docs/PLAY_COMPLIANCE.md).
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | Development workflow, conventions, release checklist |
+| [`docs/spec.md`](docs/spec.md) | Architecture, data model, privacy model |
+| [`docs/privacy.md`](docs/privacy.md) | What is stored, what leaves the device |
+| [`docs/play-compliance.md`](docs/play-compliance.md) | Play policy mapping |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Threat model, known limits |
+| [`docs/setup.md`](docs/setup.md) | Local toolchain setup |
+| [`docs/device-testing.md`](docs/device-testing.md) | On-device test plan |
+| [`docs/update-hosting.md`](docs/update-hosting.md) | Free update hosting (GitHub Pages/Releases) |
+| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Version history |
+| [`docs/install-ar.md`](docs/install-ar.md) · [`docs/install-en.md`](docs/install-en.md) | Install guides |
+| [`docs/site-activation-ar.md`](docs/site-activation-ar.md) · [`docs/site-activation-en.md`](docs/site-activation-en.md) | Per-OEM activation |
+
+Built APKs are kept out of git in `release/` (ignored).
 
 ## License
 

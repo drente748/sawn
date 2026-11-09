@@ -6,37 +6,24 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * بنية التحديث داخل التطبيق — مُفعلة جزئيًا (القراءة فقط).
- *
- * صيغة التوزيع الحالية = APK مباشر من الموقع، لذلك:
- *   - يقرأ [RemoteManifestUpdateChecker] مانيفيست JSON من عنوان HTTPS ثابت.
- *   - إن وُجد إصدار أحدث، يُعيد [UpdateStatus.Available] (مع رابط APK).
- *   - تثبيت التحديث (تنزيل + ACTION_VIEW) يتم من طبقة UI (Activity) — لا من هنا.
- *
- * مانيفيست نموذجي (يُستضاف على GitHub Pages / raw.githubusercontent.com):
- * {
- *   "versionCode": 21,
- *   "versionName": "2.1.0",
- *   "apkUrl": "https://github.com/<owner>/<repo>/releases/download/v2.1.0/Sawn-2.1.0.apk",
- *   "changelog": "…",
- *   "mandatory": false
- * }
- *
- * التفعيل (للمالك):
- *   1. استضف المانيفيست على عنوان HTTPS ثابت (انظر docs/UPDATE_HOSTING.md).
- *   2. عيّن [MANIFEST_URL] إلى ذلك العنوان (أو احتفظ بالـ placeholder معطلاً).
- *   3. (اختياري) فعّل [RemoteManifestUpdateChecker] في AppModule بدلاً من DisabledUpdateChecker.
+ * يتفقد تحديثًا عامًا عند طلب المستخدم، ولا يرفع أي بيانات إلى الخادم.
+ * التنزيل والتحقق من بصمة APK والتثبيت بموافقة المستخدم ضمن [UpdateInstaller].
+ * يبقى URL الفحص فارغًا حتى يُحدد SAWN_UPDATE_MANIFEST_URL وقت بناء النسخة.
+ * راجع docs/update-hosting.md لإعداد GitHub Pages وGitHub Releases مجانًا.
  */
 data class UpdateInfo(
     val versionName: String,
     val versionCode: Int,
     val apkUrl: String,
     val changelog: String,
+    val sha256: String,
     /** تحديث إجباري (إن وُجدت إصلاحات حرجة في حماية الأطفال) — لا يُستخدم الآن. */
     val mandatory: Boolean = false,
 )
 
 sealed interface UpdateStatus {
+    data object Checking : UpdateStatus
+    data object Downloading : UpdateStatus
     data object UpToDate : UpdateStatus
     data class Available(val info: UpdateInfo) : UpdateStatus
     data object Disabled : UpdateStatus
@@ -64,49 +51,61 @@ class RemoteManifestUpdateChecker(
 ) : UpdateChecker {
 
     override suspend fun check(currentVersionCode: Int): UpdateStatus {
-        if (manifestUrl.contains("example.invalid") || manifestUrl.isBlank()) {
-            return UpdateStatus.Disabled
-        }
+        if (manifestUrl.isBlank()) return UpdateStatus.Disabled
+        if (!manifestUrl.startsWith("https://")) return UpdateStatus.Error("Manifest must use HTTPS")
+        var connection: HttpURLConnection? = null
         return try {
-            val conn = (URL(manifestUrl).openConnection() as HttpURLConnection).apply {
+            connection = URL(manifestUrl).openConnection() as HttpURLConnection
+            connection.apply {
                 connectTimeout = 10_000
                 readTimeout = 10_000
                 requestMethod = "GET"
+                instanceFollowRedirects = true
                 setRequestProperty("Accept", "application/json")
             }
-            val code = conn.responseCode
-            if (code != 200) {
-                conn.disconnect()
-                return UpdateStatus.Error("HTTP $code")
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                return UpdateStatus.Error("HTTP ${connection.responseCode}")
             }
-            val body = conn.inputStream.bufferedReader().use { it.readText() }
-            conn.disconnect()
+            if (connection.url.protocol != "https") return UpdateStatus.Error("Manifest redirect must use HTTPS")
+            if (connection.contentLengthLong > MAX_MANIFEST_BYTES) {
+                return UpdateStatus.Error("Manifest too large")
+            }
+            val body = connection.inputStream.bufferedReader().use { reader ->
+                val text = reader.readText()
+                if (text.length > MAX_MANIFEST_BYTES) return UpdateStatus.Error("Manifest too large")
+                text
+            }
             val json = JSONObject(body)
             val remoteCode = json.optInt("versionCode", 0)
-            if (remoteCode <= currentVersionCode) {
-                UpdateStatus.UpToDate
-            } else {
-                UpdateStatus.Available(
-                    UpdateInfo(
-                        versionName = json.optString("versionName", ""),
-                        versionCode = remoteCode,
-                        apkUrl = json.optString("apkUrl", ""),
-                        changelog = json.optString("changelog", ""),
-                        mandatory = json.optBoolean("mandatory", false),
-                    )
-                )
+            if (remoteCode <= 0) return UpdateStatus.Error("Invalid versionCode")
+            if (remoteCode <= currentVersionCode) return UpdateStatus.UpToDate
+            val apkUrl = json.optString("apkUrl", "")
+            val digest = json.optString("sha256", "").lowercase()
+            if (!apkUrl.startsWith("https://") || !digest.matches(Regex("[a-f0-9]{64}"))) {
+                return UpdateStatus.Error("Invalid APK URL or SHA-256 checksum")
             }
-        } catch (t: Throwable) {
+            UpdateStatus.Available(
+                UpdateInfo(
+                    versionName = json.optString("versionName", "").take(40),
+                    versionCode = remoteCode,
+                    apkUrl = apkUrl,
+                    changelog = json.optString("changelog", "").take(MAX_CHANGELOG_CHARS),
+                    sha256 = digest,
+                    mandatory = json.optBoolean("mandatory", false),
+                ),
+            )
+        } catch (t: Exception) {
             Log.w("SawnUpdate", "manifest check failed", t)
             UpdateStatus.Error(t.message ?: "unknown")
+        } finally {
+            connection?.disconnect()
         }
     }
 
     companion object {
-        /**
-         * عنوان المانيفيست. عيّنه إلى عنوان HTTPS ثابت (GitHub Pages / raw.githubusercontent.com)
-         * لتفعيل التحقق. القيمة الافتراضية (example.invalid) = معطل.
-         */
-        const val MANIFEST_URL: String = "https://example.invalid/sawn-updates/manifest.json"
+        private const val MAX_MANIFEST_BYTES = 64 * 1024
+        private const val MAX_CHANGELOG_CHARS = 2_000
+        const val MANIFEST_URL: String = ""
     }
+
 }

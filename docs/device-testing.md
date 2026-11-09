@@ -5,7 +5,7 @@ confirmed on a physical phone with real apps and a real Quick Settings panel. Wo
 these once on your device.
 
 ## Setup
-1. `./gradlew installDebug` with the phone connected (see [SETUP.md](SETUP.md)).
+1. `./gradlew installDebug` with the phone connected (see [setup.md](setup.md)).
 2. Grant, in-app: **Accessibility** (Settings → Accessibility → Sawn), **Usage access**,
    **Notifications**, and turn blocking **On** once (accept the VPN consent dialog).
 

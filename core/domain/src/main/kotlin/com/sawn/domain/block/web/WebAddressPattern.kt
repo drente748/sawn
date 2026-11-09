@@ -9,9 +9,8 @@ package com.sawn.domain.block.web
  * IPv4 literals, optional port and path/query — and rejects plain search
  * queries ("hello world"), so an address bar reading "cats" never matches.
  *
- * Rebuilt programmatically from the decompiled constant and proven to compile
- * with java.util.regex (Kotlin's Regex uses the same engine); see
- * docs/RE-block-11.3.0-ar.md for provenance.
+ * Rebuilt programmatically from a decompiled constant and proven to compile with
+ * java.util.regex (Kotlin's Regex uses the same engine).
  */
 internal object WebAddressPattern {
 

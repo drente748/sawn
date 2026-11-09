@@ -72,6 +72,9 @@ class SawnVpnService : VpnService() {
     /** When true, search/video queries are rewritten to safe-mode anchors. */
     @Volatile private var safeSearchOn: Boolean = false
 
+    /** Last day already written to the streak log, so the 30s tick writes at most once a day. */
+    @Volatile private var lastProtectedDay: java.time.LocalDate? = null
+
     /** Safe-host hostname → resolved IPv4 (as Int), cached for the tunnel's lifetime. */
     private val safeHostIps = HashMap<String, Int>()
 
@@ -224,6 +227,16 @@ class SawnVpnService : VpnService() {
         // source refresh while blocking is already on reaches the filter immediately.
         val extras = if (blockingActive && snapshot.pornGuard) settings.adultExtraDomains.first() else emptySet()
         blockedDomains = domains + extras
+
+        // Midnight rollover: WorkManager may be delayed by Doze, so the running tunnel also
+        // records the day. Guarded by a local date check, so this writes once per day at most.
+        if (blockingActive) {
+            val today = java.time.LocalDate.now()
+            if (lastProtectedDay != today) {
+                lastProtectedDay = today
+                runCatching { settings.recordActiveDay() }
+            }
+        }
     }
 
     private suspend fun refreshBlocklist() {

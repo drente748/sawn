@@ -245,7 +245,11 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
             onResult(false)
             return@launch
         }
-        val endsAt = container.settings.trustedNow() + durationMs
+        val now = container.settings.trustedNow()
+        val currentUntil = container.settings.lockdownUntil.first()
+        // A live lock only ever grows: the chosen duration is added to the time that is left,
+        // so no choice in the UI can shorten or clear it.
+        val endsAt = if (currentUntil > now) currentUntil + durationMs else now + durationMs
         onResult(container.settings.setLockdownUntil(endsAt))
     }
 
@@ -278,6 +282,9 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun wipeAllData() {
         viewModelScope.launch {
+            // A live lock also protects against the in-app escape hatch: clearing every setting
+            // would drop the lock, so it waits until the timer ends like every other change.
+            if (container.settings.isLockdownActiveNow()) return@launch
             runCatching {
                 SawnDatabase.get(getApplication()).clearAllTables()
                 container.settings.clearAllData()
@@ -316,12 +323,26 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         .catch { emit(JournalSnapshot()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), JournalSnapshot())
 
+    fun recordUrgeSessionCompleted() = viewModelScope.launch {
+        runCatching { container.settings.recordUrgeSessionCompleted() }
+    }
+
     /** نمط حماية بضغطة واحدة (خفيف / متوازن / أقصى). */
     fun applyPreset(preset: ShieldPreset) = viewModelScope.launch { container.settings.applyPreset(preset) }
     val longestStreak: StateFlow<Int> =
         container.stats.longestStreak()
         .catch { emit(0) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    /** Total recorded protected days (up to today) — shown next to the streak. */
+    val totalProtectedDays: StateFlow<Int> =
+        container.stats.totalProtectedDays()
+        .catch { emit(0) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    /** Last seven days, oldest first, for the streak strip. */
+    val recentProtectedDays: StateFlow<List<com.sawn.domain.DayCell>> =
+        container.stats.recentDays(7)
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val focusSessionsDone: StateFlow<Int> =
         container.settings.focusSessionsDone
         .catch { emit(0) }

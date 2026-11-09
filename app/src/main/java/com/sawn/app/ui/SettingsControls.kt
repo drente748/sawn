@@ -189,6 +189,7 @@ object SettingsControls {
 
         var pendingDurationMs by remember { mutableStateOf<Long?>(null) }
         var showNewLockOptions by remember { mutableStateOf(false) }
+        var manualOpen by remember { mutableStateOf(false) }
         var manualAmount by remember { mutableStateOf("") }
         var manualUnit by remember { mutableStateOf(LockdownPolicy.DurationUnit.MINUTES) }
         var manualError by remember { mutableStateOf(false) }
@@ -196,7 +197,7 @@ object SettingsControls {
 
         fun commitStaged() {
             vm.commitLockdown { success ->
-                activationError = if (success) null else ActivationError.FILTER
+                activationError = if (success) null else ActivationError.NOT_APPLIED
             }
         }
 
@@ -247,6 +248,13 @@ object SettingsControls {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.lockdown_ends_automatically),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                     if (!showNewLockOptions) {
                         Spacer(Modifier.height(8.dp))
                         OutlinedButton(
@@ -286,61 +294,68 @@ object SettingsControls {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(6.dp))
-                    OutlinedTextField(
-                        value = manualAmount,
-                        onValueChange = {
-                            // نقبل الأرقام العربية-الفارسية ونحوّلها فوراً إلى ASCII،
-                            // لأن toLongOrNull لا يقرأ ٠١٢.
-                            val normalized = LockdownPolicy.normalizeDigits(it)
-                            if (normalized.length <= 5 && normalized.all { c -> c in '0'..'9' }) {
-                                manualAmount = normalized
-                                manualError = false
+                    if (manualOpen) {
+                        OutlinedTextField(
+                            value = manualAmount,
+                            onValueChange = {
+                                // نقبل الأرقام العربية-الفارسية ونحوّلها فوراً إلى ASCII،
+                                // لأن toLongOrNull لا يقرأ ٠١٢.
+                                val normalized = LockdownPolicy.normalizeDigits(it)
+                                if (normalized.length <= 5 && normalized.all { c -> c in '0'..'9' }) {
+                                    manualAmount = normalized
+                                    manualError = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            isError = manualError,
+                            label = { Text(stringResource(R.string.lockdown_duration_field)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            LockdownPolicy.DurationUnit.entries.forEach { unit ->
+                                FilterChip(
+                                    selected = manualUnit == unit,
+                                    onClick = { manualUnit = unit },
+                                    label = { Text(unitLabel(unit)) },
+                                )
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        isError = manualError,
-                        label = { Text(stringResource(R.string.lockdown_duration_field)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        LockdownPolicy.DurationUnit.entries.forEach { unit ->
-                            FilterChip(
-                                selected = manualUnit == unit,
-                                onClick = { manualUnit = unit },
-                                label = { Text(unitLabel(unit)) },
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Button(
+                            onClick = {
+                                val millis = LockdownPolicy.validateManual(
+                                    LockdownPolicy.parseManualAmount(manualAmount) ?: 0L,
+                                    manualUnit,
+                                )
+                                if (millis == null) {
+                                    manualError = true
+                                } else {
+                                    manualError = false
+                                    activationError = null
+                                    pendingDurationMs = millis
+                                }
+                            },
+                            enabled = manualAmount.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.lockdown_apply)) }
+                        if (manualError) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                stringResource(R.string.lockdown_invalid_range),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
                             )
                         }
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Button(
-                        onClick = {
-                            val millis = LockdownPolicy.validateManual(
-                                LockdownPolicy.parseManualAmount(manualAmount) ?: 0L,
-                                manualUnit,
-                            )
-                            if (millis == null) {
-                                manualError = true
-                            } else {
-                                manualError = false
-                                activationError = null
-                                pendingDurationMs = millis
-                            }
-                        },
-                        enabled = manualAmount.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.lockdown_apply)) }
-                    if (manualError) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.lockdown_invalid_range),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
+                    } else {
+                        OutlinedButton(
+                            onClick = { manualOpen = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.lockdown_custom_open)) }
                     }
                 }
 
@@ -352,6 +367,7 @@ object SettingsControls {
                                 ActivationError.FILTER -> R.string.lockdown_no_filter
                                 ActivationError.ADMIN -> R.string.lockdown_no_admin
                                 ActivationError.FILTER_CONSENT -> R.string.lockdown_no_vpn_permission
+                                ActivationError.NOT_APPLIED -> R.string.lockdown_not_applied
                             },
                         ),
                         style = MaterialTheme.typography.bodySmall,
@@ -376,7 +392,7 @@ object SettingsControls {
         }
     }
 
-    private enum class ActivationError { FILTER, ADMIN, FILTER_CONSENT }
+    private enum class ActivationError { FILTER, ADMIN, FILTER_CONSENT, NOT_APPLIED }
 
     private fun unitMillis(unit: LockdownPolicy.DurationUnit): Long = when (unit) {
         LockdownPolicy.DurationUnit.MINUTES -> 60_000L

@@ -4,14 +4,21 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.sawn.app.vpn.VpnController
-import com.sawn.app.vpn.SawnVpnService
 import com.sawn.app.sawnContainer
+import com.sawn.domain.block.BootRestorePolicy
+import com.sawn.domain.block.BootRestoreState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
-/** Re-arms the DNS filter after a reboot or an app update if protection should be live. */
+/**
+ * Re-arms protection after a reboot, an app update, or an OEM quick-boot broadcast.
+ *
+ * The decision itself lives in [BootRestorePolicy] (pure + unit-tested): a live time lock
+ * always comes back whole, an explicit in-app stop never wakes anything up, and ordinary
+ * protection restarts the filter and counts the protected day without touching switches.
+ */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
@@ -25,33 +32,42 @@ class BootReceiver : BroadcastReceiver() {
                 // Watchdog backstop runs after every boot so a stale "protection stopped"
                 // notification from an accessibility loss during shutdown gets resolved.
                 GuardHealthWorker.schedule(context)
-                val settings = context.sawnContainer.settings
-                // المستخدم أوقف الحماية من داخل التطبيق — "المُوقِف الوحيد":
-                // لا إيقاظ تلقائي بعد إعادة التشغيل أو تحديث التطبيق.
-                if (settings.userDisabledProtection.first()) return@launch
-                if (boot) {
-                    // The monotonic anchor belongs to the previous boot; rebuild it from the
-                    // wall deadline protected by the high-water mark.
-                    settings.reanchorLockdown()
-                }
+                val container = context.sawnContainer
+                val settings = container.settings
+
+                // The monotonic anchor belongs to the previous boot; rebuild it from the wall
+                // deadline protected by the high-water mark. This must run before any early
+                // return, otherwise a stopped-then-restarted install keeps a stale anchor.
+                if (boot) settings.reanchorLockdown()
+
                 val lockdownActive = settings.isLockdownActiveNow()
-                if (lockdownActive) {
+                val filterActive = container.blockEngine.isBlockingActiveNow()
+                val decision = BootRestorePolicy.decide(
+                    BootRestoreState(
+                        userDisabledProtection = settings.userDisabledProtection.first(),
+                        lockdownActive = lockdownActive,
+                        filterActive = filterActive,
+                    ),
+                )
+
+                if (decision.reassertCoreFlags) {
                     // A lock must never survive with a weak filter: restore the core flags
-                    // atomically, then report a missing admin immediately.
+                    // atomically before anything else reads them.
                     settings.enforceLockdownCore()
-                    if (!AdminManager.isActive(context)) {
-                        GuardHealthNotifier.notifyAdminDown(context)
-                    }
                 }
-                // Re-arm if blocking is active for any reason — master, schedule, focus,
-                // or a live lockdown. Consent must have been granted previously.
-                val active = context.sawnContainer.blockEngine.isBlockingActiveNow()
-                if (active) context.sawnContainer.settings.recordActiveDay()
-                if (active && VpnController.consentIntent(context) == null) {
+                if (decision.recordProtectedDay) settings.recordActiveDay()
+                if (decision.warnMissingAdmin && !AdminManager.isActive(context)) {
+                    GuardHealthNotifier.notifyAdminDown(context)
+                }
+
+                // Consent was granted before the reboot; asking again is impossible from a
+                // receiver, so only a best-effort start here. If Android refuses a background
+                // foreground-service start, the worker retries seconds later.
+                if (decision.startFilter && VpnController.consentIntent(context) == null) {
                     VpnController.start(context)
-                } else if (lockdownActive && !SawnVpnService.running) {
-                    // The worker will surface this if the best-effort start above did not
-                    // happen (consent missing) or the tunnel died immediately.
+                }
+                if (decision.startFilter) KeepAliveWorker.schedule(context, delaySeconds = 20L)
+                if (decision.startFilter && !com.sawn.app.vpn.SawnVpnService.running && lockdownActive) {
                     GuardHealthNotifier.notifyVpnDown(context)
                 }
             } finally {

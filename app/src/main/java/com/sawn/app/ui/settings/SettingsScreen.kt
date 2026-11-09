@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
@@ -92,8 +93,10 @@ fun SettingsScreen(
     val profileName by vm.profileName.collectAsStateWithLifecycle()
     val profileAge by vm.profileAge.collectAsStateWithLifecycle()
     val sawnLocale by vm.sawnLocale.collectAsStateWithLifecycle()
+    val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
 
     var showWipeConfirm by remember { mutableStateOf(false) }
+    var showWipeBlocked by remember { mutableStateOf(false) }
     var showEditProfile by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
@@ -220,8 +223,12 @@ fun SettingsScreen(
             DestructiveRow(
                 icon = Icons.Filled.Warning,
                 title = stringResource(R.string.settings_privacy_wipe),
-                subtitle = stringResource(R.string.settings_privacy_wipe_sub),
-                onClick = { showWipeConfirm = true },
+                subtitle = stringResource(
+                    if (lockdownActive) R.string.settings_wipe_locked else R.string.settings_privacy_wipe_sub,
+                ),
+                onClick = {
+                    if (lockdownActive) showWipeBlocked = true else showWipeConfirm = true
+                },
             )
 
             // ===== إعادة عرض المقدمة =====
@@ -238,6 +245,20 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(24.dp))
         }
+    }
+
+    if (showWipeBlocked) {
+        AlertDialog(
+            onDismissRequest = { showWipeBlocked = false },
+            icon = { Icon(Icons.Filled.Lock, contentDescription = null) },
+            title = { Text(stringResource(R.string.lockdown_active_title)) },
+            text = { Text(stringResource(R.string.settings_wipe_locked)) },
+            confirmButton = {
+                TextButton(onClick = { showWipeBlocked = false }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+        )
     }
 
     if (showWipeConfirm) {

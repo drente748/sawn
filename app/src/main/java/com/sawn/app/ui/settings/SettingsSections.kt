@@ -1,6 +1,7 @@
 package com.sawn.app.ui.settings
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,12 +17,15 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +47,13 @@ import com.sawn.app.ui.SettingsSectionScreen
 import com.sawn.app.ui.SawnViewModel
 import com.sawn.app.ui.rememberResumeTick
 import com.sawn.app.util.PermissionsHelper
+import com.sawn.app.sawnContainer
+import com.sawn.app.update.InstallUpdateResult
+import com.sawn.app.update.UpdateInstaller
+import com.sawn.app.update.UpdateStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * أقسام الإعدادات الثلاثة: الحماية / المتصفح / الخصوصية والدعم.
@@ -265,6 +275,20 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onOpenSetup: () -> Unit, onB
     val resumeTick = rememberResumeTick()
     val notificationsGranted = remember(resumeTick) { PermissionsHelper.hasNotifications(context) }
     val hasPin = pinConfigured == true
+    val scope = rememberCoroutineScope()
+    var updateStatus by remember { mutableStateOf<UpdateStatus?>(null) }
+    var installUri by remember { mutableStateOf<Uri?>(null) }
+    val installPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        val uri = installUri ?: return@rememberLauncherForActivityResult
+        if (android.os.Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()) {
+            runCatching { UpdateInstaller.install(context, uri) }
+                .onFailure { updateStatus = UpdateStatus.Error(it.message ?: "unknown") }
+        } else {
+            updateStatus = UpdateStatus.Error(context.getString(R.string.update_install_permission_missing))
+        }
+    }
 
     SettingsSectionScreen(stringResource(R.string.settings_privacy), onBack) {
         SettingsControls.PinCard(vm = vm, strict = strict, hasPin = hasPin)
@@ -285,6 +309,44 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onOpenSetup: () -> Unit, onB
         }
 
         InfoCard(title = stringResource(R.string.privacy_title), body = stringResource(R.string.privacy_body))
+
+        UpdateSettingsCard(
+            status = updateStatus,
+            onCheck = {
+                updateStatus = UpdateStatus.Checking
+                scope.launch {
+                    updateStatus = runCatching {
+                        withContext(Dispatchers.IO) {
+                            context.sawnContainer.updateChecker.check(BuildConfig.VERSION_CODE)
+                        }
+                    }.getOrElse { UpdateStatus.Error(it.message ?: "unknown") }
+                    if (updateStatus == UpdateStatus.Disabled) {
+                        updateStatus = UpdateStatus.Error(context.getString(R.string.update_host_not_configured))
+                    }
+                }
+            },
+            onInstall = { info ->
+                updateStatus = UpdateStatus.Downloading
+                scope.launch {
+                    when (val result = UpdateInstaller.downloadAndVerify(context, info)) {
+                        is InstallUpdateResult.Failed -> updateStatus = UpdateStatus.Error(result.reason)
+                        is InstallUpdateResult.Ready -> {
+                            installUri = result.packageUri
+                            if (android.os.Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
+                                runCatching {
+                                    installPermissionLauncher.launch(
+                                        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")),
+                                    )
+                                }.onFailure { updateStatus = UpdateStatus.Error(it.message ?: "unknown") }
+                            } else {
+                                UpdateInstaller.install(context, result.packageUri)
+                                updateStatus = UpdateStatus.UpToDate
+                            }
+                        }
+                    }
+                }
+            },
+        )
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
@@ -334,6 +396,53 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onOpenSetup: () -> Unit, onB
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun UpdateSettingsCard(
+    status: UpdateStatus?,
+    onCheck: () -> Unit,
+    onInstall: (com.sawn.app.update.UpdateInfo) -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(R.string.update_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.update_privacy),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (status != null) {
+                Spacer(Modifier.height(8.dp))
+                when (status) {
+                    UpdateStatus.Checking -> Text(stringResource(R.string.update_checking))
+                    UpdateStatus.Downloading -> Text(stringResource(R.string.update_downloading))
+                    UpdateStatus.UpToDate -> Text(stringResource(R.string.update_up_to_date))
+                    UpdateStatus.Disabled -> Text(stringResource(R.string.update_host_not_configured))
+                    is UpdateStatus.Error -> Text(
+                        stringResource(R.string.update_failed, status.message),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    is UpdateStatus.Available -> {
+                        Text(stringResource(R.string.update_available, status.info.versionName))
+                        if (status.info.changelog.isNotBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(status.info.changelog, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { onInstall(status.info) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.update_install))
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onCheck, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.update_check))
+            }
         }
     }
 }

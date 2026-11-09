@@ -1,11 +1,11 @@
 package com.sawn.domain.block.web
 
 /**
- * Pure URL-bar extraction, ported from Block 11.3.0's FGAccessibilityService
- * address-bar reader (see docs/RE-block-11.3.0-ar.md §3.2). No Android types —
+ * Pure URL-bar extraction: the address-bar reader derived from a reverse-engineering
+ * pass on a mature blocker's accessibility engine. No Android types —
  * fully unit-testable.
  *
- * Semantics (mirroring Block exactly):
+ * Semantics (kept identical to the engine it was derived from):
  *  - A *focused* URL bar means the user is typing; extraction bails so we
  *    never block mid-typing and never read a half-finished query as a domain.
  *  - [text] is trusted as-is (browsers keep the URL in the bar text), passed

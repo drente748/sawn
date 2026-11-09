@@ -22,12 +22,12 @@ import kotlinx.coroutines.launch
  * adult-domain navigation that escaped the DNS filter (DoH-using browsers, raw-IP entry
  * via a proxy, cached DNS).
  *
- * Ported from Block 11.3.0's FGAccessibilityService web engine (see
- * docs/RE-block-11.3.0-ar.md): each known browser ships an exact view-id list for its
- * URL bar ([BrowserConfig], 116 browsers), a raw-tree fallback covers Firefox-family
- * toolbars, and the whole-string [com.sawn.domain.block.web.WebAddressPattern] gate
- * rejects search queries so an address bar reading "cats" is never a domain. Browsers
- * without a config entry keep the old heuristic text scan.
+ * Address-bar engine derived from a reverse-engineering pass on a mature blocker: each
+ * known browser ships an exact view-id list for its URL bar ([BrowserConfig], 116
+ * browsers), a raw-tree fallback covers Firefox-family toolbars, and the whole-string
+ * [com.sawn.domain.block.web.WebAddressPattern] gate rejects search queries so an
+ * address bar reading "cats" is never a domain. Browsers without a config entry keep the
+ * old heuristic text scan.
  *
  * Behavior details taken from Block: a focused bar means the user is typing and is
  * never read ([WebUrlExtractor]); repeated events for the same package are throttled;

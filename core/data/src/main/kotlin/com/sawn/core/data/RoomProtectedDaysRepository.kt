@@ -1,5 +1,6 @@
 package com.sawn.core.data
 
+import com.sawn.domain.DayCell
 import com.sawn.domain.ProtectionDayPolicy
 import com.sawn.domain.repo.ProtectedDaysRepository
 import com.sawn.domain.repo.StatsRepository
@@ -35,8 +36,17 @@ class RoomStatsRepository(private val days: ProtectedDaysRepository) : StatsRepo
         days.observeProtectedDays().map { ProtectionDayPolicy.currentStreak(it, LocalDate.now()) }
 
     override fun longestStreak(): Flow<Int> =
-        days.observeProtectedDays().map(ProtectionDayPolicy::longestStreak)
+        days.observeProtectedDays().map {
+            // Cut future dates here too: a corrupted/clock-skewed row must not inflate history.
+            ProtectionDayPolicy.longestStreak(it, LocalDate.now())
+        }
 
     override fun isAtRisk(): Flow<Boolean> =
         days.observeProtectedDays().map { ProtectionDayPolicy.isAtRisk(it, LocalDate.now()) }
+
+    override fun totalProtectedDays(): Flow<Int> =
+        days.observeProtectedDays().map { ProtectionDayPolicy.totalProtectedDays(it, LocalDate.now()) }
+
+    override fun recentDays(pastDays: Int): Flow<List<DayCell>> =
+        days.observeProtectedDays().map { ProtectionDayPolicy.heatmap(it, LocalDate.now(), pastDays) }
 }

@@ -36,7 +36,7 @@
     <string name="you_are_protected">أنت في حماية</string>
     <string name="protection_off">الحماية مطفأة</string>
     <string name="protection_waiting">الحماية في الانتظار</string>
-    <string name="protection_scheduled">الحماية مجدولة — تعمل داخل النوافد</string>
+    <string name="protection_scheduled">الحماية مجدولة — تعمل ضمن النوافذ الزمنية</string>
     <string name="protection_enabled">الحماية مفعّلة</string>
     <string name="protection_disabled">الحماية مطفأة الآن</string>
     <string name="setup_required">الإعداد ناقص</string>
@@ -86,8 +86,8 @@
     <string name="summary_app_pause_limit">· حدّ %1$d دقيقة/يوم</string>
 
     <string name="schedules_title">الجداول</string>
-    <string name="schedules_detail">نوافد زمنية لتفعيل الحجب</string>
-    <string name="schedules_hint">حين يكون «الدائم» مطفأً، يعمل الحجب داخل هذه النوافد فقط.</string>
+    <string name="schedules_detail">نوافذ زمنية لتفعيل الحجب</string>
+    <string name="schedules_hint">حين يكون «الدائم» مطفأً، يعمل الحجب داخل هذه النوافذ فقط.</string>
     <string name="new_schedule">جدول جديد</string>
     <string name="schedules_empty">لا جداول بعد. أضف واحداً ثم أطفئ «الدائم» من الإعدادات.</string>
 
@@ -167,17 +167,20 @@
 
     <!-- قفل الحماية -->
     <string name="lockdown_title">قفل الحماية</string>
-    <string name="lockdown_body">اختر مدة تُقفل فيها الحماية: لا إيقاف ولا حذف طوالها.</string>
-    <string name="lockdown_active_body_card">القفل مطلق: لا يمكن إيقاف الحماية أو إزالة التطبيق قبل انتهاء المدة.</string>
-    <string name="lockdown_new">قفل جديد</string>
-    <string name="lockdown_replaces">القفل الجديد يبدأ من الآن ويستبدل المدة الحالية بالكامل.</string>
-    <string name="lockdown_custom_label">أو مدة مخصصة (دقيقة واحدة – 12 شهراً)</string>
+    <string name="lockdown_body">اختر مدة يُقفل فيها صَوْن: لا إيقاف للحماية، ولا تعطيل لحجب الإباحية، ولا حذف للتطبيق حتى تنتهي المدة.</string>
+    <string name="lockdown_active_body_card">القفل مطلق: لا يمكن إيقاف الحماية ولا حذف التطبيق قبل انتهاء المدة.</string>
+    <string name="lockdown_ends_automatically">ينتهي القفل تلقائيًا عند نهاية المدة — لا يوجد زر لإيقافه الآن.</string>
+    <string name="lockdown_new">تمديد القفل</string>
+    <string name="lockdown_replaces">تُضاف المدة المختارة إلى الوقت المتبقي. لا يمكن تقصير القفل أو إيقافه.</string>
+    <string name="lockdown_custom_label">مدة مخصصة (1 دقيقة – 12 شهراً)</string>
+    <string name="lockdown_custom_open">مدة مخصصة</string>
     <string name="lockdown_duration_field">المدة</string>
     <string name="lockdown_apply">تثبيت المدة المخصصة</string>
     <string name="lockdown_invalid_range">المدة يجب أن تكون بين دقيقة واحدة و12 شهراً.</string>
     <string name="lockdown_no_filter">تعذّر تشغيل فلتر الحماية — لم يُكتب القفل. حاول مرة أخرى.</string>
     <string name="lockdown_no_admin">لم تُفعَّل حماية الإلغاء — لم يُكتب القفل.</string>
     <string name="lockdown_no_vpn_permission">لم يُمنح إذن الفلتر — لم يُكتب القفل.</string>
+    <string name="lockdown_not_applied">لم يُطبّق القفل. تأكد من إذن الفلتر وحماية الإلغاء ثم أعد المحاولة.</string>
     <string name="remaining_time">متبقٍ %1$s</string>
 
     <!-- أقسام المتصفح والخصوصية -->
@@ -250,7 +253,7 @@
     <string name="onboarding_pillar_apps_title">حجب التطبيقات والتمرير اللانهائي</string>
     <string name="onboarding_pillar_apps_body">التطبيق بالكامل، أو الريلز والشورتس داخله وحدها، مع توقّفٍ واعٍ قبل أن تستجيب.</string>
     <string name="onboarding_pillar_schedule_title">جداول وتركيز ووضعٌ صارم</string>
-    <string name="onboarding_pillar_schedule_body">نوافد تمتدّ بعد منتصف الليل، وجلسات تركيز، وقفلٌ بالرقم السري مع حمايةٍ من الحذف.</string>
+    <string name="onboarding_pillar_schedule_body">نوافذ تمتدّ بعد منتصف الليل، وجلسات تركيز، وقفلٌ بالرقم السري مع حمايةٍ من الحذف.</string>
     <string name="onboarding_notice">مجاني للاستخدام · تطبيق تجاري · مساحةٌ إعلانية هادئة قد تظهر في الرئيسية أو صفحة الإنجازات فقط — ولا تظهر أبداً في شاشة الحجب أو التوقّف الواعي. خطةٌ مدفوعة (بلا إعلانات ومزايا أكثر) لاحقاً.</string>
     <string name="onboarding_get_started">لنبدأ</string>
     <string name="onboarding_skip">تخطّي</string>
@@ -381,7 +384,9 @@
     <string name="home_journal_today">%1$d محاولة صُدّت</string>
     <string name="home_journal_quiet">لا محاولات اليوم — يومٌ هادئ.</string>
     <string name="home_journal_week">آخر 7 أيام</string>
-    <string name="home_journal_total">الإجمالي منذ البداية: %1$d</string>
+    <string name="home_journal_total">منذ البداية: %1$d محاولة محجوبة · %2$d جلسة رغبة مكتملة</string>
+    <string name="home_journal_week_total">محجوبة هذا الأسبوع</string>
+    <string name="home_journal_urge_week">جلسات الرغبة</string>
     <string name="home_presets_title">أنماط الحماية</string>
     <string name="home_presets_hint">نمطٌ واحد يضبط المفاتيح كلها — وتبقى قادراً على تعديلها فرداً فرداً.</string>
     <string name="preset_light">خفيف</string>
@@ -405,7 +410,7 @@
     <string name="home_focus_quick">جلسة تركيز</string>
     <string name="home_focus_minutes">%1$d د</string>
     <string name="home_focus_strict_hint">صارمة — لا إنهاء قبل انتهاء المدة</string>
-    <string name="home_privacy_footer">كل شيء على جهازك: بلا حساب، بلا سيرفر، بلا تسجيل تصفّح.</string>
+    <string name="home_privacy_footer">بياناتك على جهازك ولا نرسلها لأي خادم؛ تُجلب القوائم والتحديثات فقط عندما تطلب ذلك.</string>
     <string name="streak_label">أيام متتابعة</string>
 
     <!-- فحص الحماية -->
@@ -485,9 +490,18 @@
     <string name="stat_sessions">جلسات مكتملة</string>
     <string name="stat_blocked_week">صُدّت هذا الأسبوع</string>
     <string name="home_streak_at_risk">اليوم لم يُسجَّل بعد — شغّل الحماية اليوم لتبقى السلسلة حيّة.</string>
+    <string name="home_streak_title">سلسلة حمايتك</string>
+    <string name="home_streak_unit">يوم متتابع</string>
+    <string name="home_streak_best">أطول سلسلة</string>
+    <string name="home_streak_total">أيام محمية</string>
+    <string name="home_streak_sessions">جلسات تركيز</string>
+    <string name="home_streak_today">اليوم محمي — استمر</string>
+    <string name="home_streak_today_pending">اليوم لم يُسجَّل بعد</string>
     <string name="home_section_tools">أدوات</string>
+    <string name="home_section_lock">قفل صَوْن</string>
+    <string name="home_section_lock_hint">قفل مؤقت يمنع إيقاف الحماية أو حذف التطبيق حتى تنتهي المدة، وينتهي وحده.</string>
     <string name="sos_title">لحظة رغبة؟</string>
-    <string name="sos_body">دقيقة واحدة من التنفّس تكفي لتعبر الموجة. لا شيء يُسجَّل ولا يُرسل.</string>
+    <string name="sos_body">تنفّس، أو ركّز على ما حولك، أو أجّل القرار قليلاً. الإحصاء محلي على جهازك.</string>
     <string name="sos_open">افتح درع الرغبة</string>
     <string name="sos_close">أنا بخير الآن</string>
     <string name="sos_inhale">شهيق…</string>
@@ -498,7 +512,35 @@
     <string name="sos_done_body">الرغبة موجةٌ لا أمر. امنحها دقيقةً أخرى إن احتجت، ثم اذهب إلى شيء يشغلك.</string>
     <string name="sos_again">دقيقة أخرى</string>
     <string name="sos_counter">%1$d ثانية</string>
-    <string name="sos_note">تنفّس 4 – 7 – 8 يهدّئ الجهاز العصبي. أبقِ الشاشة بعيدة عن المحتوى الآن.</string>
+    <string name="sos_note">تنفّس براحة وعلى مهل؛ لا تحبس النفس إن سبب لك انزعاجاً. ويمكنك إنهاء التمرين متى شئت.</string>
+    <string name="sos_tool_breathe">تنفّس</string>
+    <string name="sos_tool_ground">ثبّت انتباهك</string>
+    <string name="sos_tool_delay">أجّل القرار</string>
+    <string name="sos_ground_title">عُد إلى اللحظة</string>
+    <string name="sos_ground_step">الخطوة %1$d من 3</string>
+    <string name="sos_ground_see">اذكر في ذهنك خمسة أشياء تراها حولك.</string>
+    <string name="sos_ground_touch">لاحظ أربعة أشياء يمكنك لمسها، وملمس كلّ منها.</string>
+    <string name="sos_ground_hear">أنصت إلى ثلاثة أصوات قريبة أو بعيدة.</string>
+    <string name="sos_ground_previous">السابق</string>
+    <string name="sos_ground_next">التالي</string>
+    <string name="sos_ground_done">أنهيت التمرين</string>
+    <string name="sos_delay_title">لا يلزم أن تقرّر الآن</string>
+    <string name="sos_delay_body">ابتعد عن الشاشة عشر دقائق، واشرب ماءً أو تحرّك قليلاً. يمكنك الرجوع متى شئت.</string>
+    <string name="sos_delay_counter">%1$d:%2$02d</string>
+    <string name="sos_delay_start">ابدأ المؤقّت</string>
+    <string name="sos_delay_running">المؤقّت يعمل</string>
+    <string name="stats_urge_week_total">جلسات تجاوز الرغبة هذا الأسبوع: %1$d · المكتملة منذ البداية: %2$d</string>
+    <string name="update_title">تحديث صَوْن</string>
+    <string name="update_privacy">يتحقق صَوْن من التحديثات فقط عند ضغطك على الزر. لا تُرسل بيانات استخدامك.</string>
+    <string name="update_check">تحقّق من وجود تحديث</string>
+    <string name="update_checking">جارٍ التحقق من التحديث…</string>
+    <string name="update_downloading">جارٍ تنزيل التحديث والتحقق من سلامته…</string>
+    <string name="update_up_to_date">لديك أحدث إصدار.</string>
+    <string name="update_available">يتوفر الإصدار %1$s. راجع التفاصيل ثم ثبّته بموافقتك.</string>
+    <string name="update_install">تنزيل التحديث وتثبيته</string>
+    <string name="update_failed">تعذّر إكمال التحديث: %1$s</string>
+    <string name="update_host_not_configured">لم تُربط الاستضافة بعد. أعد بناء التطبيق بعد إعداد رابط manifest عبر SAWN_UPDATE_MANIFEST_URL.</string>
+    <string name="update_install_permission_missing">لم يُمنح الإذن بتثبيت تطبيقات من هذا المصدر.</string>
 
     <!-- الترحيب v3 -->
     <string name="ob_features_page_title">كل ما يهمّك في مكانٍ واحد</string>
@@ -629,7 +671,8 @@
     <string name="settings_reset_onboarding_sub">Walk through the welcome and your plan once more</string>
 
     <string name="settings_privacy_wipe">Erase all my data</string>
-    <string name="settings_privacy_wipe_sub">Deletes your blocklists, streak and settings — irreversible</string>
+    <string name="settings_privacy_wipe_sub">يحذف قوائم الحجب والسلسلة والإعدادات — لا يمكن التراجع</string>
+    <string name="settings_wipe_locked">القفل الزمني نشط: لا يمكن مسح البيانات قبل انتهاء المدة، لأن المسح سيرفع القفل.</string>
     <string name="settings_privacy_wipe_confirm_title">Erase everything?</string>
     <string name="settings_privacy_wipe_confirm_body">This deletes your blocklist, schedules, streak history and all settings from this device. It cannot be undone.</string>
     <string name="settings_privacy_wipe_confirm_action">Erase everything</string>

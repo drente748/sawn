@@ -7,10 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The WebAddressPattern is ported verbatim from Block 11.3.0 and proven to compile
- * with java.util.regex during the port (docs/RE-block-11.3.0-ar.md). These tests pin
- * the observable behavior the extractor relies on: whole-string URL matching that
- * accepts full URLs, bare domains, punycode, IDN and IPv4 — and rejects prose.
+ * The WebAddressPattern was rebuilt from a decompiled constant and proven to compile
+ * with java.util.regex. These tests pin the observable behavior the extractor relies on:
+ * whole-string URL matching that accepts full URLs, bare domains, punycode, IDN and
+ * IPv4 — and rejects prose.
  */
 class WebAddressPatternTest {
 

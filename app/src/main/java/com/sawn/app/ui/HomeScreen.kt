@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,7 +59,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
 import com.sawn.app.ui.theme.SawnPalette
 import com.sawn.app.vpn.SawnVpnService
+import com.sawn.domain.DayCell
 import com.sawn.domain.feature.JournalSnapshot
+import java.time.LocalDate
 import com.sawn.domain.feature.ShieldPreset
 import com.sawn.domain.feature.ShieldPresetState
 import com.sawn.domain.feature.ProtectionCheckup
@@ -97,6 +100,8 @@ fun HomeScreen(
     val longest by vm.longestStreak.collectAsStateWithLifecycle()
     val streakAtRisk by vm.streakAtRisk.collectAsStateWithLifecycle()
     val sessions by vm.focusSessionsDone.collectAsStateWithLifecycle()
+    val totalDays by vm.totalProtectedDays.collectAsStateWithLifecycle()
+    val recentDays by vm.recentProtectedDays.collectAsStateWithLifecycle()
     val focusEndsAt by vm.focusEndsAt.collectAsStateWithLifecycle()
     val focusStrict by vm.focusStrict.collectAsStateWithLifecycle()
     val strictLocked by vm.strictLocked.collectAsStateWithLifecycle()
@@ -285,6 +290,17 @@ fun HomeScreen(
             }
         }
 
+        // ===== سلسلة الأيام — أسفل بطاقة الحماية مباشرة =====
+        StreakCard(
+            streak = streak,
+            longest = longest,
+            sessions = sessions,
+            totalDays = totalDays,
+            recent = recentDays,
+            atRisk = streakAtRisk,
+            onClick = onOpenStats,
+        )
+
         // ===== تنبيهات سياقية =====
         when {
             !accessibility -> AlertRow(stringResource(R.string.complete_setup), urgent = true, onClick = onOpenSetup)
@@ -430,25 +446,11 @@ fun HomeScreen(
             }
         }
 
-        // ===== التقدم =====
+        // ===== حصيلتك =====
         SectionHeader(
             stringResource(R.string.home_section_progress),
             stringResource(R.string.home_section_progress_hint),
         )
-        ProgressStrip(
-            streak = streak,
-            longest = longest,
-            sessions = sessions,
-            onClick = onOpenStats,
-        )
-        if (streakAtRisk) {
-            Text(
-                stringResource(R.string.home_streak_at_risk),
-                style = MaterialTheme.typography.bodySmall,
-                color = SawnPalette.GoldDeep,
-            )
-        }
-
         JournalCard(journal)
 
         FocusInline(
@@ -461,6 +463,13 @@ fun HomeScreen(
         // ===== أدواتي =====
         SectionHeader(stringResource(R.string.home_section_tools))
         SosCard(onOpen = { showSos = true })
+
+        // ===== قفل صَوْن =====
+        SectionHeader(
+            stringResource(R.string.home_section_lock),
+            stringResource(R.string.home_section_lock_hint),
+        )
+        SettingsControls.LockdownCard(vm = vm)
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ManageTile(
@@ -520,7 +529,10 @@ fun HomeScreen(
         SettingsControls.PinSetup(vm = vm, enableStrictAfter = true, onDismiss = { showPinForStrict = false })
     }
     if (showSos) {
-        UrgeSosDialog(onDismiss = { showSos = false })
+        UrgeSosDialog(
+            onSessionCompleted = vm::recordUrgeSessionCompleted,
+            onDismiss = { showSos = false },
+        )
     }
 }
 
@@ -659,6 +671,162 @@ private fun ManageTile(
     }
 }
 
+/**
+ * بطاقة السلسلة الغنية — تجلس أسفل بطاقة الحماية مباشرة: الرقم الكبير أولاً، ثم آخر
+ * سبعة أيام كخريطة دقيقة (اليوم آخر عمود)، ثم أطول سلسلة وإجمالي الأيام وجلسات التركيز.
+ * كل شيء من سجل `protected_days` نفسه، فلا يمكن أن تختلف عن شاشة الإنجازات.
+ */
+@Composable
+private fun StreakCard(
+    streak: Int,
+    longest: Int,
+    sessions: Int,
+    totalDays: Int,
+    recent: List<DayCell>,
+    atRisk: Boolean,
+    onClick: () -> Unit,
+) {
+    val letters = listOf(
+        R.string.day_letter_mon, R.string.day_letter_tue, R.string.day_letter_wed,
+        R.string.day_letter_thu, R.string.day_letter_fri, R.string.day_letter_sat,
+        R.string.day_letter_sun,
+    )
+    val cream = Color(0xFFFDE8D8)
+    val today = LocalDate.now()
+    val cells = remember(recent, today) {
+        (6 downTo 0).map { offset ->
+            val date = today.minusDays(offset.toLong())
+            recent.firstOrNull { it.date == date } ?: DayCell(date, protected = false)
+        }
+    }
+
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        color = SawnPalette.Ink,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(38.dp).clip(CircleShape).background(SawnPalette.GoldContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.EmojiEvents,
+                        contentDescription = null,
+                        tint = SawnPalette.GoldDeep,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
+                androidx.compose.foundation.layout.Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(
+                        stringResource(R.string.home_streak_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = cream,
+                    )
+                    Text(
+                        stringResource(
+                            if (atRisk) R.string.home_streak_today_pending else R.string.home_streak_today,
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (atRisk) SawnPalette.Gold else Color(0xFF86EFAC),
+                    )
+                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = stringResource(R.string.home_manage_stats),
+                    tint = cream.copy(alpha = 0.7f),
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    SawnNumbers.format(streak),
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = SawnPalette.Gold,
+                )
+                Text(
+                    stringResource(R.string.home_streak_unit),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = cream.copy(alpha = 0.85f),
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                cells.forEachIndexed { index, cell ->
+                    val isToday = index == cells.lastIndex
+                    Column(
+                        Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(7.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(
+                                    if (cell.protected) SawnPalette.Gold else cream.copy(alpha = 0.16f),
+                                ),
+                        )
+                        Text(
+                            stringResource(letters[cell.date.dayOfWeek.value - 1]),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isToday) SawnPalette.Gold else cream.copy(alpha = 0.6f),
+                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
+                }
+            }
+
+            Box(Modifier.fillMaxWidth().height(1.dp).background(cream.copy(alpha = 0.16f)))
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StreakMetric(Modifier.weight(1f), SawnNumbers.format(longest), stringResource(R.string.home_streak_best))
+                StreakMetric(Modifier.weight(1f), SawnNumbers.format(totalDays), stringResource(R.string.home_streak_total))
+                StreakMetric(Modifier.weight(1f), SawnNumbers.format(sessions), stringResource(R.string.home_streak_sessions))
+            }
+
+            if (atRisk) {
+                Text(
+                    stringResource(R.string.home_streak_at_risk),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SawnPalette.Gold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StreakMetric(modifier: Modifier, value: String, label: String) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color(0xFFFDE8D8),
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFFFDE8D8).copy(alpha = 0.72f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 @Composable
 private fun JournalCard(snapshot: JournalSnapshot) {
     DawnCard {
@@ -691,11 +859,42 @@ private fun JournalCard(snapshot: JournalSnapshot) {
             color = SawnPalette.Ink,
         )
         ProtectionWeekChart(snapshot)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            JournalMetricChip(
+                value = snapshot.weekTotal,
+                label = stringResource(R.string.home_journal_week_total),
+                modifier = Modifier.weight(1f),
+            )
+            JournalMetricChip(
+                value = snapshot.urgesLast7,
+                label = stringResource(R.string.home_journal_urge_week),
+                modifier = Modifier.weight(1f),
+            )
+        }
         Text(
-            stringResource(R.string.home_journal_total, snapshot.total),
+            stringResource(R.string.home_journal_total, snapshot.total, snapshot.urgesTotal),
             style = MaterialTheme.typography.bodySmall,
             color = SawnPalette.InkSoft,
         )
+    }
+}
+
+@Composable
+private fun JournalMetricChip(value: Int, label: String, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(14.dp), color = SawnPalette.DawnBg) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                SawnNumbers.format(value),
+                style = MaterialTheme.typography.titleSmall,
+                color = SawnPalette.PrimaryDeep,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(label, style = MaterialTheme.typography.labelSmall, color = SawnPalette.InkSoft, maxLines = 2)
+        }
     }
 }
 
