@@ -140,6 +140,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
                     if (isForeground(pkg)) launchIntercept(InterceptActivity.KIND_BLOCK, decision.item.id, null, null)
                 is AccessDecision.LimitReached ->
                     if (isForeground(pkg)) launchIntercept(InterceptActivity.KIND_LIMIT, decision.item.id, decision.reason, null)
+                is AccessDecision.DeepFocusBlock ->
+                    if (isForeground(pkg)) launchIntercept(InterceptActivity.KIND_DEEP_FOCUS, -1L, null, null, pkg)
             }
         }
     }

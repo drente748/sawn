@@ -95,8 +95,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
 import com.sawn.domain.model.BlockType
 import com.sawn.core.data.BlockedItem
+import com.sawn.domain.feature.ParentalModePolicy
 import com.sawn.domain.model.InterceptMode
 import com.sawn.core.data.Schedule
+import com.sawn.domain.security.PinResult
 import com.sawn.app.ui.status.CoverageLevel
 import com.sawn.app.ui.status.CoverageState
 import com.sawn.app.ui.status.coverageLevel
@@ -433,6 +435,9 @@ fun StatsScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
 /**
  * بوابة الرقم السري لإدارة التطبيق. حالة الفتح واحدة مشتركة يملكها MainActivity حتى لا
  * يطلب الرقم مراراً أثناء التنقل بين الأقسام، وتُغلق من جديد عند إعادة الدخول للتطبيق.
+ *
+ * في وضع ولي الأمر (مع رقم ولي الأمر مُعيَّن) يُطلب رقم الوالدين بدل رقم المستخدم —
+ * هو الذي يحرس الإدارة.
  */
 @Composable
 fun ManagementPinGate(
@@ -444,7 +449,11 @@ fun ManagementPinGate(
 ) {
     val settingsReady by vm.settingsReady.collectAsStateWithLifecycle()
     val pinConfigured by vm.pinConfigured.collectAsStateWithLifecycle()
+    val parentMode by vm.parentModeEnabled.collectAsStateWithLifecycle()
+    val parentPinSet by vm.parentPinPresent.collectAsStateWithLifecycle()
     var showUnlock by remember { mutableStateOf(false) }
+
+    val parentLocked = ParentalModePolicy.isManagementLocked(parentPinSet, parentMode)
 
     // حتى يصل أول لقطة من DataStore لا نعرف إن كان رقم سري موجوداً، فلا نعرض الواجهة.
     if (!settingsReady || pinConfigured == null) {
@@ -476,8 +485,16 @@ fun ManagementPinGate(
         }
         if (showUnlock) {
             VerifyPinDialog(
-                title = stringResource(R.string.enter_pin),
-                verify = vm::verifyPin,
+                title = stringResource(
+                    if (parentLocked) R.string.parent_unlock_title else R.string.enter_pin,
+                ),
+                verify = { pin ->
+                    if (parentLocked) {
+                        if (vm.verifyParentPin(pin)) PinResult.Ok else PinResult.Wrong
+                    } else {
+                        vm.verifyPin(pin)
+                    }
+                },
                 onSuccess = {
                     showUnlock = false
                     onUnlocked()

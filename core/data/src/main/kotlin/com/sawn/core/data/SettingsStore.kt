@@ -15,6 +15,7 @@ import com.sawn.domain.block.LockdownPolicy
 import com.sawn.domain.block.LockdownWindow
 import com.sawn.domain.block.StrictPolicy
 import com.sawn.domain.feature.BlockJournal
+import com.sawn.domain.feature.DeepFocusState
 import com.sawn.domain.feature.JournalSnapshot
 import com.sawn.domain.feature.ShieldPreset
 import com.sawn.domain.repo.ProtectedDaysRepository
@@ -110,6 +111,8 @@ class SettingsStore(
         val NIGHT_GUARD_UNLOCK_UNTIL = longPreferencesKey("night_guard_unlock_until")
         val DEEP_FOCUS_ENABLED = booleanPreferencesKey("deep_focus_enabled")
         val DEEP_FOCUS_WHITELIST = stringSetPreferencesKey("deep_focus_whitelist")
+        val DEEP_FOCUS_UNLOCK_UNTIL = longPreferencesKey("deep_focus_unlock_until")
+        val DEEP_FOCUS_UNLOCK_AT = longPreferencesKey("deep_focus_unlock_at")
         val PARENT_MODE_ENABLED = booleanPreferencesKey("parent_mode_enabled")
         val PARENT_PIN_HASH = stringPreferencesKey("parent_pin_hash")
         val PARENT_PIN_SALT = stringPreferencesKey("parent_pin_salt")
@@ -394,6 +397,17 @@ class SettingsStore(
         context.dataStore.edit { p ->
             if (!value && lockdownWindow(p).isActive) return@edit
             p[Keys.ALWAYS_ON] = value
+        }
+    }
+
+    /**
+     * استعادة علم الحماية من نسخة احتياطية: يكتب العلم دون副作用 «تسجيل اليوم
+     * المحمي»، فالاستعادة ليست يوماً محمياً جديداً.
+     */
+    suspend fun restoreMasterEnabled(value: Boolean) {
+        context.dataStore.edit { p ->
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.MASTER_ENABLED] = value
         }
     }
 
@@ -716,5 +730,67 @@ class SettingsStore(
         context.dataStore.data.map { it[Keys.NUDGES_ENABLED] ?: false }.distinctUntilChanged()
     suspend fun setNudgesEnabled(value: Boolean) =
         context.dataStore.edit { it[Keys.NUDGES_ENABLED] = value }.let { }
+
+    // --- وضع الوالدين: رقم سري مستقل عن رقم المستخدم -----------------------------
+    // رقم الوالدين لا يُخلط برقم المستخدم: الأول يحرس الإعدادات والثاني يفتحها.
+    val parentPinPresent: Flow<Boolean> =
+        context.dataStore.data.map { parentPinPresent(it) }.distinctUntilChanged()
+
+    suspend fun setParentPin(hash: String, salt: String) =
+        context.dataStore.edit { p ->
+            p[Keys.PARENT_PIN_HASH] = hash
+            p[Keys.PARENT_PIN_SALT] = salt
+        }.let { }
+
+    suspend fun clearParentPin() =
+        context.dataStore.edit { p ->
+            p.remove(Keys.PARENT_PIN_HASH)
+            p.remove(Keys.PARENT_PIN_SALT)
+        }.let { }
+
+    /** Hash + salt of the parent PIN, or null when it was never set. */
+    suspend fun parentPinCredentials(): Pair<String, String>? {
+        val prefs = runCatching { context.dataStore.data.first() }.getOrNull() ?: return null
+        val hash = prefs[Keys.PARENT_PIN_HASH] ?: return null
+        val salt = prefs[Keys.PARENT_PIN_SALT] ?: return null
+        return hash to salt
+    }
+
+    private fun parentPinPresent(p: Preferences): Boolean =
+        p[Keys.PARENT_PIN_HASH] != null && p[Keys.PARENT_PIN_SALT] != null
+
+    // --- نافذة فكّ التركيز العميق ----------------------------------------------
+    // لا يُفكّ التركيز العميق إلا برقم صحيح؛ بعدها مهلة قصيرة تكفي للانتقال بين
+    // التطبيقات ثم يعود الحجب من تلقاء نفسه.
+    val deepFocusUnlockUntil: Flow<Long> =
+        context.dataStore.data.map { it[Keys.DEEP_FOCUS_UNLOCK_UNTIL] ?: 0L }.distinctUntilChanged()
+
+    suspend fun setDeepFocusUnlock(untilMs: Long) =
+        context.dataStore.edit { it[Keys.DEEP_FOCUS_UNLOCK_UNTIL] = untilMs }.let { }
+
+    suspend fun clearDeepFocusUnlock() =
+        context.dataStore.edit {
+            it[Keys.DEEP_FOCUS_UNLOCK_UNTIL] = 0L
+            it[Keys.DEEP_FOCUS_UNLOCK_AT] = 0L
+        }.let { }
+
+    /** لقطة واحدة كاملة لوضع التركيز العميق — يقرأها حارس الوصول عند كل قرار. */
+    suspend fun deepFocusState(): DeepFocusState {
+        val p = runCatching { context.dataStore.data.first() }.getOrNull()
+            ?: return DeepFocusState()
+        return DeepFocusState(
+            enabled = p[Keys.DEEP_FOCUS_ENABLED] ?: false,
+            whitelist = p[Keys.DEEP_FOCUS_WHITELIST] ?: emptySet(),
+            unlockStartsAt = p[Keys.DEEP_FOCUS_UNLOCK_AT] ?: 0L,
+            unlockUntil = p[Keys.DEEP_FOCUS_UNLOCK_UNTIL] ?: 0L,
+        )
+    }
+
+    /** يفتح نافذة الخروج بعد مهلة الانتظار: الأرقام هي [at] و[until]. */
+    suspend fun openDeepFocusEscape(startsAt: Long, until: Long) =
+        context.dataStore.edit {
+            it[Keys.DEEP_FOCUS_UNLOCK_AT] = startsAt
+            it[Keys.DEEP_FOCUS_UNLOCK_UNTIL] = until
+        }.let { }
 
 }

@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Timer
@@ -47,8 +47,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.sawn.app.R
 import kotlinx.coroutines.delay
 
@@ -70,13 +68,13 @@ private enum class UrgeTool { BREATHE, GROUND, DELAY }
 /**
  * «درع الرغبة»: دقيقة تنفّسٍ موجّهة تُفتح عند ذروة الرغبة.
  *
- * لا شيء يُخزَّن ولا يُرسَل؛ الشاشة كلها في الذاكرة وتُغلق مع الحوار. الهدف هو كسر
+ * لا شيء يُخزَّن ولا يُرسَل؛ الشاشة كلها في الذاكرة وتُغلق مع التطبيق. الهدف هو كسر
  * حلقة «الفتح التلقائي» بدقيقةٍ واحدةٍ محسوبة، لا منع المستخدم من أي شيء.
  */
 @Composable
-fun UrgeSosDialog(
+fun UrgeSosScreen(
     onSessionCompleted: () -> Unit = {},
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
 ) {
     var tool by remember { mutableStateOf(UrgeTool.BREATHE) }
     var round by remember { mutableIntStateOf(0) }
@@ -143,35 +141,34 @@ fun UrgeSosDialog(
     val background = MaterialTheme.colorScheme.background
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(listOf(primaryContainer, background)),
+            ),
     ) {
-        Box(
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(12.dp),
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.back),
+            )
+        }
+
+        Column(
             Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(listOf(primaryContainer, background)),
-                ),
+                .padding(horizontal = 28.dp)
+                .padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(12.dp),
-            ) {
-                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cancel))
-            }
-
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 28.dp)
-                    .padding(bottom = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
                         UrgeTool.BREATHE to R.string.sos_tool_breathe,
@@ -254,7 +251,7 @@ fun UrgeSosDialog(
                         textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(24.dp))
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = onBack) {
                         Text(stringResource(R.string.sos_close))
                     }
                 } else if (tool == UrgeTool.GROUND) {
@@ -300,7 +297,7 @@ fun UrgeSosDialog(
                     if (finished) {
                         Spacer(Modifier.height(14.dp))
                         Text(stringResource(R.string.sos_done_title), style = MaterialTheme.typography.titleLarge)
-                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.sos_close)) }
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.sos_close)) }
                     }
                 } else if (tool == UrgeTool.DELAY && !finished) {
                     Icon(Icons.Filled.Timer, contentDescription = null, tint = primary, modifier = Modifier.size(52.dp))
@@ -320,7 +317,7 @@ fun UrgeSosDialog(
                     }, enabled = !delayStarted) {
                         Text(stringResource(if (delayStarted) R.string.sos_delay_running else R.string.sos_delay_start))
                     }
-                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.sos_close)) }
+                    TextButton(onClick = onBack) { Text(stringResource(R.string.sos_close)) }
                 } else {
                     Surface(
                         shape = CircleShape,
@@ -362,12 +359,11 @@ fun UrgeSosDialog(
                         }) {
                             Text(stringResource(R.string.sos_again))
                         }
-                        Button(onClick = onDismiss) {
+                        Button(onClick = onBack) {
                             Text(stringResource(R.string.sos_close))
                         }
                     }
                 }
             }
         }
-    }
 }

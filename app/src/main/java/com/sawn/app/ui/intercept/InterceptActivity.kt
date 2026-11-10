@@ -102,6 +102,7 @@ class InterceptActivity : ComponentActivity() {
                             onGiveUp = { recordDefeatAndGoHome() },
                         )
                         kind == KIND_LIMIT && current != null -> LimitScreen(current, reason, ::goHome)
+                        kind == KIND_DEEP_FOCUS -> DeepFocusBlockScreen(onHome = ::goHome)
                         else -> HardBlockScreen(current, ::goHome)
                     }
                 }
@@ -145,6 +146,7 @@ class InterceptActivity : ComponentActivity() {
         const val KIND_FEATURE = "feature"
         const val KIND_ADULT = "adult"
         const val KIND_SOCIAL = "social"
+        const val KIND_DEEP_FOCUS = "deep_focus"
     }
 }
 
@@ -368,6 +370,20 @@ private fun HardBlockScreen(item: BlockedItem?, onHome: () -> Unit) {
         body = item?.let {
             stringResource(R.string.intercept_block_body, it.label)
         } ?: stringResource(R.string.intercept_block_generic),
+        onHome = onHome,
+    )
+}
+
+/**
+ * جدار التركيز العميق: التطبيق خارج القائمة البيضاء، فلا مهلة ولا استثناء.
+ * الفكّ يتم من داخل صَوْن (شاشة «الترميز العميق») بالرقم السري، فيوجّه النص إلى
+ * هناك بدل زرٍّ بلا أثر.
+ */
+@Composable
+private fun DeepFocusBlockScreen(onHome: () -> Unit) {
+    CenteredHoldToLeave(
+        title = stringResource(R.string.intercept_deep_focus_title),
+        body = stringResource(R.string.intercept_deep_focus_body),
         onHome = onHome,
     )
 }

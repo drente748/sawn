@@ -66,6 +66,7 @@ object AppModule {
             usageMinutesToday = { pkg -> UsageStatsHelper.todayUsageMinutesFor(ctx, pkg) },
             trustedNow = { settings.trustedNow() },
             pauseDefeatsToday = { settings.pauseDefeatsToday(settings.trustedNow()) },
+            deepFocusState = { settings.deepFocusState() },
         )
 
     @Provides

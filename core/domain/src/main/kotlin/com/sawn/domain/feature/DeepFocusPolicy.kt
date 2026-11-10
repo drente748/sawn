@@ -21,6 +21,42 @@ object DeepFocusPolicy {
     fun isAllowed(packageName: String, whitelist: Set<String>): Boolean =
         packageName in whitelist
 
-    /** يُطلب PIN مع انتظار 10 ثوانٍ قبل الفك (يُمنع الاندفاع). */
+    /** مهلة الانتظار بعد الرقم السري قبل أن تُفتح نافذة الخروج. */
     const val UNLOCK_DELAY_SECONDS = 10
+
+    /** طول نافذة الخروج: تكفي للانتقال بين التطبيقات ثم يعود الحجب من تلقاء نفسه. */
+    const val ESCAPE_WINDOW_SECONDS = 120
+
+    /** لحظة فتح نافذة الخروج = لحظة التحقق من الرقم + مهلة الانتظار. */
+    fun unlockStartsAt(now: Long): Long = now + UNLOCK_DELAY_SECONDS * 1_000L
+
+    /** لحظة إغلاق نافذة الخروج. */
+    fun unlockUntil(now: Long): Long = unlockStartsAt(now) + ESCAPE_WINDOW_SECONDS * 1_000L
+
+    /**
+     * هل التطبيق محجوب الآن؟
+     *
+     * نافذة الخروج مفتوحة فقط بين [unlockStartsAt] و[unlockUntil]؛ وقبل ذلك يُحجب
+     * التطبيق رغم إدخال الرقم (مهلة الانتظار)، وبعدها يعود الحجب.
+     */
+    fun isRestricted(
+        packageName: String,
+        whitelist: Set<String>,
+        enabled: Boolean,
+        unlockStartsAt: Long,
+        unlockUntil: Long,
+        now: Long,
+    ): Boolean {
+        if (!enabled) return false
+        if (now >= unlockStartsAt && now < unlockUntil) return false
+        return !isAllowed(packageName, whitelist)
+    }
 }
+
+/** لقطة وضع التركيز العميق كما يقرؤها حارس الوصول. */
+data class DeepFocusState(
+    val enabled: Boolean = false,
+    val whitelist: Set<String> = emptySet(),
+    val unlockStartsAt: Long = 0L,
+    val unlockUntil: Long = 0L,
+)

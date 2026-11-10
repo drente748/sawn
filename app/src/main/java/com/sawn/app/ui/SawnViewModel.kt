@@ -5,6 +5,7 @@ import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sawn.domain.block.BlockingPolicy
+import com.sawn.app.R
 import com.sawn.domain.block.ScheduleEvaluator
 import com.sawn.domain.block.StrictPolicy
 import com.sawn.domain.model.BlockType
@@ -26,6 +27,7 @@ import com.sawn.app.sawnContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -51,8 +53,9 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import android.content.Intent
 import android.content.Context
-import androidx.core.content.FileProvider
-import java.io.File
+import android.net.Uri
+import com.sawn.domain.feature.BackupCodec
+import com.sawn.domain.feature.TriggerInsightsSummary
 
 class SawnViewModel(app: Application) : AndroidViewModel(app) {
     private val container = app.sawnContainer
@@ -516,42 +519,59 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     // --- Plan B (2.1) -----------------------------------------------------
-    val challengeDays: StateFlow<Int> = kotlinx.coroutines.flow.flow {
-        val run = runCatching { container.database.challengeDao().latestRun() }.getOrNull()
-        val days = run?.let { runCatching { container.database.challengeDao().countDays(it.id) }.getOrDefault(0) } ?: 0
-        emit(days)
+    // العدّادات هنا تُقرأ من Room/DataStore، وكل تغيير يعيد القراءة عبر
+    // [planBRefresh] حتى لا تبقى الشاشة على رقم قديم بعد التغيير.
+
+    private val planBRefresh = MutableStateFlow(0L)
+    private fun refreshPlanB() {
+        planBRefresh.value = planBRefresh.value + 1
     }
+
+    private fun todayIso(): String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+    /** أيام التحدّي المكتملة في الجولة الجارية. */
+    val challengeDays: StateFlow<Int> = planBRefresh
+        .map {
+            val run = runCatching { container.database.challengeDao().latestRun() }.getOrNull()
+            run?.let { r ->
+                runCatching { container.database.challengeDao().countDays(r.id) }.getOrDefault(0)
+            } ?: 0
+        }
         .catch { emit(0) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** يبدأ جولة جديدة ويومها الأول. */
     fun startChallenge() = viewModelScope.launch {
-        val id = container.database.challengeDao().insertRun(
-            ChallengeRunEntity(startedAt = System.currentTimeMillis())
-        )
-        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        container.database.challengeDao().recordDay(ChallengeDayEntity(today, id))
-    }
-
-    fun recordChallengeDay() = viewModelScope.launch {
-        val run = container.database.challengeDao().latestRun() ?: run {
-            val id = container.database.challengeDao().insertRun(
-                ChallengeRunEntity(startedAt = System.currentTimeMillis())
+        val runId = container.database.challengeDao().latestRun()?.id
+            ?: container.database.challengeDao().insertRun(
+                ChallengeRunEntity(startedAt = System.currentTimeMillis()),
             )
-            val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-            container.database.challengeDao().recordDay(ChallengeDayEntity(today, id))
-            return@launch
-        }
-        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        container.database.challengeDao().recordDay(ChallengeDayEntity(today, run.id))
+        container.database.challengeDao().recordDay(ChallengeDayEntity(todayIso(), runId))
+        refreshPlanB()
     }
 
+    /**
+     * يسجّل اليوم في الجولة الجارية — والتاريخ مفتاحه الأساسي فلا يُحتسب مرتين.
+     * إن لم تكن هناك جولة بعد، تُفتح واحدة ويُسجَّل فيها اليوم.
+     */
+    fun recordChallengeDay() = viewModelScope.launch {
+        val runId = container.database.challengeDao().latestRun()?.id
+            ?: container.database.challengeDao().insertRun(
+                ChallengeRunEntity(startedAt = System.currentTimeMillis()),
+            )
+        container.database.challengeDao().recordDay(ChallengeDayEntity(todayIso(), runId))
+        refreshPlanB()
+    }
+
+    /** جولة جديدة من الصفر — يمسح التقدّم، فتلزمه تأكيد في الواجهة. */
     fun restartChallenge() = viewModelScope.launch {
-        val id = container.database.challengeDao().insertRun(
-            ChallengeRunEntity(startedAt = System.currentTimeMillis())
+        container.database.challengeDao().insertRun(
+            ChallengeRunEntity(startedAt = System.currentTimeMillis()),
         )
-        val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        container.database.challengeDao().recordDay(ChallengeDayEntity(today, id))
+        refreshPlanB()
     }
 
+    // --- حارس الليل -------------------------------------------------------
     val nightGuardEnabled: StateFlow<Boolean> =
         container.settings.nightGuardEnabled
         .catch { emit(false) }
@@ -564,14 +584,51 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.nightGuardEndMin
         .catch { emit(360) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 360)
+    val nightGuardUnlockUntil: StateFlow<Long> =
+        container.settings.nightGuardUnlockUntil
+        .catch { emit(0L) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    /** نبضة كل نصف دقيقة — تكفي لحساب «هل نحن داخل النافذة الآن». */
+    private val clockTick: Flow<Long> = flow {
+        while (true) {
+            emit(System.currentTimeMillis())
+            delay(30_000L)
+        }
+    }
+
+    /** هل نحن داخل نافذة الحارس الآن (وفكّ مؤقت سارٍ)؟ */
+    val nightGuardActiveNow: StateFlow<Boolean> = combine(
+        container.settings.nightGuardEnabled,
+        container.settings.nightGuardStartMin,
+        container.settings.nightGuardEndMin,
+        container.settings.nightGuardUnlockUntil,
+        clockTick,
+    ) { enabled, start, end, unlockUntil, now ->
+        if (!enabled) return@combine false
+        if (unlockUntil > now) return@combine false
+        val cal = Calendar.getInstance().apply { timeInMillis = now }
+        val nowMin = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+        NightGuardPolicy.shouldEngage(nowMin, start, end, enabled = true)
+    }
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setNightGuard(enabled: Boolean, startMin: Int, endMin: Int) = viewModelScope.launch {
         container.settings.setNightGuard(enabled, startMin, endMin)
     }
 
-    fun requestNightGuardUnlock() = viewModelScope.launch {
-        container.settings.setNightGuardUnlock(System.currentTimeMillis() + 15 * 60 * 1000L)
+    /**
+     * فكّ مؤقت للحارس (١٥ دقيقة) — برقم سري صحيح فقط، تماماً كما في القفل الزمني.
+     * تُرجع true عند القبول.
+     */
+    suspend fun requestNightGuardUnlock(pin: String): Boolean = withContext(Dispatchers.IO) {
+        if (verifyPin(pin) != PinResult.Ok) return@withContext false
+        container.settings.setNightGuardUnlock(System.currentTimeMillis() + NIGHT_GUARD_UNLOCK_MS)
+        true
     }
 
+    // --- التركيز العميق ---------------------------------------------------
     val deepFocusEnabled: StateFlow<Boolean> =
         container.settings.deepFocusEnabled
         .catch { emit(false) }
@@ -580,86 +637,200 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.deepFocusWhitelist
         .catch { emit(emptySet()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    val deepFocusUnlockUntil: StateFlow<Long> =
+        container.settings.deepFocusUnlockUntil
+        .catch { emit(0L) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
     fun setDeepFocusEnabled(enabled: Boolean) = viewModelScope.launch {
         container.settings.setDeepFocus(enabled)
         if (enabled && container.settings.deepFocusWhitelist.first().isEmpty()) {
             container.settings.setDeepFocusWhitelist(DeepFocusPolicy.DEFAULT_WHITELIST)
         }
+        if (!enabled) container.settings.clearDeepFocusUnlock()
     }
 
-    fun requestDeepFocusUnlock() {
-        // UI: PIN + 10s delay
+    fun setDeepFocusWhitelist(values: Set<String>) = viewModelScope.launch {
+        container.settings.setDeepFocusWhitelist(values)
     }
+
+    /**
+     * فكّ التركيز العميق: رقم سري صحيح، ثم مهلة انتظار قصيرة، ثم نافذة خروج محدودة
+     * بعدها يعود الحجب من تلقاء نفسه.
+     */
+    suspend fun requestDeepFocusUnlock(pin: String): Boolean = withContext(Dispatchers.IO) {
+        if (verifyPin(pin) != PinResult.Ok) return@withContext false
+        val now = System.currentTimeMillis()
+        container.settings.openDeepFocusEscape(
+            startsAt = DeepFocusPolicy.unlockStartsAt(now),
+            until = DeepFocusPolicy.unlockUntil(now),
+        )
+        true
+    }
+
+    // --- المحفّزات --------------------------------------------------------
+    /** تحليل المحفّزات: الأكثر تكراراً، وساعة الذروة، والمجموع. */
+    val triggerInsights: StateFlow<TriggerInsightsSummary> = planBRefresh
+        .map {
+            val logs = container.database.triggerDao().recent()
+            val summaries = logs.mapNotNull { entry ->
+                runCatching { TriggerTag.valueOf(entry.tag) }.getOrNull()
+                    ?.let { TriggerLog(it, entry.hourOfDay) }
+            }
+            TriggerInsights.analyze(summaries)
+        }
+        .catch { emit(TriggerInsightsSummary(null, null, 0)) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TriggerInsightsSummary(null, null, 0))
+
+    /** توزيع المحفّزات على ساعات اليوم (٢٤ خانة) — لرسم مخطط بسيط. */
+    val triggerHourHistogram: StateFlow<List<Int>> = planBRefresh
+        .map {
+            val buckets = IntArray(24)
+            container.database.triggerDao().recent().forEach { entry ->
+                val hour = entry.hourOfDay.coerceIn(0, 23)
+                buckets[hour]++
+            }
+            buckets.toList()
+        }
+        .catch { emit(List(24) { 0 }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), List(24) { 0 })
 
     fun logTrigger(tag: TriggerTag) = viewModelScope.launch {
         val hour = java.time.LocalTime.now().hour
         container.database.triggerDao().insert(
-            TriggerLogEntity(tag = tag.name, hourOfDay = hour, timestampMs = System.currentTimeMillis())
+            TriggerLogEntity(tag = tag.name, hourOfDay = hour, timestampMs = System.currentTimeMillis()),
         )
+        refreshPlanB()
     }
 
-    val topTriggerTag: StateFlow<String?> = kotlinx.coroutines.flow.flow {
-        val logs = container.database.triggerDao().recent()
-        val summaries = logs.mapNotNull { e ->
-            runCatching { TriggerTag.valueOf(e.tag) }.getOrNull()?.let { TriggerLog(it, e.hourOfDay) }
-        }
-        emit(TriggerInsights.analyze(summaries).topTag?.name)
-    }
-        .catch { emit(null) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-    val peakHour: StateFlow<Int?> = kotlinx.coroutines.flow.flow {
-        val logs = container.database.triggerDao().recent()
-        val summaries = logs.map { TriggerLog(TriggerTag.BOREDOM, it.hourOfDay) }
-        emit(TriggerInsights.analyze(summaries).peakHour)
-    }
-        .catch { emit(null) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    // --- المساءلة ---------------------------------------------------------
     val accountabilityName: StateFlow<String?> =
         container.settings.accountabilityName
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val accountabilityContact: StateFlow<String?> =
+        container.settings.accountabilityContact
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     fun setAccountability(name: String?, contact: String?) = viewModelScope.launch {
         container.settings.setAccountability(name, contact)
     }
 
+    /** تقرير أسبوعي حقيقي: أيام محمية، محاولات مصدودة، والسلسلة الحالية. */
     fun shareWeeklyReport(context: Context) {
-        val report = ParentalModePolicy.buildWeeklyReport(0, 0, 0)
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, report)
-            putExtra(Intent.EXTRA_SUBJECT, "Sawn weekly report")
+        viewModelScope.launch {
+            val recent = runCatching { container.stats.recentDays(7).first() }.getOrDefault(emptyList())
+            val journal = runCatching { container.settings.blockJournal.first() }.getOrDefault(JournalSnapshot())
+            val streak = runCatching { container.stats.currentStreak().first() }.getOrDefault(0)
+            val report = ParentalModePolicy.buildWeeklyReport(
+                protectedDaysThisWeek = recent.count { it.protected },
+                blockedAttemptsThisWeek = journal.weekTotal,
+                currentStreak = streak,
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, report)
+                putExtra(
+                    Intent.EXTRA_SUBJECT,
+                    context.getString(R.string.feature_accountability_subject),
+                )
+            }
+            runCatching {
+                context.startActivity(
+                    Intent.createChooser(intent, context.getString(R.string.feature_accountability_share)),
+                )
+            }
         }
-        context.startActivity(Intent.createChooser(intent, "Share report"))
     }
 
+    // --- وضع الوالدين -----------------------------------------------------
     val parentModeEnabled: StateFlow<Boolean> =
         container.settings.parentModeEnabled
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val parentPinPresent: StateFlow<Boolean> =
+        container.settings.parentPinPresent
         .catch { emit(false) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun setParentModeEnabled(enabled: Boolean) = viewModelScope.launch {
         container.settings.setParentModeEnabled(enabled)
+        if (!enabled) container.settings.clearParentPin()
     }
 
-    fun setParentPin(pin: String) {
-        // Stored via PinHasher in UI layer
+    /** يضبط رقم الوالدين (مجزّأ بملح) — مستقل تماماً عن رقم المستخدم. */
+    suspend fun setParentPin(pin: String): Boolean = withContext(Dispatchers.IO) {
+        if (pin.length < MIN_PIN_LENGTH) return@withContext false
+        val salt = PinHasher.newSalt()
+        container.settings.setParentPin(PinHasher.hash(pin, salt), salt)
+        true
     }
 
-    fun exportBackup(context: Context, passphrase: String) {
-        val payload = "sawn-backup-export"
-        val encrypted = BackupCrypto.encrypt(payload, passphrase)
-        val file = File(context.cacheDir, "sawn-backup.sawnbak")
-        file.writeBytes(encrypted)
-        val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "*/*"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    suspend fun clearParentPin() = withContext(Dispatchers.IO) {
+        container.settings.clearParentPin()
+    }
+
+    suspend fun verifyParentPin(pin: String): Boolean = withContext(Dispatchers.IO) {
+        val credentials = container.settings.parentPinCredentials() ?: return@withContext false
+        PinHasher.verify(pin, credentials.second, credentials.first)
+    }
+
+    // --- النسخة الاحتياطية ------------------------------------------------
+    private val backupRepository = com.sawn.core.data.BackupRepository(
+        container.settings,
+        container.database,
+    )
+
+    /** يصدّر الحالة الكاملة إلى ملف `.sawnbak` مشفّراً (AES-256-GCM). */
+    suspend fun exportBackup(context: Context, uri: Uri, passphrase: String): BackupResult =
+        withContext(Dispatchers.IO) {
+            if (passphrase.length < MIN_BACKUP_PASSPHRASE) return@withContext BackupResult.PassphraseTooShort
+            runCatching {
+                val payload = BackupCodec.encode(backupRepository.buildDocument())
+                val encrypted = BackupCrypto.encrypt(payload, passphrase)
+                val stream = context.contentResolver.openOutputStream(uri)
+                    ?: error("output stream unavailable")
+                stream.use { it.write(encrypted) }
+            }.fold(
+                onSuccess = { BackupResult.Success },
+                onFailure = { BackupResult.Failed(it.message ?: "export failed") },
+            )
         }
-        context.startActivity(Intent.createChooser(intent, "Export backup"))
+
+    /** يستورد نسخة احتياطية: يفكّ التشفير، ثم يطبّق الوثيقة على الجهاز. */
+    suspend fun importBackup(context: Context, uri: Uri, passphrase: String): BackupResult =
+        withContext(Dispatchers.IO) {
+            if (passphrase.length < MIN_BACKUP_PASSPHRASE) return@withContext BackupResult.PassphraseTooShort
+            val document = runCatching {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: return@runCatching null
+                val plain = BackupCrypto.decrypt(bytes, passphrase) ?: return@runCatching null
+                BackupCodec.decode(plain)
+            }.getOrNull() ?: return@withContext BackupResult.CannotDecrypt
+
+            runCatching { backupRepository.applyDocument(document) }
+                .fold(
+                    onSuccess = {
+                        refreshPlanB()
+                        BackupResult.Success
+                    },
+                    onFailure = { BackupResult.Failed(it.message ?: "import failed") },
+                )
+        }
+
+    companion object {
+        /** نافذة فكّ حارس الليل: ربع ساعة. */
+        const val NIGHT_GUARD_UNLOCK_MS = 15L * 60L * 1000L
+        const val MIN_PIN_LENGTH = 4
+        const val MIN_BACKUP_PASSPHRASE = 8
     }
+}
 
-    fun importBackup(context: Context, passphrase: String): String = "pending-ui"
-
+/** نتيجة عملية النسخة الاحتياطية — يعرضها كل خطأ بالعربية. */
+sealed interface BackupResult {
+    data object Success : BackupResult
+    data object PassphraseTooShort : BackupResult
+    data object CannotDecrypt : BackupResult
+    data class Failed(val message: String) : BackupResult
 }

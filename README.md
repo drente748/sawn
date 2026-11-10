@@ -1,4 +1,4 @@
-# Sawn 2.1.8
+# Sawn 2.1.9
 
 **صَوْن (Sawn) — a local, account-free, tracking-free Android blocker.** Blocks websites (via an
 on-device DNS filter), apps, adult content, ads/trackers, and the endless scroll (Reels/Shorts
@@ -58,12 +58,12 @@ warden/
 - `:app` — Compose UI, services (VPN / Accessibility / DeviceAdmin / QS tile / boot / workers),
   ViewModels, Hilt.
 
-## Feature status (2.1.8)
+## Feature status (2.1.9)
 
 - [x] Single-page home: protection hero, rich streak card, daily summary, focus, urge shield,
       time lock, tools
-- [x] "لحظة رغبة": 4-7-8 breathing, three-step grounding, ten-minute delay timer — with a local
-      count of completed sessions
+- [x] "Challenge & focus" section: 30-day challenge, deep focus (whitelist enforcement with a
+      PIN-gated exit window), breathing exercises (4-7-8, grounding, delay timer)
 - [x] Time lock with 30-minute → 6-month presets plus a custom duration
 - [x] Streak accuracy: recorded by the filter itself at midnight rollover, future-dated rows
       ignored, total protected days derived from the same log
@@ -72,7 +72,10 @@ warden/
 - [x] Encrypted-free, PIN-gated management sections; local profile; AR/EN with RTL
 - [x] Optional in-app update check against a free GitHub Pages manifest, with SHA-256 and
       package/version verification before the Android installer opens
-- [ ] Year heatmap, widget, biometric unlock, `.sawnbak` encrypted backup
+- [x] Plan B fully wired: night guard (PIN unlock), trigger analyzer with an hourly chart,
+      accountability partner, encrypted `.sawnbak` backup (AES-256-GCM, real export/import),
+      parent mode with a separate parent PIN that locks management
+- [ ] Year heatmap, widget, biometric unlock
 
 ## Build
 
@@ -81,7 +84,7 @@ warden/
 ./gradlew :app:assembleRelease
 ```
 
-Target: `minSdk 26`, `targetSdk 36`, `versionName 2.1.8`, `versionCode 28`.
+Target: `minSdk 26`, `targetSdk 36`, `versionName 2.1.9`, `versionCode 29`.
 
 Release signing reads `SAWN_STORE_FILE`, `SAWN_STORE_PASSWORD`, `SAWN_KEY_ALIAS`,
 `SAWN_KEY_PASSWORD` from the environment or `local.properties` (all or none). Keep

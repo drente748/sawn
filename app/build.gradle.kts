@@ -41,8 +41,8 @@ android {
         applicationId = "com.sawn.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 28
-        versionName = "2.1.8"
+        versionCode = 29
+        versionName = "2.1.9"
         buildConfigField("String", "UPDATE_MANIFEST_URL", "\"$sawnManifestUrl\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

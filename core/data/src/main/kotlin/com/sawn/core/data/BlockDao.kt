@@ -28,6 +28,12 @@ interface BlockDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertItem(item: BlockedItem): Long
 
+    @Query("SELECT * FROM blocked_items")
+    suspend fun allItems(): List<BlockedItem>
+
+    @Query("DELETE FROM blocked_items")
+    suspend fun deleteAllItems()
+
     @Update
     suspend fun updateItem(item: BlockedItem)
 
@@ -43,6 +49,12 @@ interface BlockDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSchedule(schedule: Schedule): Long
+
+    @Query("SELECT * FROM schedules")
+    suspend fun allSchedules(): List<Schedule>
+
+    @Query("DELETE FROM schedules")
+    suspend fun deleteAllSchedules()
 
     @Delete
     suspend fun deleteSchedule(schedule: Schedule)

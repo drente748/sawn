@@ -44,6 +44,7 @@ import com.sawn.app.ui.TriggersScreen
 import com.sawn.app.ui.AccountabilityScreen
 import com.sawn.app.ui.BackupScreen
 import com.sawn.app.ui.ParentModeScreen
+import com.sawn.app.ui.UrgeSosScreen
 import com.sawn.app.ui.onboarding.OnboardingHost
 import com.sawn.app.ui.SchedulesScreen
 import com.sawn.app.ui.SetupScreen
@@ -260,6 +261,14 @@ private fun SawnScaffold(
                     onOpenSchedules = { navController.navigate("schedules") },
                     onOpenStats = { navController.navigate("stats") },
                     onOpenSettings = { navController.navigate("settings") },
+                    onOpenChallenge = { navController.navigate("challenge") },
+                    onOpenDeepFocus = { navController.navigate("deep_focus") },
+                    onOpenBreathing = { navController.navigate("breathing") },
+                    onOpenNightGuard = { navController.navigate("night_guard") },
+                    onOpenTriggers = { navController.navigate("triggers") },
+                    onOpenAccountability = { navController.navigate("accountability") },
+                    onOpenBackup = { navController.navigate("backup") },
+                    onOpenParentMode = { navController.navigate("parent_mode") },
                 )
             }
             composable("setup") {
@@ -326,38 +335,44 @@ private fun SawnScaffold(
             // --- Plan B (2.1) ---
             composable("challenge") {
                 protectedScreen(stringResource(R.string.feature_challenge_title)) {
-                    ChallengeScreen(onBack = { navController.popBackStack() })
+                    ChallengeScreen(vm, onBack = { navController.popBackStack() })
                 }
             }
             composable("night_guard") {
                 protectedScreen(stringResource(R.string.feature_night_guard_title)) {
-                    NightGuardScreen(onBack = { navController.popBackStack() })
+                    NightGuardScreen(vm, onBack = { navController.popBackStack() })
                 }
             }
             composable("deep_focus") {
                 protectedScreen(stringResource(R.string.feature_deep_focus_title)) {
-                    DeepFocusScreen(onBack = { navController.popBackStack() })
+                    DeepFocusScreen(vm, onBack = { navController.popBackStack() })
                 }
             }
             composable("triggers") {
                 protectedScreen(stringResource(R.string.feature_triggers_title)) {
-                    TriggersScreen(onBack = { navController.popBackStack() })
+                    TriggersScreen(vm, onBack = { navController.popBackStack() })
                 }
             }
             composable("accountability") {
                 protectedScreen(stringResource(R.string.feature_accountability_title)) {
-                    AccountabilityScreen(onBack = { navController.popBackStack() })
+                    AccountabilityScreen(vm, onBack = { navController.popBackStack() })
                 }
             }
             composable("backup") {
                 protectedScreen(stringResource(R.string.feature_backup_title)) {
-                    BackupScreen(onBack = { navController.popBackStack() })
+                    BackupScreen(vm, onBack = { navController.popBackStack() })
                 }
             }
             composable("parent_mode") {
                 protectedScreen(stringResource(R.string.feature_parent_title)) {
-                    ParentModeScreen(onBack = { navController.popBackStack() })
+                    ParentModeScreen(vm, onBack = { navController.popBackStack() })
                 }
+            }
+            composable("breathing") {
+                UrgeSosScreen(
+                    onSessionCompleted = vm::recordUrgeSessionCompleted,
+                    onBack = { navController.popBackStack() },
+                )
             }
         }
     }

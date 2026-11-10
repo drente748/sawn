@@ -19,7 +19,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.FamilyRestroom
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SelfImprovement
@@ -85,6 +91,14 @@ fun HomeScreen(
     onOpenSchedules: () -> Unit = {},
     onOpenStats: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenChallenge: () -> Unit = {},
+    onOpenDeepFocus: () -> Unit = {},
+    onOpenBreathing: () -> Unit = {},
+    onOpenNightGuard: () -> Unit = {},
+    onOpenTriggers: () -> Unit = {},
+    onOpenAccountability: () -> Unit = {},
+    onOpenBackup: () -> Unit = {},
+    onOpenParentMode: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -126,7 +140,6 @@ fun HomeScreen(
     var showPinForStrict by remember { mutableStateOf(false) }
     var strictFailed by remember { mutableStateOf(false) }
     var appliedPreset by remember { mutableStateOf<Int?>(null) }
-    var showSos by remember { mutableStateOf(false) }
 
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     var guardBusy by remember { mutableStateOf(false) }
@@ -460,9 +473,74 @@ fun HomeScreen(
             onCancel = onCancelFocus,
         )
 
+        // ===== تحدّي وتركيز =====
+        SectionHeader(
+            stringResource(R.string.home_section_discipline),
+            stringResource(R.string.home_section_discipline_hint),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ManageTile(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.EmojiEvents,
+                title = stringResource(R.string.home_feature_challenge),
+                detail = stringResource(R.string.home_feature_challenge_detail),
+                onClick = onOpenChallenge,
+            )
+            ManageTile(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.CenterFocusStrong,
+                title = stringResource(R.string.home_feature_deep_focus),
+                detail = stringResource(R.string.home_feature_deep_focus_detail),
+                onClick = onOpenDeepFocus,
+            )
+        }
+        ManageTile(
+            icon = Icons.Filled.SelfImprovement,
+            title = stringResource(R.string.home_feature_breathing),
+            detail = stringResource(R.string.home_feature_breathing_detail),
+            onClick = onOpenBreathing,
+        )
+
         // ===== أدواتي =====
         SectionHeader(stringResource(R.string.home_section_tools))
-        SosCard(onOpen = { showSos = true })
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ManageTile(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Bedtime,
+                title = stringResource(R.string.home_feature_night_guard),
+                detail = stringResource(R.string.home_feature_night_guard_detail),
+                onClick = onOpenNightGuard,
+            )
+            ManageTile(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Psychology,
+                title = stringResource(R.string.home_feature_triggers),
+                detail = stringResource(R.string.home_feature_triggers_detail),
+                onClick = onOpenTriggers,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ManageTile(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Groups,
+                title = stringResource(R.string.home_feature_accountability),
+                detail = stringResource(R.string.home_feature_accountability_detail),
+                onClick = onOpenAccountability,
+            )
+            ManageTile(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Save,
+                title = stringResource(R.string.home_feature_backup),
+                detail = stringResource(R.string.home_feature_backup_detail),
+                onClick = onOpenBackup,
+            )
+        }
+        ManageTile(
+            icon = Icons.Filled.FamilyRestroom,
+            title = stringResource(R.string.home_feature_parent_mode),
+            detail = stringResource(R.string.home_feature_parent_mode_detail),
+            onClick = onOpenParentMode,
+        )
 
         // ===== قفل صَوْن =====
         SectionHeader(
@@ -527,12 +605,6 @@ fun HomeScreen(
     }
     if (showPinForStrict) {
         SettingsControls.PinSetup(vm = vm, enableStrictAfter = true, onDismiss = { showPinForStrict = false })
-    }
-    if (showSos) {
-        UrgeSosDialog(
-            onSessionCompleted = vm::recordUrgeSessionCompleted,
-            onDismiss = { showSos = false },
-        )
     }
 }
 
@@ -894,51 +966,6 @@ private fun JournalMetricChip(value: Int, label: String, modifier: Modifier = Mo
                 fontWeight = FontWeight.Bold,
             )
             Text(label, style = MaterialTheme.typography.labelSmall, color = SawnPalette.InkSoft, maxLines = 2)
-        }
-    }
-}
-
-@Composable
-private fun SosCard(onOpen: () -> Unit) {
-    Surface(
-        onClick = onOpen,
-        shape = MaterialTheme.shapes.large,
-        color = SawnPalette.PrimarySoft,
-        modifier = Modifier.fillMaxWidth().border(1.dp, SawnPalette.Line, MaterialTheme.shapes.large),
-    ) {
-        Row(
-            Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                Modifier.size(46.dp).clip(CircleShape).background(SawnPalette.Card),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.SelfImprovement,
-                    contentDescription = null,
-                    tint = SawnPalette.Primary,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
-            androidx.compose.foundation.layout.Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    stringResource(R.string.sos_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = SawnPalette.Ink,
-                )
-                Text(
-                    stringResource(R.string.sos_body),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SawnPalette.InkSoft,
-                )
-            }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.sos_open),
-                tint = SawnPalette.PrimaryDeep,
-            )
         }
     }
 }

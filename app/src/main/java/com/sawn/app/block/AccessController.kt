@@ -2,6 +2,8 @@ package com.sawn.domain.block
 
 import com.sawn.core.data.BlockRepository
 import com.sawn.core.data.BlockedItem
+import com.sawn.domain.feature.DeepFocusPolicy
+import com.sawn.domain.feature.DeepFocusState
 import com.sawn.domain.model.InterceptMode
 
 enum class LimitReason { OPENS, TIME, COOLDOWN }
@@ -18,6 +20,11 @@ sealed interface AccessDecision {
     data class HardBlock(val item: BlockedItem) : AccessDecision
     /** A pause app that has hit a limit; access denied until it resets. */
     data class LimitReached(val item: BlockedItem, val reason: LimitReason) : AccessDecision
+    /**
+     * وضع التركيز العميق: التطبيق خارج القائمة البيضاء، فيُحجب قبل النظر في قوائم
+     * الحجب أصلاً — لا مهلة ولا استثناء.
+     */
+    data class DeepFocusBlock(val packageName: String) : AccessDecision
 }
 
 /**
@@ -35,13 +42,29 @@ class AccessController(
     private val trustedNow: suspend () -> Long = { System.currentTimeMillis() },
     /** Escalating friction: defeats of mindful pauses today (raises effective wait). */
     private val pauseDefeatsToday: suspend () -> Int = { 0 },
+    /** وضع التركيز العميق: يُقرَأ قبل كل قرار لأنه يسبق قوائم الحجب. */
+    private val deepFocusState: suspend () -> DeepFocusState = { DeepFocusState() },
 ) {
     suspend fun decideForPackage(packageName: String): AccessDecision {
+        val now = trustedNow()
+        // التركيز العميق يسبق كل شيء: خارج القائمة البيضاء يُحجب التطبيق حتى لو لم
+        // يكن في قوائم الحجب أصلاً.
+        val deep = deepFocusState()
+        if (DeepFocusPolicy.isRestricted(
+                packageName = packageName,
+                whitelist = deep.whitelist,
+                enabled = deep.enabled,
+                unlockStartsAt = deep.unlockStartsAt,
+                unlockUntil = deep.unlockUntil,
+                now = now,
+            )
+        ) {
+            return AccessDecision.DeepFocusBlock(packageName)
+        }
         if (!engine.isBlockingActiveNow()) return AccessDecision.Allow
         val item = repo.appItem(packageName) ?: return AccessDecision.Allow
         if (!item.enabled) return AccessDecision.Allow
 
-        val now = trustedNow()
         // Fetch only what each check needs (usage stats especially aren't free).
         val grant = repo.activeGrant(item.id, now)
         val used = if (item.dailyLimitMinutes > 0) usageMinutesToday(packageName) else 0L

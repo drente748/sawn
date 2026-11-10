@@ -1,311 +1,816 @@
 package com.sawn.app.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
+import com.sawn.app.ui.theme.SawnPalette
 import com.sawn.domain.feature.ChallengePolicy
+import com.sawn.domain.feature.TriggerTag
+import com.sawn.domain.security.PinResult
+import kotlinx.coroutines.launch
+
+/*
+ * شاشات Plan B — كلها تشارك الـ ViewModel نفسه (:main) فلا تنشئ نسخة خاصة بها،
+ * وكلها بالتصميم نفسه (DawnCard + SawnPalette) فتقرأ كأنها جزء من التطبيق.
+ */
+
+// ===== التحدّي ===========================================================
 
 @Composable
-fun ChallengeScreen(onBack: () -> Unit = {}) {
-    val vm: SawnViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val context = LocalContext.current
-    val days by vm.challengeDays.collectAsStateWithLifecycle(initialValue = 0)
+fun ChallengeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
+    val days by vm.challengeDays.collectAsStateWithLifecycle()
     val stage = ChallengePolicy.stageFor(days)
-    val completed = ChallengePolicy.isComplete(days)
+    val complete = ChallengePolicy.isComplete(days)
     val remaining = ChallengePolicy.daysRemaining(days)
+    var confirmRestart by remember { mutableStateOf(false) }
 
-    PlanBScreenShell(title = stringResource(R.string.feature_challenge_title), onBack = onBack) {
-        Text(
-            text = if (completed) stringResource(R.string.feature_challenge_victory)
-            else stringResource(R.string.feature_challenge_progress, days, ChallengePolicy.TOTAL_DAYS),
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.feature_challenge_remaining, remaining), style = MaterialTheme.typography.bodyLarge)
-        stage?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.feature_challenge_stage, it.milestone), style = MaterialTheme.typography.bodyMedium)
-        }
-        Spacer(Modifier.height(16.dp))
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.feature_challenge_how), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.feature_challenge_how_body), style = MaterialTheme.typography.bodyMedium)
+    SettingsSectionScreen(stringResource(R.string.feature_challenge_title), onBack) {
+        DawnCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(SawnPalette.GoldContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.EmojiEvents, null, tint = SawnPalette.GoldDeep)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.feature_challenge_progress, days, ChallengePolicy.TOTAL_DAYS),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = SawnPalette.Ink,
+                        fontWeight = FontWeight.ExtraBold,
+                    )
+                    Text(
+                        if (complete) {
+                            stringResource(R.string.feature_challenge_victory)
+                        } else {
+                            stringResource(R.string.feature_challenge_remaining, remaining)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SawnPalette.InkSoft,
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            ChallengeProgressBar(days, ChallengePolicy.TOTAL_DAYS)
+            stage?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.feature_challenge_stage, it.milestone),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = SawnPalette.PrimaryDeep,
+                )
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = { vm.startChallenge() }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.feature_challenge_start))
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { vm.recordChallengeDay() }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.feature_challenge_record))
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { vm.restartChallenge() }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.feature_challenge_restart))
-        }
-    }
-}
 
-@Composable
-fun NightGuardScreen(onBack: () -> Unit = {}) {
-    val vm: SawnViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val context = LocalContext.current
-    val enabled by vm.nightGuardEnabled.collectAsStateWithLifecycle(initialValue = false)
-    val startMin by vm.nightGuardStartMin.collectAsStateWithLifecycle(initialValue = 1320)
-    val endMin by vm.nightGuardEndMin.collectAsStateWithLifecycle(initialValue = 360)
-    var startH by remember { mutableStateOf((startMin / 60).toString()) }
-    var startM by remember { mutableStateOf((startMin % 60).toString()) }
-    var endH by remember { mutableStateOf((endMin / 60).toString()) }
-    var endM by remember { mutableStateOf((endMin % 60).toString()) }
-
-    PlanBScreenShell(title = stringResource(R.string.feature_night_guard_title), onBack = onBack) {
-        Text(stringResource(R.string.feature_night_guard_sub), style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(12.dp))
-        SwitchRow(
-            label = stringResource(R.string.feature_night_guard_enable),
-            checked = enabled,
-            onCheckedChange = { on ->
-                val s = (startH.toIntOrNull() ?: 22) * 60 + (startM.toIntOrNull() ?: 0)
-                val e = (endH.toIntOrNull() ?: 6) * 60 + (endM.toIntOrNull() ?: 0)
-                vm.setNightGuard(on, s, e)
-            },
-        )
-        OutlinedTextField(
-            value = startH, onValueChange = { startH = it },
-            label = { Text(stringResource(R.string.feature_night_guard_start_h)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = endH, onValueChange = { endH = it },
-            label = { Text(stringResource(R.string.feature_night_guard_end_h)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.feature_night_guard_note), style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = { vm.requestNightGuardUnlock() }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.feature_night_guard_unlock))
+        DawnCard {
+            Text(stringResource(R.string.feature_challenge_how), style = MaterialTheme.typography.titleMedium, color = SawnPalette.Ink)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.feature_challenge_how_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = SawnPalette.InkSoft,
+            )
         }
-    }
-}
 
-@Composable
-fun DeepFocusScreen(onBack: () -> Unit = {}) {
-    val vm: SawnViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val enabled by vm.deepFocusEnabled.collectAsStateWithLifecycle(initialValue = false)
-    val whitelist by vm.deepFocusWhitelist.collectAsStateWithLifecycle(initialValue = emptySet())
-    var unlockIn by remember { mutableStateOf(0) }
-
-    PlanBScreenShell(title = stringResource(R.string.feature_deep_focus_title), onBack = onBack) {
-        Text(stringResource(R.string.feature_deep_focus_sub), style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(12.dp))
-        SwitchRow(
-            label = stringResource(R.string.feature_deep_focus_enable),
-            checked = enabled,
-            onCheckedChange = { vm.setDeepFocusEnabled(it) },
-        )
-        Text(
-            stringResource(R.string.feature_deep_focus_whitelist, whitelist.size),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.feature_deep_focus_note), style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(12.dp))
         Button(
-            onClick = { vm.requestDeepFocusUnlock() },
+            onClick = { vm.recordChallengeDay() },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(stringResource(R.string.feature_deep_focus_unlock))
+            Text(stringResource(R.string.feature_challenge_record))
+        }
+        if (days == 0) {
+            OutlinedButton(
+                onClick = { vm.startChallenge() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.feature_challenge_start))
+            }
+        } else {
+            TextButton(
+                onClick = { confirmRestart = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.feature_challenge_restart), color = SawnPalette.InkSoft)
+            }
         }
     }
-}
 
-@Composable
-fun AccountabilityScreen(onBack: () -> Unit = {}) {
-    val vm: SawnViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val context = LocalContext.current
-    val name by vm.accountabilityName.collectAsStateWithLifecycle(initialValue = null)
-    var nameText by remember { mutableStateOf("") }
-    var contactText by remember { mutableStateOf("") }
-
-    PlanBScreenShell(title = stringResource(R.string.feature_accountability_title), onBack = onBack) {
-        Text(stringResource(R.string.feature_accountability_sub), style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = nameText, onValueChange = { nameText = it },
-            label = { Text(stringResource(R.string.feature_accountability_name)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = contactText, onValueChange = { contactText = it },
-            label = { Text(stringResource(R.string.feature_accountability_contact)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = { vm.setAccountability(nameText.ifBlank { null }, contactText.ifBlank { null }) }) {
-            Text(stringResource(R.string.save))
-        }
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(onClick = { vm.shareWeeklyReport(context) }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.feature_accountability_share))
-        }
-    }
-}
-
-@Composable
-fun BackupScreen(onBack: () -> Unit = {}) {
-    val vm: SawnViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val context = LocalContext.current
-    var passphrase by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
-
-    PlanBScreenShell(title = stringResource(R.string.feature_backup_title), onBack = onBack) {
-        Text(stringResource(R.string.feature_backup_sub), style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = passphrase, onValueChange = { passphrase = it },
-            label = { Text(stringResource(R.string.feature_backup_passphrase)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = {
-                status = if (passphrase.length >= 8) {
-                    vm.exportBackup(context, passphrase)
-                    "exported"
-                } else "short"
+    if (confirmRestart) {
+        AlertDialog(
+            onDismissRequest = { confirmRestart = false },
+            title = { Text(stringResource(R.string.feature_challenge_restart)) },
+            text = { Text(stringResource(R.string.feature_challenge_restart_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRestart = false
+                    vm.restartChallenge()
+                }) {
+                    Text(stringResource(R.string.feature_challenge_restart), color = SawnPalette.Error)
+                }
             },
+            dismissButton = {
+                TextButton(onClick = { confirmRestart = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ChallengeProgressBar(days: Int, total: Int) {
+    val ratio = if (total <= 0) 0f else (days.toFloat() / total).coerceIn(0f, 1f)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(SawnPalette.Track),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(ratio)
+                .height(10.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(SawnPalette.Gold),
+        )
+    }
+}
+
+// ===== الترميز العميق =====================================================
+
+@Composable
+fun DeepFocusScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
+    val enabled by vm.deepFocusEnabled.collectAsStateWithLifecycle()
+    val whitelist by vm.deepFocusWhitelist.collectAsStateWithLifecycle()
+    val unlockUntil by vm.deepFocusUnlockUntil.collectAsStateWithLifecycle()
+    var askPin by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    SettingsSectionScreen(stringResource(R.string.feature_deep_focus_title), onBack) {
+        DawnCard {
+            SwitchRow(
+                title = stringResource(R.string.feature_deep_focus_enable),
+                subtitle = stringResource(R.string.feature_deep_focus_sub),
+                checked = enabled,
+                onChange = { vm.setDeepFocusEnabled(it) },
+            )
+            if (enabled) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.feature_deep_focus_active),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SawnPalette.PrimaryDeep,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
+        DawnCard {
+            Text(
+                stringResource(R.string.feature_deep_focus_whitelist_label),
+                style = MaterialTheme.typography.titleMedium,
+                color = SawnPalette.Ink,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.feature_deep_focus_whitelist, whitelist.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = SawnPalette.InkSoft,
+            )
+            if (whitelist.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                whitelist.sorted().forEach { pkg ->
+                    Text(
+                        pkg,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SawnPalette.InkSoft,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(R.string.feature_deep_focus_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = SawnPalette.InkSoft,
+            )
+        }
+
+        if (enabled) {
+            val escapeOpen = unlockUntil > System.currentTimeMillis()
+            if (escapeOpen) {
+                Text(
+                    stringResource(R.string.feature_deep_focus_escape_open),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SawnPalette.Success,
+                )
+            }
+            OutlinedButton(
+                onClick = { askPin = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.feature_deep_focus_unlock))
+            }
+        }
+
+        message?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = SawnPalette.Ink)
+        }
+    }
+
+    if (askPin) {
+        VerifyPinDialog(
+            title = stringResource(R.string.feature_deep_focus_unlock),
+            verify = { pin ->
+                if (vm.requestDeepFocusUnlock(pin)) PinResult.Ok else PinResult.Wrong
+            },
+            onSuccess = {
+                askPin = false
+                message = context.getString(R.string.feature_deep_focus_unlock_success)
+            },
+            onDismiss = { askPin = false },
+        )
+    }
+}
+
+// ===== حارس الليل =========================================================
+
+@Composable
+fun NightGuardScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
+    val enabled by vm.nightGuardEnabled.collectAsStateWithLifecycle()
+    val startMin by vm.nightGuardStartMin.collectAsStateWithLifecycle()
+    val endMin by vm.nightGuardEndMin.collectAsStateWithLifecycle()
+    val activeNow by vm.nightGuardActiveNow.collectAsStateWithLifecycle()
+    var askPin by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    fun apply(newStart: Int, newEnd: Int, on: Boolean = enabled) {
+        scope.launch { vm.setNightGuard(on, newStart, newEnd) }
+    }
+
+    SettingsSectionScreen(stringResource(R.string.feature_night_guard_title), onBack) {
+        DawnCard {
+            SwitchRow(
+                title = stringResource(R.string.feature_night_guard_enable),
+                subtitle = stringResource(R.string.feature_night_guard_sub),
+                checked = enabled,
+                onChange = { apply(startMin, endMin, it) },
+            )
+            if (enabled) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    stringResource(
+                        if (activeNow) R.string.feature_night_guard_active else R.string.feature_night_guard_inactive,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (activeNow) SawnPalette.PrimaryDeep else SawnPalette.InkSoft,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+
+        DawnCard {
+            Text(
+                stringResource(R.string.feature_night_guard_window),
+                style = MaterialTheme.typography.titleMedium,
+                color = SawnPalette.Ink,
+            )
+            Spacer(Modifier.height(10.dp))
+            MinuteStepper(
+                label = stringResource(R.string.feature_night_guard_start),
+                minutes = startMin,
+                onChange = { apply(it, endMin) },
+            )
+            Spacer(Modifier.height(10.dp))
+            MinuteStepper(
+                label = stringResource(R.string.feature_night_guard_end),
+                minutes = endMin,
+                onChange = { apply(startMin, it) },
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(R.string.feature_night_guard_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = SawnPalette.InkSoft,
+            )
+        }
+
+        if (enabled) {
+            OutlinedButton(
+                onClick = { askPin = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.feature_night_guard_unlock))
+            }
+        }
+
+        message?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = SawnPalette.Ink)
+        }
+    }
+
+    if (askPin) {
+        VerifyPinDialog(
+            title = stringResource(R.string.feature_night_guard_unlock),
+            verify = { pin ->
+                if (vm.requestNightGuardUnlock(pin)) PinResult.Ok else PinResult.Wrong
+            },
+            onSuccess = {
+                askPin = false
+                message = context.getString(R.string.feature_night_guard_unlock_success)
+            },
+            onDismiss = { askPin = false },
+        )
+    }
+}
+
+/** ساعة/دقيقة بزرّي + و− — بلا اعتماد على حوار الوقت. */
+@Composable
+private fun MinuteStepper(label: String, minutes: Int, onChange: (Int) -> Unit) {
+    val normalized = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60)
+    val hour = normalized / 60
+    val minute = normalized % 60
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = SawnPalette.Ink,
+            modifier = Modifier.weight(1f),
+        )
+        StepButton("−") {
+            onChange((normalized - 60 + 24 * 60) % (24 * 60))
+        }
+        Text(
+            String.format("%02d:%02d", hour, minute),
+            style = MaterialTheme.typography.titleMedium,
+            color = SawnPalette.PrimaryDeep,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.padding(horizontal = 10.dp),
+        )
+        StepButton("+") {
+            onChange((normalized + 60) % (24 * 60))
+        }
+    }
+}
+
+@Composable
+private fun StepButton(symbol: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+        Text(
+            symbol,
+            style = MaterialTheme.typography.titleMedium,
+            color = SawnPalette.PrimaryDeep,
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(SawnPalette.PrimarySoft),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+    }
+}
+
+// ===== المحفّزات ==========================================================
+
+@Composable
+fun TriggersScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
+    val insights by vm.triggerInsights.collectAsStateWithLifecycle()
+    val histogram by vm.triggerHourHistogram.collectAsStateWithLifecycle()
+
+    SettingsSectionScreen(stringResource(R.string.feature_triggers_title), onBack) {
+        DawnCard {
+            Text(
+                stringResource(R.string.feature_triggers_log_prompt),
+                style = MaterialTheme.typography.bodyMedium,
+                color = SawnPalette.InkSoft,
+            )
+            Spacer(Modifier.height(12.dp))
+            TriggerTag.entries.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { tag ->
+                        OutlinedButton(
+                            onClick = { vm.logTrigger(tag) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(stringResource(tag.labelRes()))
+                        }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+
+        DawnCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Insights, null, tint = SawnPalette.Primary)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.feature_triggers_insights),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = SawnPalette.Ink,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.feature_triggers_total, insights.totalLogs),
+                style = MaterialTheme.typography.bodyMedium,
+                color = SawnPalette.Ink,
+            )
+            Text(
+                stringResource(
+                    R.string.feature_triggers_top,
+                    insights.topTag?.let { stringResource(it.labelRes()) } ?: "—",
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = SawnPalette.Ink,
+            )
+            Text(
+                stringResource(R.string.feature_triggers_peak, insights.peakHour?.toString() ?: "—"),
+                style = MaterialTheme.typography.bodyMedium,
+                color = SawnPalette.Ink,
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.feature_triggers_by_hour),
+                style = MaterialTheme.typography.labelMedium,
+                color = SawnPalette.InkSoft,
+            )
+            Spacer(Modifier.height(6.dp))
+            TriggerHourChart(histogram)
+        }
+    }
+}
+
+@Composable
+private fun TriggerHourChart(hours: List<Int>) {
+    val peak = maxOf(1, hours.maxOrNull() ?: 0)
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        hours.forEach { count ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(SawnPalette.Track),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                if (count > 0) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight((count.toFloat() / peak).coerceIn(0.1f, 1f))
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(SawnPalette.Primary),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** تسمية عربية لكل سبب. */
+private fun TriggerTag.labelRes(): Int = when (this) {
+    TriggerTag.BOREDOM -> R.string.feature_trigger_boredom
+    TriggerTag.STRESS -> R.string.feature_trigger_stress
+    TriggerTag.LONELINESS -> R.string.feature_trigger_loneliness
+    TriggerTag.LATE_NIGHT -> R.string.feature_trigger_late_night
+    TriggerTag.ANGER -> R.string.feature_trigger_anger
+    TriggerTag.OTHER -> R.string.feature_trigger_other
+}
+
+// ===== المساءلة ===========================================================
+
+@Composable
+fun AccountabilityScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
+    val savedName by vm.accountabilityName.collectAsStateWithLifecycle()
+    val savedContact by vm.accountabilityContact.collectAsStateWithLifecycle()
+    var name by remember { mutableStateOf(savedName.orEmpty()) }
+    var contact by remember { mutableStateOf(savedContact.orEmpty()) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    SettingsSectionScreen(stringResource(R.string.feature_accountability_title), onBack) {
+        DawnCard {
+            Text(
+                stringResource(R.string.feature_accountability_sub),
+                style = MaterialTheme.typography.bodyMedium,
+                color = SawnPalette.InkSoft,
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.feature_accountability_name)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = contact,
+                onValueChange = { contact = it },
+                label = { Text(stringResource(R.string.feature_accountability_contact)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = {
+                    scope.launch {
+                        vm.setAccountability(name.ifBlank { null }, contact.ifBlank { null })
+                        message = context.getString(R.string.feature_accountability_saved)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.Save, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.save))
+            }
+        }
+
+        DawnCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Groups, null, tint = SawnPalette.Primary)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.feature_accountability_report),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = SawnPalette.Ink,
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.feature_accountability_report_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = SawnPalette.InkSoft,
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = { vm.shareWeeklyReport(context) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.feature_accountability_share))
+            }
+        }
+
+        message?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = SawnPalette.Success)
+        }
+    }
+}
+
+// ===== النسخة الاحتياطية ==================================================
+
+@Composable
+fun BackupScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
+    var passphrase by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            status = when (val result = vm.exportBackup(context, uri, passphrase)) {
+                is BackupResult.Success -> context.getString(R.string.feature_backup_exported)
+                is BackupResult.PassphraseTooShort -> context.getString(R.string.feature_backup_short)
+                is BackupResult.CannotDecrypt -> context.getString(R.string.feature_backup_wrong_pass)
+                is BackupResult.Failed -> context.getString(R.string.feature_backup_failed)
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            status = when (val result = vm.importBackup(context, uri, passphrase)) {
+                is BackupResult.Success -> context.getString(R.string.feature_backup_imported)
+                is BackupResult.PassphraseTooShort -> context.getString(R.string.feature_backup_short)
+                is BackupResult.CannotDecrypt -> context.getString(R.string.feature_backup_wrong_pass)
+                is BackupResult.Failed -> context.getString(R.string.feature_backup_failed)
+            }
+        }
+    }
+
+    SettingsSectionScreen(stringResource(R.string.feature_backup_title), onBack) {
+        DawnCard {
+            Text(
+                stringResource(R.string.feature_backup_sub),
+                style = MaterialTheme.typography.bodyMedium,
+                color = SawnPalette.InkSoft,
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = passphrase,
+                onValueChange = { passphrase = it },
+                label = { Text(stringResource(R.string.feature_backup_passphrase)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.feature_backup_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = SawnPalette.InkSoft,
+            )
+        }
+
+        Button(
+            onClick = { exportLauncher.launch("sawn-backup.sawnbak") },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.feature_backup_export))
         }
-        Spacer(Modifier.height(8.dp))
         OutlinedButton(
-            onClick = {
-                status = if (passphrase.length >= 8) {
-                    vm.importBackup(context, passphrase)
-                    "imported"
-                } else "short"
-            },
+            onClick = { importLauncher.launch(arrayOf("application/octet-stream", "application/zip")) },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.feature_backup_import))
         }
-        if (status.isNotBlank()) {
-            Spacer(Modifier.height(8.dp))
-            Text(status, style = MaterialTheme.typography.bodyMedium)
+
+        status?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = SawnPalette.Ink)
         }
-        Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.feature_backup_note), style = MaterialTheme.typography.bodySmall)
     }
 }
 
-@Composable
-fun TriggersScreen(onBack: () -> Unit = {}) {
-    val vm: SawnViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val topTag by vm.topTriggerTag.collectAsStateWithLifecycle(initialValue = null)
-    val peakHour by vm.peakHour.collectAsStateWithLifecycle(initialValue = null)
+// ===== وضع الوالدين =======================================================
 
-    PlanBScreenShell(title = stringResource(R.string.feature_triggers_title), onBack = onBack) {
-        Text(stringResource(R.string.feature_triggers_sub), style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            stringResource(R.string.feature_triggers_top, topTag ?: "—"),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Text(
-            stringResource(R.string.feature_triggers_peak, peakHour?.toString() ?: "—"),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Spacer(Modifier.height(12.dp))
-        com.sawn.domain.feature.TriggerTag.entries.forEach { tag ->
-            OutlinedButton(onClick = { vm.logTrigger(tag) }, modifier = Modifier.fillMaxWidth()) {
-                Text(tag.name)
+@Composable
+fun ParentModeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
+    val enabled by vm.parentModeEnabled.collectAsStateWithLifecycle()
+    val pinSet by vm.parentPinPresent.collectAsStateWithLifecycle()
+    var askPin by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    SettingsSectionScreen(stringResource(R.string.feature_parent_title), onBack) {
+        DawnCard {
+            SwitchRow(
+                title = stringResource(R.string.feature_parent_enable),
+                subtitle = stringResource(R.string.feature_parent_sub),
+                checked = enabled,
+                onChange = { vm.setParentModeEnabled(it) },
+            )
+        }
+
+        DawnCard {
+            Text(
+                stringResource(R.string.feature_parent_pin_section),
+                style = MaterialTheme.typography.titleMedium,
+                color = SawnPalette.Ink,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(
+                    if (pinSet) R.string.feature_parent_pin_set_done else R.string.feature_parent_pin_missing,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = SawnPalette.InkSoft,
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { askPin = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.feature_parent_pin_set))
             }
-            Spacer(Modifier.height(4.dp))
+            if (pinSet) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            vm.clearParentPin()
+                            message = context.getString(R.string.feature_parent_pin_removed)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.feature_parent_pin_remove))
+                }
+            }
+        }
+
+        if (enabled) {
+            DawnCard {
+                Text(
+                    stringResource(R.string.feature_parent_report),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = SawnPalette.Ink,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.feature_parent_report_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SawnPalette.InkSoft,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = { vm.shareWeeklyReport(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.feature_accountability_share))
+                }
+            }
+        }
+
+        message?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = SawnPalette.Ink)
         }
     }
-}
 
-@Composable
-fun ParentModeScreen(onBack: () -> Unit = {}) {
-    val vm: SawnViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val enabled by vm.parentModeEnabled.collectAsStateWithLifecycle(initialValue = false)
-    var pin by remember { mutableStateOf("") }
-
-    PlanBScreenShell(title = stringResource(R.string.feature_parent_title), onBack = onBack) {
-        Text(stringResource(R.string.feature_parent_sub), style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(12.dp))
-        SwitchRow(
-            label = stringResource(R.string.feature_parent_enable),
-            checked = enabled,
-            onCheckedChange = { vm.setParentModeEnabled(it) },
+    if (askPin) {
+        SetPinDialog(
+            onSubmit = { pin -> vm.setParentPin(pin) },
+            onDismiss = {
+                askPin = false
+                if (pinSet) message = context.getString(R.string.feature_parent_pin_set_done)
+            },
         )
-        OutlinedTextField(
-            value = pin, onValueChange = { pin = it },
-            label = { Text(stringResource(R.string.feature_parent_pin)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = { vm.setParentPin(pin) }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.pin_set_title))
-        }
-        Spacer(Modifier.height(12.dp))
-        val ctx = LocalContext.current
-        OutlinedButton(onClick = { vm.shareWeeklyReport(ctx) }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.feature_accountability_share))
-        }
     }
 }
 
-@Composable
-private fun PlanBScreenShell(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(8.dp))
-        content()
-        Spacer(Modifier.height(16.dp))
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.back))
-        }
-    }
-}
+// ===== عناصر مشتركة =======================================================
 
+/** صفّ مفتاح بإطّراق صَوْن (Switch داخل بطاقة). */
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Text(label, Modifier.padding(16.dp))
-        Spacer(Modifier.height(4.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = Modifier.padding(16.dp))
+private fun SwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = SawnPalette.Ink)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = SawnPalette.InkSoft)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }

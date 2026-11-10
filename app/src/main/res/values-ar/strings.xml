@@ -393,9 +393,6 @@
     <string name="home_section_tools">أدوات</string>
     <string name="home_section_lock">قفل صَوْن</string>
     <string name="home_section_lock_hint">قفل مؤقت يمنع إيقاف الحماية أو حذف التطبيق حتى تنتهي المدة، وينتهي وحده.</string>
-    <string name="sos_title">لحظة رغبة؟</string>
-    <string name="sos_body">تنفّس، أو ركّز على ما حولك، أو أجّل القرار قليلاً. الإحصاء محلي على جهازك.</string>
-    <string name="sos_open">افتح درع الرغبة</string>
     <string name="sos_close">أنا بخير الآن</string>
     <string name="sos_inhale">شهيق…</string>
     <string name="sos_hold">احتفظ…</string>
@@ -576,11 +573,10 @@
     <string name="feature_challenge_start">ابدأ التحدي</string>
     <string name="feature_challenge_record">سجِّل اليوم</string>
     <string name="feature_challenge_restart">أعد البدء</string>
+    <string name="feature_challenge_restart_confirm">إعادة البدء تمسح الأيام التي حسبتها. تبدأ من جديد؟</string>
     <string name="feature_night_guard_title">الحارس الليلي</string>
     <string name="feature_night_guard_sub">يُفعِّل وضع الانضباط تلقائيًا ليلًا (الافتراضي 22:00–06:00). الاتصال والرسائل والخرائط تبقى مسموحة.</string>
     <string name="feature_night_guard_enable">مفعّل</string>
-    <string name="feature_night_guard_start_h">ساعة البدء (24)</string>
-    <string name="feature_night_guard_end_h">ساعة الانتهاء (24)</string>
     <string name="feature_night_guard_note">الفك = PIN + 15 دقيقة، ثم يعود تلقائيًا. الفك يُسجَّل.</string>
     <string name="feature_night_guard_unlock">افكّ 15 دقيقة</string>
     <string name="feature_deep_focus_title">التركيز العميق</string>
@@ -599,7 +595,7 @@
     <string name="feature_backup_passphrase">عبارة مرور (8+ أحرف)</string>
     <string name="feature_backup_export">تصدير .sawnbak</string>
     <string name="feature_backup_import">استيراد .sawnbak</string>
-    <string name="feature_backup_note">الاستيراد يمكن أن يدمج أو يستبدل — تؤكد قبل أي تغيير.</string>
+    <string name="feature_backup_note">الاستيراد يستبدل قوائم الحجب والجداول ويدمج الأيام المحمية. رقمك السري لا يُضمَّن في النسخة أبدًا.</string>
     <string name="feature_triggers_title">محلل المحفزات</string>
     <string name="feature_triggers_sub">بعد أي انتكاسة، وسم ما حفّزها. كل شيء يبقى محليًا.</string>
     <string name="feature_triggers_top">أكثر محفز: %1$s</string>
@@ -607,6 +603,69 @@
     <string name="feature_parent_title">وضع ولي الأمر</string>
     <string name="feature_parent_sub">على جهاز الطفل. رمز ثانٍ يُقفل كل الإدارة. حماية الحذف تصبح مطلوبة. هذه أداة للوالدين لا تطبيق موجّه للأطفال.</string>
     <string name="feature_parent_enable">مفعّل</string>
-    <string name="feature_parent_pin">رمز الولي (4 أرقام)</string>
+
+    <!-- Plan B (2.1) — شاشات التحدي والتركيز العميق وأدواتي -->
+    <string name="feature_deep_focus_active">مفعّل الآن — كل تطبيق خارج القائمة البيضاء محجوب</string>
+    <string name="feature_deep_focus_whitelist_label">التطبيقات المسموحة</string>
+    <string name="feature_deep_focus_unlock_success">حُدِّدت نافذة الخروج — تُغلق من تلقاء نفسها.</string>
+    <string name="feature_deep_focus_escape_open">نافذة الخروج مفتوحة</string>
+    <string name="feature_night_guard_active">الحارس يعمل الآن</string>
+    <string name="feature_night_guard_inactive">خارج نافذة الليل</string>
+    <string name="feature_night_guard_window">نافذة الليل</string>
+    <string name="feature_night_guard_start">من</string>
+    <string name="feature_night_guard_end">إلى</string>
+    <string name="feature_night_guard_unlock_success">فُكّ الحارس 15 دقيقة.</string>
+    <string name="feature_triggers_log_prompt">ما الذي دفعك؟ وسمه لتعرف نمطك.</string>
+    <string name="feature_triggers_insights">نمطك</string>
+    <string name="feature_triggers_total">اللحظات المسجَّلة: %1$d</string>
+    <string name="feature_triggers_by_hour">حسب ساعة اليوم</string>
+    <string name="feature_trigger_boredom">ملل</string>
+    <string name="feature_trigger_stress">ضغط</string>
+    <string name="feature_trigger_loneliness">وحدة</string>
+    <string name="feature_trigger_late_night">ساعة متأخرة</string>
+    <string name="feature_trigger_anger">غضب</string>
+    <string name="feature_trigger_other">أخرى</string>
+    <string name="feature_accountability_saved">حُفظ</string>
+    <string name="feature_accountability_subject">تقرير صَوْن الأسبوعي</string>
+    <string name="feature_accountability_report">تقرير الأسبوع</string>
+    <string name="feature_accountability_report_body">أرقام حقيقية من هذا الجهاز: الأيام المحمية والمحاولات المصدودة وسلسلتك. لا يُرسَل شيء تلقائيًا.</string>
+    <string name="feature_backup_exported">تم تصدير النسخة.</string>
+    <string name="feature_backup_imported">تمت الاستعادة.</string>
+    <string name="feature_backup_wrong_pass">العبارة السرية غير صحيحة أو الملف تالف.</string>
+    <string name="feature_backup_failed">تعذّر إتمام العملية.</string>
+    <string name="feature_backup_short">العبارة السرية: ٨ أحرف على الأقل.</string>
+    <string name="feature_parent_pin_section">رقم ولي الأمر</string>
+    <string name="feature_parent_pin_set_done">رقم ولي الأمر مُعيَّن — الإدارة تبقى مقفلة به.</string>
+    <string name="feature_parent_pin_missing">لا رقم لولي الأمر بعد — عيّنه ليقفل الإدارة.</string>
+    <string name="feature_parent_pin_set">تعيين رقم ولي الأمر</string>
+    <string name="feature_parent_pin_remove">إزالة رقم ولي الأمر</string>
+    <string name="feature_parent_pin_removed">أُزيل رقم ولي الأمر.</string>
+    <string name="feature_parent_report">أرسل تقرير ولي الأمر</string>
+    <string name="feature_parent_report_body">التقرير الأسبوعي نفسه، جاهزًا لتسليمه لولي الأمر أو شريك المساءلة.</string>
+    <string name="parent_unlock_title">أدخل رقم ولي الأمر</string>
+
+    <!-- أقسام Plan B في الرئيسية -->
+    <string name="home_section_discipline">تحدّي وتركيز</string>
+    <string name="home_section_discipline_hint">ثلاثون يوماً، تطبيقاً تلو الآخر — ودقيقة للتنفس.</string>
+    <string name="home_feature_challenge">تحدّي 30 يومًا</string>
+    <string name="home_feature_challenge_detail">سجّل كل يوم محمي</string>
+    <string name="home_feature_deep_focus">التركيز العميق</string>
+    <string name="home_feature_deep_focus_detail">لا يمرّ إلا المسموح</string>
+    <string name="home_feature_breathing">التمارين التنفس</string>
+    <string name="home_feature_breathing_detail">تنفّس 4-7-8 وتأريض</string>
+    <string name="home_feature_night_guard">الحارس الليلي</string>
+    <string name="home_feature_night_guard_detail">انضباط صارم ليلاً</string>
+    <string name="home_feature_triggers">المحفّزات</string>
+    <string name="home_feature_triggers_detail">اعرف ما يدفعك</string>
+    <string name="home_feature_accountability">المساءلة</string>
+    <string name="home_feature_accountability_detail">شارك تقريرك الأسبوعي</string>
+    <string name="home_feature_backup">النسخ الاحتياطي</string>
+    <string name="home_feature_backup_detail">نسخة .sawnbak مشفّرة</string>
+    <string name="home_feature_parent_mode">وضع ولي الأمر</string>
+    <string name="home_feature_parent_mode_detail">رقم ثانٍ يقفل الإدارة</string>
+
+    <!-- جدار التركيز العميق -->
+    <string name="intercept_deep_focus_title">التركيز العميق مفعّل</string>
+    <string name="intercept_deep_focus_body">هذا التطبيق ليس في قائمتك البيضاء. افتح صَوْن ← التركيز العميق لتفكّه برقم سري لنافذة قصيرة.</string>
 
 </resources>
