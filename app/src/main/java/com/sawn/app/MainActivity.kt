@@ -49,7 +49,6 @@ import com.sawn.app.ui.SchedulesScreen
 import com.sawn.app.ui.SetupScreen
 import com.sawn.app.ui.StatsScreen
 import com.sawn.app.ui.SawnViewModel
-import com.sawn.app.ui.settings.BrowserSettingsScreen
 import com.sawn.app.ui.settings.PrivacySupportSettingsScreen
 import com.sawn.app.ui.settings.ProtectionSettingsScreen
 import com.sawn.app.ui.theme.SawnTheme
@@ -304,7 +303,6 @@ private fun SawnScaffold(
                         onOpenSetup = { navController.navigate("setup") },
                         onBack = { navController.popBackStack() },
                         onOpenProtection = { navController.navigate("settings/protection") },
-                        onOpenBrowser = { navController.navigate("settings/browser") },
                         onOpenPrivacy = { navController.navigate("settings/privacy") },
                     )
                 }
@@ -313,16 +311,6 @@ private fun SawnScaffold(
                 protectedScreen(stringResource(R.string.settings_protection)) {
                     ProtectionSettingsScreen(
                         vm,
-                        onOpenSetup = { navController.navigate("setup") },
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-            }
-            composable("settings/browser") {
-                protectedScreen(stringResource(R.string.settings_browser)) {
-                    BrowserSettingsScreen(
-                        vm,
-                        onOpenSetup = { navController.navigate("setup") },
                         onBack = { navController.popBackStack() },
                     )
                 }
@@ -331,7 +319,6 @@ private fun SawnScaffold(
                 protectedScreen(stringResource(R.string.settings_privacy)) {
                     PrivacySupportSettingsScreen(
                         vm,
-                        onOpenSetup = { navController.navigate("setup") },
                         onBack = { navController.popBackStack() },
                     )
                 }

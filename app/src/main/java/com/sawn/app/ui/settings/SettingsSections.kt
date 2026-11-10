@@ -11,13 +11,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -42,7 +40,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.BuildConfig
 import com.sawn.app.R
 import com.sawn.domain.block.web.BrowserConfig
-import com.sawn.app.ui.SettingsControls
 import com.sawn.app.ui.SettingsSectionScreen
 import com.sawn.app.ui.SawnViewModel
 import com.sawn.app.ui.rememberResumeTick
@@ -56,27 +53,25 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * أقسام الإعدادات الثلاثة: الحماية / المتصفح / الخصوصية والدعم.
+ * أقسام الإعدادات: الحماية / الخصوصية والدعم.
  * بوابة الرقم السري واحدة يملكها MainActivity عبر ManagementPinGate، فلا تكرر هذه
  * الشاشات طلب الرقم.
+ *
+ * لا مفاتيح حماية هنا: مفاتيح الفلتر والوضع الصارم والقفل الزمني على الصفحة
+ * الرئيسية، والرقم السري وحماية الإلغاء على شاشة الإعدادات نفسها.
  */
 private const val HELPLINE_URL = "https://findahelpline.com/ar"
 
+/**
+ * قسم «الحماية» — ما لا يوجد مكان غيره: قوائم الحجب الجماعية، المتصفحات المدعومة،
+ * وتلميحات التلافي.
+ *
+ * مفاتيح الحماية نفسها (فلتر الإباحية، SafeSearch، الإعلانات، DoH، الوضع الدائم،
+ * الوضع الصارم، القفل الزمني) لا تُكرَّر هنا — الصفحة الرئيسية هي مكانها الوحيد.
+ */
 @Composable
-fun ProtectionSettingsScreen(vm: SawnViewModel, onOpenSetup: () -> Unit, onBack: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val pornGuard by vm.pornGuard.collectAsStateWithLifecycle()
-    val safeSearchForce by vm.safeSearchForce.collectAsStateWithLifecycle()
-    val blockDoh by vm.blockDoh.collectAsStateWithLifecycle()
-    val blockAds by vm.blockAds.collectAsStateWithLifecycle()
-    val alwaysOn by vm.alwaysOn.collectAsStateWithLifecycle()
-    val strict by vm.strictMode.collectAsStateWithLifecycle()
-    val pinConfigured by vm.pinConfigured.collectAsStateWithLifecycle()
+fun ProtectionSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
     val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
-    val hasPin = pinConfigured == true
-
-    var showPinForStrict by remember { mutableStateOf(false) }
-    var strictFailed by remember { mutableStateOf(false) }
 
     SettingsSectionScreen(stringResource(R.string.settings_protection), onBack) {
         if (lockdownActive) {
@@ -87,84 +82,21 @@ fun ProtectionSettingsScreen(vm: SawnViewModel, onOpenSetup: () -> Unit, onBack:
             )
         }
 
-        SwitchRow(
-            title = stringResource(R.string.porn_guard_title),
-            subtitle = stringResource(R.string.porn_guard_sub),
-            checked = pornGuard,
-            enabled = !lockdownActive,
-            onChange = vm::setPornGuard,
-        )
-        SwitchRow(
-            title = stringResource(R.string.safe_search_title),
-            subtitle = stringResource(R.string.safe_search_sub),
-            checked = safeSearchForce,
-            enabled = !lockdownActive,
-            onChange = vm::setSafeSearchForce,
-        )
-        SwitchRow(
-            title = stringResource(R.string.always_on_title),
-            subtitle = stringResource(if (alwaysOn) R.string.always_on_on else R.string.always_on_off),
-            checked = alwaysOn,
-            enabled = !lockdownActive,
-            onChange = vm::setAlwaysOn,
-        )
-        SwitchRow(
-            title = stringResource(R.string.doh_title),
-            subtitle = stringResource(R.string.doh_sub),
-            checked = blockDoh,
-            enabled = !lockdownActive,
-            onChange = vm::setBlockDoh,
-        )
-        SwitchRow(
-            title = stringResource(R.string.ads_title),
-            subtitle = stringResource(R.string.ads_sub),
-            checked = blockAds,
-            enabled = !lockdownActive,
-            onChange = vm::setBlockAds,
+        InfoCard(
+            title = stringResource(R.string.settings_protection_home_title),
+            body = stringResource(R.string.settings_protection_home_body),
         )
 
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.strict_title), style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            stringResource(R.string.strict_sub),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Switch(
-                        checked = strict,
-                        // أثناء القفل الزمني يُمنع إضعاف الوضع الصارم.
-                        enabled = !lockdownActive || strict,
-                        onCheckedChange = { on ->
-                            strictFailed = false
-                            when {
-                                on && !hasPin -> showPinForStrict = true
-                                else -> scope.launch { strictFailed = !vm.setStrictMode(on) }
-                            }
-                        },
-                    )
-                }
-                if (strictFailed) {
-                    Text(
-                        stringResource(R.string.strict_enable_failed),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-        }
-
-        SettingsControls.LockdownCard(vm = vm)
         AdultListsCard(vm)
-    }
 
-    // الضرب رقماً سرياً ثم تفعيل الوضع الصارم خطوة واحدة — بلا تحويل صامت يفشل سرّاً.
-    if (showPinForStrict) {
-        SettingsControls.PinSetup(vm = vm, enableStrictAfter = true, onDismiss = { showPinForStrict = false })
+        InfoCard(
+            title = stringResource(R.string.browsers_title),
+            body = stringResource(R.string.browsers_count, BrowserConfig.ALL.size),
+        )
+        InfoCard(
+            title = stringResource(R.string.doh_hint_title),
+            body = stringResource(R.string.doh_hint_body),
+        )
     }
 }
 
@@ -214,67 +146,12 @@ private fun AdultListsCard(vm: SawnViewModel) {
 }
 
 @Composable
-fun BrowserSettingsScreen(vm: SawnViewModel, onOpenSetup: () -> Unit, onBack: () -> Unit) {
-    val context = LocalContext.current
-    val resumeTick = rememberResumeTick()
-    val accessibilityOn = remember(resumeTick) { PermissionsHelper.isAccessibilityEnabled(context) }
-
-    SettingsSectionScreen(stringResource(R.string.settings_browser), onBack) {
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.Accessibility,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.a11y_title), style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            stringResource(R.string.a11y_sub),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(if (accessibilityOn) R.string.a11y_on else R.string.a11y_off),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (accessibilityOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                )
-                if (!accessibilityOn) {
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = onOpenSetup, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.grant_now))
-                    }
-                }
-            }
-        }
-
-        InfoCard(
-            title = stringResource(R.string.browsers_title),
-            body = stringResource(R.string.browsers_count, BrowserConfig.ALL.size),
-        )
-        InfoCard(
-            title = stringResource(R.string.doh_hint_title),
-            body = stringResource(R.string.doh_hint_body),
-        )
-    }
-}
-
-@Composable
-fun PrivacySupportSettingsScreen(vm: SawnViewModel, onOpenSetup: () -> Unit, onBack: () -> Unit) {
+fun PrivacySupportSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     val reduceMotion by vm.reduceMotion.collectAsStateWithLifecycle()
-    val strict by vm.strictMode.collectAsStateWithLifecycle()
-    val pinConfigured by vm.pinConfigured.collectAsStateWithLifecycle()
     val blockNotifications by vm.blockNotifications.collectAsStateWithLifecycle()
-    val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
     val resumeTick = rememberResumeTick()
     val notificationsGranted = remember(resumeTick) { PermissionsHelper.hasNotifications(context) }
-    val hasPin = pinConfigured == true
     val scope = rememberCoroutineScope()
     var updateStatus by remember { mutableStateOf<UpdateStatus?>(null) }
     var installUri by remember { mutableStateOf<Uri?>(null) }
@@ -291,15 +168,12 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onOpenSetup: () -> Unit, onB
     }
 
     SettingsSectionScreen(stringResource(R.string.settings_privacy), onBack) {
-        SettingsControls.PinCard(vm = vm, strict = strict, hasPin = hasPin)
-        SettingsControls.AdminProtectionCard(strict = strict, vm = vm)
-
-        SwitchRow(
+        // حالة فقط — مفتاح «كتم الإشعارات» على الصفحة الرئيسية، لا هنا.
+        InfoCard(
             title = stringResource(R.string.notifications_title),
-            subtitle = stringResource(R.string.notifications_sub),
-            checked = blockNotifications,
-            enabled = !lockdownActive,
-            onChange = vm::setBlockNotifications,
+            body = stringResource(
+                if (blockNotifications) R.string.notifications_status_on else R.string.notifications_status_off,
+            ),
         )
         if (blockNotifications && !notificationsGranted) {
             OutlinedButton(
@@ -405,8 +279,7 @@ private fun UpdateSettingsCard(
     status: UpdateStatus?,
     onCheck: () -> Unit,
     onInstall: (com.sawn.app.update.UpdateInfo) -> Unit,
-) {
-    Card(Modifier.fillMaxWidth()) {
+) {    Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(stringResource(R.string.update_title), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -473,6 +346,7 @@ private fun InfoCard(title: String, body: String, tinted: Boolean = false) {
     }
 }
 
+/** صفّ مفتاح — للإعدادات التي لا يوجد لها مكان على الصفحة الرئيسية. */
 @Composable
 private fun SwitchRow(
     title: String,

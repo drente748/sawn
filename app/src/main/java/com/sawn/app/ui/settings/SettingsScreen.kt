@@ -3,7 +3,6 @@ package com.sawn.app.ui.settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,24 +20,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -75,8 +67,10 @@ import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 
 /**
- * «الإعدادات» — كل شيء إعداد وتهيئة فقط.
- * المميزات نفسها على الرئيسية؛ هذه الشاشة: ملفي · اللغة · الأمان · الأقسام · الخصوصية · عن.
+ * «الإعدادات» — ما لا يخص المفاتيح: ملفي · اللغة · الأمان · الأقسام · الخصوصية · عن.
+ *
+ * مفاتيح الحماية (فلتر الإباحية، SafeSearch، الإعلانات، DoH، الإشعارات، الوضع
+ * الصارم والدائم، القفل الزمني) على الصفحة الرئيسية وحدها — لا تُكرَّر هنا.
  */
 @Composable
 fun SettingsScreen(
@@ -84,7 +78,6 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenSetup: () -> Unit,
     onOpenProtection: () -> Unit,
-    onOpenBrowser: () -> Unit,
     onOpenPrivacy: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -196,19 +189,14 @@ fun SettingsScreen(
             // ===== الأمان =====
             SectionLabel(stringResource(R.string.settings_security_title))
             SettingsControls.PinCard(vm = vm, strict = strictMode, hasPin = hasPin)
+            SettingsControls.AdminProtectionCard(strict = strictMode, vm = vm)
 
-            // ===== الأقسام (الحماية والمتصفح والخصوصية) =====
+            // ===== الأقسام (الحماية والخصوصية) =====
             SectionLink(
                 icon = Icons.Filled.Shield,
                 title = stringResource(R.string.settings_protection),
                 subtitle = stringResource(R.string.settings_protection_subtitle),
                 onClick = onOpenProtection,
-            )
-            SectionLink(
-                icon = Icons.Filled.Search,
-                title = stringResource(R.string.settings_browser),
-                subtitle = stringResource(R.string.settings_browser_subtitle),
-                onClick = onOpenBrowser,
             )
             SectionLink(
                 icon = Icons.Filled.Info,

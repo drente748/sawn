@@ -78,11 +78,17 @@ object UpdateInstaller {
                     packageInfo.versionCode.toLong()
                 }
                 if (apkVersionCode != info.versionCode.toLong()) throw SecurityException("APK version does not match manifest")
-                val installedVersion = if (android.os.Build.VERSION.SDK_INT >= 28) {
-                    context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0)).longVersionCode
+                val installedPackageInfo = if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
                 } else {
                     @Suppress("DEPRECATION")
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionCode.toLong()
+                    context.packageManager.getPackageInfo(context.packageName, 0)
+                }
+                val installedVersion = if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    installedPackageInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    installedPackageInfo.versionCode.toLong()
                 }
                 if (apkVersionCode <= installedVersion) throw SecurityException("APK version is not newer")
                 if (apk.exists() && !apk.delete()) throw IllegalStateException("Could not replace cached APK")

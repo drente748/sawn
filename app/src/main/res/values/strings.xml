@@ -28,51 +28,33 @@
     <string name="cancel">Cancel</string>
     <string name="add">Add</string>
     <string name="remove">Delete</string>
-    <string name="management">Manage</string>
-    <string name="progress">Progress</string>
-    <string name="protection">Protection</string>
 
     <!-- الرئيسية -->
     <string name="you_are_protected">You are protected</string>
     <string name="protection_off">Protection is off</string>
     <string name="protection_waiting">Protection is waiting</string>
     <string name="protection_scheduled">Protection is scheduled — runs during time windows</string>
-    <string name="protection_enabled">Protection is on</string>
-    <string name="protection_disabled">Protection is off right now</string>
     <string name="setup_required">Setup is incomplete</string>
     <string name="grant_access_to_start">Grant the required permissions so protection can run.</string>
     <string name="complete_setup">Finish setup and permissions</string>
     <string name="filter_stopped">The filter has stopped</string>
-    <string name="restart_filter">Restart the filter now</string>
-    <string name="all_layers_active">All three protection layers are running</string>
-    <string name="some_layers_attention">Some layers are off — check your permissions</string>
     <string name="turn_on_protection">Turn on protection to start blocking</string>
-    <string name="enable_protection">Turn on protection</string>
-    <string name="disable_protection">Turn off protection</string>
-    <string name="locked_strict">Strict mode is locking the switch</string>
-    <string name="locked_focus">No turning off during a session</string>
-    <string name="locked_by_time_lock">Locked by time lock</string>
     <string name="locked_during_session">The strict session is running</string>
     <string name="strict_focus_session">Strict session</string>
     <string name="time_lock_active">Time lock is active</string>
     <string name="lockdown_until">Locked until %1$s</string>
-    <string name="protected_streak">Protected for %1$d days</string>
 
     <!-- الجلسات -->
-    <string name="focus_start">Focus session</string>
     <string name="focus_active">A focus session is running</string>
-    <string name="focus_idle_description">A short period where blocked apps are locked with no way to end it.</string>
     <string name="focus_description">You can end the session from the app at any time.</string>
     <string name="strict_focus_description">Strict mode: the session cannot end before the timer finishes.</string>
     <string name="strict">Strict</string>
     <string name="strict_mode">Strict mode</string>
     <string name="strict_mode_on">Strict mode is on</string>
     <string name="end_session">End session</string>
-    <string name="minutes_count">%1$d minutes</string>
 
     <!-- الإدارة -->
     <string name="blocklist_title">Blocklist</string>
-    <string name="blocked_count">%1$d active</string>
     <string name="blocklist_subtitle">Blocked websites and apps.</string>
     <string name="blocklist_website_hint">A site, e.g. instagram.com</string>
     <string name="add_apps">Add apps to block</string>
@@ -86,14 +68,11 @@
     <string name="summary_app_pause_limit">· %1$d min/day limit</string>
 
     <string name="schedules_title">Schedules</string>
-    <string name="schedules_detail">Time windows for blocking</string>
     <string name="schedules_hint">When “Always on” is off, blocking runs only inside these windows.</string>
     <string name="new_schedule">New schedule</string>
     <string name="schedules_empty">No schedules yet. Add one, then turn “Always on” off in settings.</string>
 
     <string name="stats_title">Your wins</string>
-    <string name="stats_detail">Protected days and screen time</string>
-    <string name="streak_days">%1$d days</string>
     <string name="best_streak">Best streak</string>
     <string name="focus_sessions">Sessions done</string>
     <string name="screen_time_today">Screen time today</string>
@@ -114,14 +93,12 @@
 
     <!-- الإعدادات -->
     <string name="settings_title">Settings</string>
-    <string name="settings_detail">Protection, browser and privacy</string>
-    <string name="settings_subtitle">Sections behind the protection gate.</string>
     <string name="settings_protection">Protection</string>
-    <string name="settings_protection_subtitle">Block filter, SafeSearch, custom lists</string>
-    <string name="settings_browser">Browser</string>
-    <string name="settings_browser_subtitle">Accessibility permission, supported browsers, workaround tips</string>
+    <string name="settings_protection_subtitle">Community lists, browsers, DoH tips</string>
+    <string name="settings_protection_home_title">Protection switches live on the home screen</string>
+    <string name="settings_protection_home_body">Adult filter, SafeSearch, ad blocking, encrypted-DNS blocking, always-on mode and strict mode are all switched from the home screen — they are not repeated here.</string>
     <string name="settings_privacy">Privacy &amp; support</string>
-    <string name="settings_privacy_subtitle">We collect no data, help, motion, PIN</string>
+    <string name="settings_privacy_subtitle">No data collected, updates, help, motion</string>
     <string name="settings_setup">Setup &amp; permissions</string>
     <string name="screen_is_locked">Enter the PIN to access %1$s</string>
     <string name="unlock_with_pin">Unlock with PIN</string>
@@ -143,19 +120,6 @@
     <!-- قسم الحماية -->
     <string name="lockdown_active_title">Time lock is active</string>
     <string name="lockdown_active_body">Protection cannot be weakened before the timer ends. The lock cannot be lifted with a PIN.</string>
-    <string name="porn_guard_title">Adult content filter</string>
-    <string name="porn_guard_sub">Blocks adult websites in every browser and app, via the local filter and community lists.</string>
-    <string name="safe_search_title">SafeSearch (DNS)</string>
-    <string name="safe_search_sub">Locks sensitive search, image and video results on Google, Bing, YouTube and DuckDuckGo at the server.</string>
-    <string name="always_on_title">Always on</string>
-    <string name="always_on_on">Blocking runs whenever protection is on.</string>
-    <string name="always_on_off">Blocking runs only inside schedules.</string>
-    <string name="doh_title">DNS-over-HTTPS blocking</string>
-    <string name="doh_sub">Also blocks encrypted DNS resolvers so browsers cannot bypass site filtering. Applies from the next blocking session.</string>
-    <string name="ads_title">Ad and tracker blocking</string>
-    <string name="ads_sub">Blocks common ad and analytics hosts. Ads served by the site itself may still appear.</string>
-    <string name="strict_title">Strict mode</string>
-    <string name="strict_sub">Locks the master protection switch while on — requires a PIN.</string>
     <string name="strict_enable_failed">Strict mode could not be enabled — it needs a PIN and uninstall protection.</string>
     <string name="lists_title">Community block lists</string>
     <string name="lists_sub">PornAway and StevenBlack lists are downloaded and merged into the filter — update them manually from time to time.</string>
@@ -183,18 +147,14 @@
     <string name="lockdown_not_applied">The lock was not applied. Check the filter permission and uninstall protection, then try again.</string>
     <string name="remaining_time">%1$s remaining</string>
 
-    <!-- أقسام المتصفح والخصوصية -->
-    <string name="a11y_title">Accessibility</string>
-    <string name="a11y_sub">Watches the browser address bar for sites that bypass the filter, and detects the app in front of you locally — it stores nothing and sends nothing.</string>
-    <string name="a11y_on">State: On</string>
-    <string name="a11y_off">State: Off</string>
-    <string name="grant_now">Enable now</string>
+    <!-- المتصفح والخصوصية -->
     <string name="browsers_title">Supported browsers</string>
     <string name="browsers_count">%1$d supported browsers — works automatically, no extra configuration.</string>
     <string name="doh_hint_title">Workaround tips (DoH)</string>
-    <string name="doh_hint_body">If your browser uses encrypted DNS (DoH) it will fight the filter — enable “DNS-over-HTTPS blocking” in Protection to block encrypted DNS too.</string>
+    <string name="doh_hint_body">If your browser uses encrypted DNS (DoH) it will fight the filter — turn on “Encrypted-DNS blocking” on the home screen to block encrypted DNS too.</string>
     <string name="notifications_title">Block notifications</string>
-    <string name="notifications_sub">Silences notifications from blocked apps while blocking is active.</string>
+    <string name="notifications_status_on">Muting is on — the notification-listener permission is still missing.</string>
+    <string name="notifications_status_off">Muting is off — turn it on from the home screen.</string>
     <string name="notifications_grant">Grant notification permission</string>
     <string name="privacy_title">Your privacy</string>
     <string name="privacy_body">We collect no personal data — no server, no account, no logs. Everything runs on your device, and block lists are pulled from public sources only when you update them.</string>
@@ -242,21 +202,10 @@
     <string name="save">Save</string>
     <string name="ok">OK</string>
     <string name="open_settings">Open</string>
-    <string name="grant">Grant</string>
     <string name="granted">Granted</string>
     <string name="not_granted">Not granted</string>
 
     <!-- الترحيب -->
-    <string name="onboarding_tagline">Your interest, guarded by you.</string>
-    <string name="onboarding_pillar_dns_title">Block sites everywhere</string>
-    <string name="onboarding_pillar_dns_body">A local DNS filter blocks sites in every browser and app — no root, and nothing leaves your device.</string>
-    <string name="onboarding_pillar_apps_title">Block apps and the endless scroll</string>
-    <string name="onboarding_pillar_apps_body">The whole app, or just Reels and Shorts inside it, with a mindful pause before you respond.</string>
-    <string name="onboarding_pillar_schedule_title">Schedules, focus and strict mode</string>
-    <string name="onboarding_pillar_schedule_body">Windows that extend past midnight, focus sessions, and a PIN lock with uninstall protection.</string>
-    <string name="onboarding_notice">Free · Commercial app · A quiet ad slot may appear on the home or achievements screen only — never on a block or pause screen. A paid plan (ad-free, more features) comes later.</string>
-    <string name="onboarding_get_started">Let’s go</string>
-    <string name="onboarding_skip">Skip</string>
 
     <!-- منتقي التطبيقات -->
     <string name="app_picker_title">Add apps</string>
@@ -309,13 +258,6 @@
     <string name="supportive_reflect">Take a reflective moment… (%1$ds)</string>
 
     <!-- شاشة الإعداد -->
-    <string name="setup_title">Setup</string>
-    <string name="setup_intro">Granting these permissions lets Sawn run fully.</string>
-    <string name="setup_progress">%1$d of %2$d done</string>
-    <string name="setup_sequence_hint">Suggested order: most important first, then what makes protection stick. You may move to a system screen and come back — the state updates automatically.</string>
-    <string name="setup_section_core">Essential</string>
-    <string name="setup_section_notifications">Notifications</string>
-    <string name="setup_section_continuity">Protection continuity</string>
     <string name="setup_accessibility_title">Block apps (Accessibility)</string>
     <string name="setup_accessibility_sub">Required — watches the app in front of you and blocked content inside it.</string>
     <string name="setup_restricted_title">Allow restricted settings</string>
@@ -374,9 +316,6 @@
     <string name="intercept_shield">Sawn shield</string>
 
     <!-- الرئيسية الجديدة -->
-    <string name="home_subtitle">Local protection · no account</string>
-    <string name="home_quick_title">Protection switches</string>
-    <string name="home_quick_hint">Every feature works from here — no tabs, no digging.</string>
     <string name="quick_porn">Adult filter</string>
     <string name="quick_safe_search">SafeSearch</string>
     <string name="quick_ads">Ad blocking</string>
@@ -390,31 +329,23 @@
     <string name="home_journal_total">So far: %1$d blocked attempts · %2$d completed urge sessions</string>
     <string name="home_journal_week_total">Blocked this week</string>
     <string name="home_journal_urge_week">Urge pauses</string>
-    <string name="home_presets_title">Protection presets</string>
-    <string name="home_presets_hint">One preset configures every switch — you can still tweak each one individually.</string>
     <string name="preset_light">Light</string>
     <string name="preset_balanced">Balanced</string>
     <string name="preset_maximum">Maximum</string>
     <string name="preset_applied">Preset applied: %1$s</string>
-    <string name="home_manage_title">Manage</string>
     <string name="home_manage_apps">Apps &amp; websites</string>
     <string name="home_manage_apps_detail">%1$d active</string>
     <string name="home_manage_schedules">Schedules</string>
     <string name="home_manage_schedules_detail">%1$d time windows</string>
     <string name="home_manage_stats">Your wins</string>
-    <string name="home_manage_stats_detail">Streak and screen time</string>
     <string name="home_manage_checkup">Protection checkup</string>
     <string name="home_manage_checkup_detail">%1$d%% of layers</string>
-    <string name="home_streak_chip">%1$d-day streak</string>
-    <string name="home_streak_start">Start your streak today</string>
     <string name="home_hero_protected">You are protected</string>
     <string name="home_layers_complete">All layers are running</string>
-    <string name="home_layers_partial">Some layers are off</string>
     <string name="home_focus_quick">Focus session</string>
     <string name="home_focus_minutes">%1$d m</string>
     <string name="home_focus_strict_hint">Strict — cannot end before the timer finishes</string>
     <string name="home_privacy_footer">Your personal data stays on your device; lists and updates are fetched only when requested.</string>
-    <string name="streak_label">consecutive days</string>
 
     <!-- فحص الحماية -->
     <string name="checkup_title">Protection checkup</string>
@@ -434,47 +365,13 @@
     <string name="checkup_consent_action">Grant permission</string>
     <string name="checkup_listener_title">Notification access</string>
     <string name="checkup_listener_sub">Needed only to silence notifications from blocked apps.</string>
-    <string name="checkup_battery_action">Battery settings</string>
     <string name="checkup_ready">Ready</string>
     <string name="checkup_pending">Missing</string>
     <string name="checkup_summary">%1$d of %2$d points</string>
 
     <!-- الترحيب الجديد -->
-    <string name="ob_skip">Skip</string>
-    <string name="ob_next">Next</string>
-    <string name="ob_start">Start protection</string>
-    <string name="ob_hero_eyebrow">SAWN</string>
-    <string name="ob_hero_title">Protection that stays with you</string>
-    <string name="ob_hero_body">Local blocking for sites, apps and adult content — it runs on your device alone, and keeps running after you close the app.</string>
-    <string name="ob_badge_local">Works locally</string>
-    <string name="ob_badge_account">No account</string>
-    <string name="ob_badge_tracking">No tracking</string>
-    <string name="ob_features_title">What actually protects you</string>
-    <string name="ob_features_body">Six layers work together, and each one toggles from the home screen.</string>
-    <string name="ob_feature_dns_title">Every site</string>
-    <string name="ob_feature_dns_body">A local DNS filter in every browser and app.</string>
-    <string name="ob_feature_apps_title">Apps</string>
-    <string name="ob_feature_apps_body">Hard block, or a mindful pause before opening.</string>
-    <string name="ob_feature_adult_title">Adult content</string>
-    <string name="ob_feature_adult_body">Closed lists and forced SafeSearch.</string>
-    <string name="ob_feature_feeds_title">The endless scroll</string>
-    <string name="ob_feature_feeds_body">Just Reels and Shorts — the rest of the app keeps working.</string>
-    <string name="ob_feature_focus_title">Focus sessions</string>
-    <string name="ob_feature_focus_body">A timer that enforces blocking until it ends.</string>
-    <string name="ob_feature_schedule_title">Schedules</string>
-    <string name="ob_feature_schedule_body">Time windows that extend past midnight.</string>
-    <string name="ob_how_title">Three steps</string>
-    <string name="ob_step1">Grant permissions</string>
-    <string name="ob_step1_body">Accessibility and the protection connection — a clear check for each step.</string>
-    <string name="ob_step2">Choose what is blocked</string>
-    <string name="ob_step2_body">Apps and websites, or a ready-made protection preset in one tap.</string>
-    <string name="ob_step3">Turn on protection</string>
-    <string name="ob_step3_body">It keeps working after closing the app and after reboot.</string>
-    <string name="ob_privacy">We collect no data, and nothing about your use is sent anywhere. Block lists are fetched from public sources only when you update them.</string>
 
     <!-- الرئيسية v4 — لوحة واحدة بلا تبويبات -->
-    <string name="home_top_protected">Protected</string>
-    <string name="home_top_off">Off</string>
     <string name="home_section_layers">Protection switches</string>
     <string name="home_section_layers_hint">Every feature works from here — no tabs, no digging.</string>
     <string name="quick_porn_sub">Block adult sites in every browser</string>
@@ -488,10 +385,6 @@
     <string name="home_always_on_off">Blocking runs only inside schedules</string>
     <string name="home_section_progress">Your progress</string>
     <string name="home_section_progress_hint">Your numbers stay on your device.</string>
-    <string name="stat_streak">consecutive days</string>
-    <string name="stat_best">best streak</string>
-    <string name="stat_sessions">sessions done</string>
-    <string name="stat_blocked_week">Blocked this week</string>
     <string name="home_streak_at_risk">Today is not recorded yet — turn on protection today to keep your streak alive.</string>
     <string name="home_streak_title">Your protection streak</string>
     <string name="home_streak_unit">consecutive days</string>
@@ -546,18 +439,6 @@
     <string name="update_install_permission_missing">Permission to install apps from this source was not granted.</string>
 
     <!-- الترحيب v3 -->
-    <string name="ob_features_page_title">Everything that matters in one place</string>
-    <string name="ob_features_page_body">Six layers working together, each one a switch on the home screen.</string>
-    <string name="ob_how_page_title">Just three steps</string>
-    <string name="ob_ready_title">Ready to begin</string>
-    <string name="ob_ready_body">Sawn walks you through the permissions step by step and tells you exactly what works and what is missing.</string>
-    <string name="ob_ready_item1">Local site filter covering all apps</string>
-    <string name="ob_ready_item2">Accessibility to block apps and content</string>
-    <string name="ob_ready_item3">A persistent notification keeping protection alive</string>
-    <string name="ob_ready_item4">Battery exemption so the system does not stop it</string>
-    <string name="ob_ready_note">Protection will not start until you agree, and nothing is sent off your device.</string>
-    <string name="ob_page_index">%1$d of %2$d</string>
-    <string name="ob_next_short">Next</string>
 
     <!-- الإنجازات v2 -->
     <string name="stats_week_title">The last seven days</string>
@@ -668,7 +549,6 @@
     <string name="settings_locale_en">English</string>
 
     <string name="settings_security_title">Security</string>
-    <string name="settings_security_sub">PIN and app lock</string>
 
     <string name="settings_reset_onboarding">Show intro again</string>
     <string name="settings_reset_onboarding_sub">Walk through the welcome and your plan once more</string>
@@ -681,7 +561,6 @@
     <string name="settings_privacy_wipe_confirm_action">Erase everything</string>
 
     <string name="settings_about_title">About Sawn</string>
-    <string name="settings_about_sub">Version, fingerprint and contact</string>
     <string name="settings_about_version">Version</string>
     <string name="settings_about_fingerprint">APK fingerprint (SHA-256)</string>
     <string name="settings_about_contact">Contact the developer</string>
