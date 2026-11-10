@@ -104,4 +104,18 @@ class DeepFocusPolicyTest {
                 DeepFocusPolicy.ESCAPE_WINDOW_SECONDS * 1_000L,
         )
     }
+
+    @Test fun turningTheMasterSwitchOffStopsAllBlocking() {
+        assertFalse(
+            DeepFocusPolicy.isRestricted(
+                packageName = "com.instagram.android",
+                whitelist = whitelist,
+                enabled = true,
+                masterEnabled = false,
+                unlockStartsAt = 0L,
+                unlockUntil = 0L,
+                now = 1_000L,
+            ),
+        )
+    }
 }

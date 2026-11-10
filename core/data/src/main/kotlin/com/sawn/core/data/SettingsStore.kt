@@ -49,6 +49,9 @@ data class ProtectionSnapshot(
 /** Result of an atomic "turn protection off" request. */
 data class DisableOutcome(val disabled: Boolean, val focusActive: Boolean)
 
+/** ما فرضه الحارس الليلي من مفاتيح — يُعاد كما كان عند خروج النافذة. */
+data class NightGuardForced(val strict: Boolean = false, val alwaysOn: Boolean = false)
+
 /**
  * User settings & protection state. The PIN is stored as a salted hash — never plaintext.
  */
@@ -109,6 +112,8 @@ class SettingsStore(
         val NIGHT_GUARD_START_MIN = intPreferencesKey("night_guard_start_min")
         val NIGHT_GUARD_END_MIN = intPreferencesKey("night_guard_end_min")
         val NIGHT_GUARD_UNLOCK_UNTIL = longPreferencesKey("night_guard_unlock_until")
+        val NIGHT_GUARD_FORCED_STRICT = booleanPreferencesKey("night_guard_forced_strict")
+        val NIGHT_GUARD_FORCED_ALWAYS_ON = booleanPreferencesKey("night_guard_forced_always_on")
         val DEEP_FOCUS_ENABLED = booleanPreferencesKey("deep_focus_enabled")
         val DEEP_FOCUS_WHITELIST = stringSetPreferencesKey("deep_focus_whitelist")
         val DEEP_FOCUS_UNLOCK_UNTIL = longPreferencesKey("deep_focus_unlock_until")
@@ -705,6 +710,25 @@ class SettingsStore(
         }.let { }
     suspend fun setNightGuardUnlock(untilMs: Long) =
         context.dataStore.edit { it[Keys.NIGHT_GUARD_UNLOCK_UNTIL] = untilMs }.let { }
+
+    /**
+     * ما فرضه الحارس الليلي فعلًا — ليعيده كما كان عند خروج النافذة، فلا يبقى
+     * الانضباط الصارم مفعّلًا إلى الأبد بعد السادسة صباحًا.
+     */
+    suspend fun nightGuardForced(): NightGuardForced {
+        val p = runCatching { context.dataStore.data.first() }.getOrNull()
+            ?: return NightGuardForced()
+        return NightGuardForced(
+            strict = p[Keys.NIGHT_GUARD_FORCED_STRICT] ?: false,
+            alwaysOn = p[Keys.NIGHT_GUARD_FORCED_ALWAYS_ON] ?: false,
+        )
+    }
+
+    suspend fun setNightGuardForced(strict: Boolean, alwaysOn: Boolean) =
+        context.dataStore.edit { p ->
+            p[Keys.NIGHT_GUARD_FORCED_STRICT] = strict
+            p[Keys.NIGHT_GUARD_FORCED_ALWAYS_ON] = alwaysOn
+        }.let { }
     val deepFocusEnabled: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.DEEP_FOCUS_ENABLED] ?: false }.distinctUntilChanged()
     val deepFocusWhitelist: Flow<Set<String>> =
@@ -765,9 +789,6 @@ class SettingsStore(
     val deepFocusUnlockUntil: Flow<Long> =
         context.dataStore.data.map { it[Keys.DEEP_FOCUS_UNLOCK_UNTIL] ?: 0L }.distinctUntilChanged()
 
-    suspend fun setDeepFocusUnlock(untilMs: Long) =
-        context.dataStore.edit { it[Keys.DEEP_FOCUS_UNLOCK_UNTIL] = untilMs }.let { }
-
     suspend fun clearDeepFocusUnlock() =
         context.dataStore.edit {
             it[Keys.DEEP_FOCUS_UNLOCK_UNTIL] = 0L
@@ -780,6 +801,7 @@ class SettingsStore(
             ?: return DeepFocusState()
         return DeepFocusState(
             enabled = p[Keys.DEEP_FOCUS_ENABLED] ?: false,
+            masterEnabled = p[Keys.MASTER_ENABLED] ?: false,
             whitelist = p[Keys.DEEP_FOCUS_WHITELIST] ?: emptySet(),
             unlockStartsAt = p[Keys.DEEP_FOCUS_UNLOCK_AT] ?: 0L,
             unlockUntil = p[Keys.DEEP_FOCUS_UNLOCK_UNTIL] ?: 0L,

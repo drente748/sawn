@@ -45,15 +45,33 @@ class AccessController(
     /** وضع التركيز العميق: يُقرَأ قبل كل قرار لأنه يسبق قوائم الحجب. */
     private val deepFocusState: suspend () -> DeepFocusState = { DeepFocusState() },
 ) {
+    /**
+     * لقطة مخزّنة لوضع التركيز العميق: القرار يُتخذ مع كل تبديل للتطبيق الأمامي،
+     * فلا نقرأ DataStore في كل مرة (القيمة في الذاكرة أصلًا، لكن تجميع التدفق كل
+     * حدثٍ يكلّف).
+     */
+    @Volatile private var cachedDeepFocus: DeepFocusState? = null
+    @Volatile private var cachedDeepFocusAt = 0L
+
+    private suspend fun deepFocusSnapshot(now: Long): DeepFocusState {
+        val cached = cachedDeepFocus
+        if (cached != null && now - cachedDeepFocusAt < DEEP_FOCUS_CACHE_MS) return cached
+        val fresh = runCatching { deepFocusState() }.getOrDefault(DeepFocusState())
+        cachedDeepFocus = fresh
+        cachedDeepFocusAt = now
+        return fresh
+    }
+
     suspend fun decideForPackage(packageName: String): AccessDecision {
         val now = trustedNow()
         // التركيز العميق يسبق كل شيء: خارج القائمة البيضاء يُحجب التطبيق حتى لو لم
-        // يكن في قوائم الحجب أصلاً.
-        val deep = deepFocusState()
+        // يكن في قوائم الحجب أصلاً — لكن إطفاء مفتاح الحماية يوقف كل الحجب.
+        val deep = deepFocusSnapshot(now)
         if (DeepFocusPolicy.isRestricted(
                 packageName = packageName,
                 whitelist = deep.whitelist,
                 enabled = deep.enabled,
+                masterEnabled = deep.masterEnabled,
                 unlockStartsAt = deep.unlockStartsAt,
                 unlockUntil = deep.unlockUntil,
                 now = now,
@@ -121,5 +139,8 @@ class AccessController(
         }
 
         private const val DAILY_LIMIT_RECHECK_MS = 60_000L
+
+        /** عمر لقطة التركيز العميق المخزّنة (مللي ثانية). */
+        private const val DEEP_FOCUS_CACHE_MS = 1_000L
     }
 }

@@ -18,7 +18,4 @@ interface ProtectedDaysDao {
 
     @Query("SELECT date FROM protected_days")
     fun observe(): Flow<List<String>>
-
-    @Query("DELETE FROM protected_days")
-    suspend fun clear()
 }

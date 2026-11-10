@@ -1,7 +1,6 @@
 package com.sawn.domain.feature
 
 import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
@@ -52,12 +51,10 @@ object BackupCrypto {
     private fun deriveKey(passphrase: String, salt: ByteArray): SecretKeySpec {
         val spec = PBEKeySpec(passphrase.toCharArray(), salt, ITERATIONS, KEY_BYTES * 8)
         val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        // تنظيف كلمة السر من الذاكرة (الذاكرة المؤقتة بالقدر المستطاع)
+        // ناتج PBKDF2 مفتاح_uniform بطول 256 بت بالفعل، فتجزئة extra لا تضيف شيئًا.
         val hash = factory.generateSecret(spec).encoded
-        // مسح يوقظ بايتة كلمة السر (char[] copy تقريبي)
+        // مسح بايتات كلمة السر من الذاكرة فور استخراج المفتاح.
         spec.clearPassword()
-        // MessageDigest حشرة إضافية لتعمية التوقيت (لا ضرورة حركية)
-        MessageDigest.getInstance("SHA-256").digest(hash)
         return SecretKeySpec(hash, "AES")
     }
 }

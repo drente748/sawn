@@ -38,6 +38,9 @@ object DeepFocusPolicy {
      *
      * نافذة الخروج مفتوحة فقط بين [unlockStartsAt] و[unlockUntil]؛ وقبل ذلك يُحجب
      * التطبيق رغم إدخال الرقم (مهلة الانتظار)، وبعدها يعود الحجب.
+     *
+     * [masterEnabled] هو مفتاح الحماية الرئيسي: إطفاؤه يعني «لا حجب» فلا ينطبق
+     * التركيز العميق حتى لو كان مفعّلًا.
      */
     fun isRestricted(
         packageName: String,
@@ -46,8 +49,9 @@ object DeepFocusPolicy {
         unlockStartsAt: Long,
         unlockUntil: Long,
         now: Long,
+        masterEnabled: Boolean = true,
     ): Boolean {
-        if (!enabled) return false
+        if (!enabled || !masterEnabled) return false
         if (now >= unlockStartsAt && now < unlockUntil) return false
         return !isAllowed(packageName, whitelist)
     }
@@ -56,6 +60,8 @@ object DeepFocusPolicy {
 /** لقطة وضع التركيز العميق كما يقرؤها حارس الوصول. */
 data class DeepFocusState(
     val enabled: Boolean = false,
+    /** مفتاح الحماية الرئيسي: إطفاؤه يعني «لا حجب» فلا ينطبق التركيز العميق. */
+    val masterEnabled: Boolean = true,
     val whitelist: Set<String> = emptySet(),
     val unlockStartsAt: Long = 0L,
     val unlockUntil: Long = 0L,

@@ -34,11 +34,19 @@ class NightGuardWorker(context: Context, params: WorkerParameters) : CoroutineWo
         val unlocked = unlockUntil > nowMs
 
         if (within && !unlocked) {
-            // داخل النافذة وبلا فك → وضع الانضباط
+            // داخل النافذة وبلا فك → تُفرض الحماية كاملة. الوضع الصارم يحتاج رقمًا
+            // سريًا، فإذا لم يكن موجودًا يُفرض ما أمكن ويُسجَّل ما فُرض فعلًا.
+            val forcedStrict = settings.setStrictMode(true)
+            settings.setAlwaysOn(true)
             settings.setMasterEnabled(true)
-            settings.setStrictMode(true)
-        } else if (!within || unlocked) {
-            // خارج النافذة أو انتهى الفك → لا فرض إضافي (يُترك للوضع الحالي)
+            settings.setNightGuardForced(strict = forcedStrict, alwaysOn = true)
+        } else {
+            // خارج النافذة أو انتهى الفك → نُعيد ما فرضه الحارس فقط، فلا يبقى
+            // الانضباط الصارم معلّقًا حتى الصباح.
+            val forced = settings.nightGuardForced()
+            if (forced.strict) settings.setStrictMode(false)
+            if (forced.alwaysOn) settings.setAlwaysOn(false)
+            if (forced.strict || forced.alwaysOn) settings.setNightGuardForced(false, false)
             if (unlocked && nowMs > unlockUntil) {
                 settings.setNightGuardUnlock(0L)
             }

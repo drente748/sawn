@@ -32,6 +32,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,7 +51,6 @@ import com.sawn.app.R
 import com.sawn.app.ui.theme.SawnPalette
 import com.sawn.domain.feature.ChallengePolicy
 import com.sawn.domain.feature.TriggerTag
-import com.sawn.domain.security.PinResult
 import kotlinx.coroutines.launch
 
 /*
@@ -125,16 +125,13 @@ fun ChallengeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             onClick = { vm.recordChallengeDay() },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(stringResource(R.string.feature_challenge_record))
+            Text(
+                stringResource(
+                    if (days == 0) R.string.feature_challenge_start else R.string.feature_challenge_record,
+                ),
+            )
         }
-        if (days == 0) {
-            OutlinedButton(
-                onClick = { vm.startChallenge() },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.feature_challenge_start))
-            }
-        } else {
+        if (days > 0) {
             TextButton(
                 onClick = { confirmRestart = true },
                 modifier = Modifier.fillMaxWidth(),
@@ -274,9 +271,7 @@ fun DeepFocusScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     if (askPin) {
         VerifyPinDialog(
             title = stringResource(R.string.feature_deep_focus_unlock),
-            verify = { pin ->
-                if (vm.requestDeepFocusUnlock(pin)) PinResult.Ok else PinResult.Wrong
-            },
+            verify = { pin -> vm.requestDeepFocusUnlock(pin) },
             onSuccess = {
                 askPin = false
                 message = context.getString(R.string.feature_deep_focus_unlock_success)
@@ -294,6 +289,7 @@ fun NightGuardScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     val startMin by vm.nightGuardStartMin.collectAsStateWithLifecycle()
     val endMin by vm.nightGuardEndMin.collectAsStateWithLifecycle()
     val activeNow by vm.nightGuardActiveNow.collectAsStateWithLifecycle()
+    val nightGuardUnlockUntil by vm.nightGuardUnlockUntil.collectAsStateWithLifecycle()
     var askPin by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -351,6 +347,17 @@ fun NightGuardScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
         }
 
         if (enabled) {
+            val unlockRemaining = nightGuardUnlockUntil - System.currentTimeMillis()
+            if (unlockRemaining > 0L) {
+                Text(
+                    stringResource(
+                        R.string.feature_night_guard_unlocked,
+                        (unlockRemaining / 60_000L + 1).toInt(),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SawnPalette.Success,
+                )
+            }
             OutlinedButton(
                 onClick = { askPin = true },
                 modifier = Modifier.fillMaxWidth(),
@@ -367,9 +374,7 @@ fun NightGuardScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     if (askPin) {
         VerifyPinDialog(
             title = stringResource(R.string.feature_night_guard_unlock),
-            verify = { pin ->
-                if (vm.requestNightGuardUnlock(pin)) PinResult.Ok else PinResult.Wrong
-            },
+            verify = { pin -> vm.requestNightGuardUnlock(pin) },
             onSuccess = {
                 askPin = false
                 message = context.getString(R.string.feature_night_guard_unlock_success)
@@ -396,7 +401,7 @@ private fun MinuteStepper(label: String, minutes: Int, onChange: (Int) -> Unit) 
             onChange((normalized - 60 + 24 * 60) % (24 * 60))
         }
         Text(
-            String.format("%02d:%02d", hour, minute),
+            String.format(java.util.Locale.US, "%02d:%02d", hour, minute),
             style = MaterialTheme.typography.titleMedium,
             color = SawnPalette.PrimaryDeep,
             fontWeight = FontWeight.ExtraBold,
@@ -432,6 +437,11 @@ fun TriggersScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     val histogram by vm.triggerHourHistogram.collectAsStateWithLifecycle()
 
     SettingsSectionScreen(stringResource(R.string.feature_triggers_title), onBack) {
+        Text(
+            stringResource(R.string.feature_triggers_sub),
+            style = MaterialTheme.typography.bodyMedium,
+            color = SawnPalette.InkSoft,
+        )
         DawnCard {
             Text(
                 stringResource(R.string.feature_triggers_log_prompt),
@@ -543,11 +553,17 @@ private fun TriggerTag.labelRes(): Int = when (this) {
 fun AccountabilityScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     val savedName by vm.accountabilityName.collectAsStateWithLifecycle()
     val savedContact by vm.accountabilityContact.collectAsStateWithLifecycle()
-    var name by remember { mutableStateOf(savedName.orEmpty()) }
-    var contact by remember { mutableStateOf(savedContact.orEmpty()) }
+    var name by remember { mutableStateOf("") }
+    var contact by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
+    var nameDirty by remember { mutableStateOf(false) }
+    var contactDirty by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    LaunchedEffect(savedName, savedContact) {
+        if (!nameDirty) name = savedName.orEmpty()
+        if (!contactDirty) contact = savedContact.orEmpty()
+    }
 
     SettingsSectionScreen(stringResource(R.string.feature_accountability_title), onBack) {
         DawnCard {
@@ -559,7 +575,7 @@ fun AccountabilityScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = { name = it; nameDirty = true },
                 label = { Text(stringResource(R.string.feature_accountability_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -567,7 +583,7 @@ fun AccountabilityScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = contact,
-                onValueChange = { contact = it },
+                onValueChange = { contact = it; contactDirty = true },
                 label = { Text(stringResource(R.string.feature_accountability_contact)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -576,7 +592,9 @@ fun AccountabilityScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             Button(
                 onClick = {
                     scope.launch {
-                        vm.setAccountability(name.ifBlank { null }, contact.ifBlank { null })
+                        vm.saveAccountability(name.ifBlank { null }, contact.ifBlank { null })
+                        nameDirty = false
+                        contactDirty = false
                         message = context.getString(R.string.feature_accountability_saved)
                     }
                 },
@@ -625,6 +643,7 @@ fun AccountabilityScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
 fun BackupScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     var passphrase by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
+    var confirmImport by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -686,7 +705,7 @@ fun BackupScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             Text(stringResource(R.string.feature_backup_export))
         }
         OutlinedButton(
-            onClick = { importLauncher.launch(arrayOf("application/octet-stream", "application/zip")) },
+            onClick = { confirmImport = true },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.feature_backup_import))
@@ -695,6 +714,28 @@ fun BackupScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
         status?.let {
             Text(it, style = MaterialTheme.typography.bodyMedium, color = SawnPalette.Ink)
         }
+    }
+
+    // الاستيراد يستبدل القوائم والجداول — نؤكّد قبلها.
+    if (confirmImport) {
+        AlertDialog(
+            onDismissRequest = { confirmImport = false },
+            title = { Text(stringResource(R.string.feature_backup_import)) },
+            text = { Text(stringResource(R.string.feature_backup_import_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmImport = false
+                    importLauncher.launch(arrayOf("application/octet-stream", "application/zip"))
+                }) {
+                    Text(stringResource(R.string.feature_backup_import), color = SawnPalette.Error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmImport = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
     }
 }
 

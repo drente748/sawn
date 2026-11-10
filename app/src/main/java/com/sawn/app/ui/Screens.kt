@@ -462,7 +462,7 @@ fun ManagementPinGate(
         }
         return
     }
-    if (pinConfigured == true && !unlocked) {
+    if ((pinConfigured == true || parentLocked) && !unlocked) {
         Column(
             Modifier.fillMaxSize().padding(20.dp),
             verticalArrangement = Arrangement.Center,
@@ -489,11 +489,7 @@ fun ManagementPinGate(
                     if (parentLocked) R.string.parent_unlock_title else R.string.enter_pin,
                 ),
                 verify = { pin ->
-                    if (parentLocked) {
-                        if (vm.verifyParentPin(pin)) PinResult.Ok else PinResult.Wrong
-                    } else {
-                        vm.verifyPin(pin)
-                    }
+                    if (parentLocked) vm.verifyParentPin(pin) else vm.verifyPin(pin)
                 },
                 onSuccess = {
                     showUnlock = false

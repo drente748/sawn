@@ -540,20 +540,7 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         .catch { emit(0) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    /** يبدأ جولة جديدة ويومها الأول. */
-    fun startChallenge() = viewModelScope.launch {
-        val runId = container.database.challengeDao().latestRun()?.id
-            ?: container.database.challengeDao().insertRun(
-                ChallengeRunEntity(startedAt = System.currentTimeMillis()),
-            )
-        container.database.challengeDao().recordDay(ChallengeDayEntity(todayIso(), runId))
-        refreshPlanB()
-    }
-
-    /**
-     * يسجّل اليوم في الجولة الجارية — والتاريخ مفتاحه الأساسي فلا يُحتسب مرتين.
-     * إن لم تكن هناك جولة بعد، تُفتح واحدة ويُسجَّل فيها اليوم.
-     */
+    /** يُسجَّل اليوم في الجولة الجارية — والتاريخ مفتاحه الأساسي فلا يُحتسب مرتين. */
     fun recordChallengeDay() = viewModelScope.launch {
         val runId = container.database.challengeDao().latestRun()?.id
             ?: container.database.challengeDao().insertRun(
@@ -620,12 +607,18 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * فكّ مؤقت للحارس (١٥ دقيقة) — برقم سري صحيح فقط، تماماً كما في القفل الزمني.
-     * تُرجع true عند القبول.
+     * تُرجع نتيجة التحقق كاملة (سيّئة/مقفل/خطأ) لا مجرد «نعم/لا».
      */
-    suspend fun requestNightGuardUnlock(pin: String): Boolean = withContext(Dispatchers.IO) {
-        if (verifyPin(pin) != PinResult.Ok) return@withContext false
-        container.settings.setNightGuardUnlock(System.currentTimeMillis() + NIGHT_GUARD_UNLOCK_MS)
-        true
+    suspend fun requestNightGuardUnlock(pin: String): PinResult {
+        return when (val result = verifyPin(pin)) {
+            PinResult.Ok -> {
+                container.settings.setNightGuardUnlock(
+                    container.settings.trustedNow() + NIGHT_GUARD_UNLOCK_MS,
+                )
+                PinResult.Ok
+            }
+            else -> result
+        }
     }
 
     // --- التركيز العميق ---------------------------------------------------
@@ -650,22 +643,25 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         if (!enabled) container.settings.clearDeepFocusUnlock()
     }
 
-    fun setDeepFocusWhitelist(values: Set<String>) = viewModelScope.launch {
-        container.settings.setDeepFocusWhitelist(values)
-    }
-
     /**
      * فكّ التركيز العميق: رقم سري صحيح، ثم مهلة انتظار قصيرة، ثم نافذة خروج محدودة
      * بعدها يعود الحجب من تلقاء نفسه.
+     *
+     * حدود النافذة تُحسب من الساعة الموثوقة (لا ساعة الحائط) لأن الحارس يقرأها
+     * بالساعة الموثوقة — وإلا اختلفت المرجعيتان عند تغيير ساعة الجهاز.
      */
-    suspend fun requestDeepFocusUnlock(pin: String): Boolean = withContext(Dispatchers.IO) {
-        if (verifyPin(pin) != PinResult.Ok) return@withContext false
-        val now = System.currentTimeMillis()
-        container.settings.openDeepFocusEscape(
-            startsAt = DeepFocusPolicy.unlockStartsAt(now),
-            until = DeepFocusPolicy.unlockUntil(now),
-        )
-        true
+    suspend fun requestDeepFocusUnlock(pin: String): PinResult {
+        return when (val result = verifyPin(pin)) {
+            PinResult.Ok -> {
+                val now = container.settings.trustedNow()
+                container.settings.openDeepFocusEscape(
+                    startsAt = DeepFocusPolicy.unlockStartsAt(now),
+                    until = DeepFocusPolicy.unlockUntil(now),
+                )
+                PinResult.Ok
+            }
+            else -> result
+        }
     }
 
     // --- المحفّزات --------------------------------------------------------
@@ -717,8 +713,15 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.setAccountability(name, contact)
     }
 
+    /** يُنجَز الكتابة قبل أن تقول الواجهة «حُفظ». */
+    suspend fun saveAccountability(name: String?, contact: String?) = withContext(Dispatchers.IO) {
+        container.settings.setAccountability(name, contact)
+    }
+
     /** تقرير أسبوعي حقيقي: أيام محمية، محاولات مصدودة، والسلسلة الحالية. */
     fun shareWeeklyReport(context: Context) {
+        // سياق التطبيق لا الـ Activity: التقرير قد يُرسل بعد إغلاق الشاشة.
+        val appContext = context.applicationContext
         viewModelScope.launch {
             val recent = runCatching { container.stats.recentDays(7).first() }.getOrDefault(emptyList())
             val journal = runCatching { container.settings.blockJournal.first() }.getOrDefault(JournalSnapshot())
@@ -733,12 +736,13 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
                 putExtra(Intent.EXTRA_TEXT, report)
                 putExtra(
                     Intent.EXTRA_SUBJECT,
-                    context.getString(R.string.feature_accountability_subject),
+                    appContext.getString(R.string.feature_accountability_subject),
                 )
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             runCatching {
-                context.startActivity(
-                    Intent.createChooser(intent, context.getString(R.string.feature_accountability_share)),
+                appContext.startActivity(
+                    Intent.createChooser(intent, appContext.getString(R.string.feature_accountability_share)),
                 )
             }
         }
@@ -771,9 +775,18 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.clearParentPin()
     }
 
-    suspend fun verifyParentPin(pin: String): Boolean = withContext(Dispatchers.IO) {
-        val credentials = container.settings.parentPinCredentials() ?: return@withContext false
-        PinHasher.verify(pin, credentials.second, credentials.first)
+    suspend fun verifyParentPin(pin: String): PinResult = withContext(Dispatchers.IO) {
+        // نفس عدّاد الإخفاقات للرقم السري للمستخدم: محاولة خاطئة لأحدهما تُقفلهما
+        // معًا، فلا يُكرَك أيٌّ منهما بلا حدود.
+        val lockRemaining = container.settings.pinLockRemainingMillis()
+        if (lockRemaining > 0L) {
+            return@withContext PinResult.Locked(((lockRemaining + 999L) / 1000L).toInt())
+        }
+        val credentials = container.settings.parentPinCredentials()
+            ?: return@withContext PinResult.Error
+        val ok = PinHasher.verify(pin, credentials.second, credentials.first)
+        if (ok) container.settings.recordPinSuccess() else container.settings.recordPinFailure()
+        if (ok) PinResult.Ok else PinResult.Wrong
     }
 
     // --- النسخة الاحتياطية ------------------------------------------------

@@ -580,7 +580,7 @@
     <string name="feature_night_guard_title">Night Guard</string>
     <string name="feature_night_guard_sub">Auto-engages strict protection at night (default 22:00–06:00). Calls, messages and maps stay allowed.</string>
     <string name="feature_night_guard_enable">Enabled</string>
-    <string name="feature_night_guard_note">Unlock = PIN + 15 minutes, then it returns automatically. Unlocks are logged.</string>
+    <string name="feature_night_guard_note">Unlock = PIN + 15 minutes, then it returns automatically. What the guard forces is undone when the window closes.</string>
     <string name="feature_night_guard_unlock">Unlock for 15 minutes</string>
     <string name="feature_deep_focus_title">Deep Focus</string>
     <string name="feature_deep_focus_sub">Only your whitelist is allowed. Everything else is blocked until focus ends.</string>
@@ -604,7 +604,7 @@
     <string name="feature_triggers_top">Most common trigger: %1$s</string>
     <string name="feature_triggers_peak">Peak hour: %1$s</string>
     <string name="feature_parent_title">Parent mode</string>
-    <string name="feature_parent_sub">On the child device. A second PIN locks all management. Device Admin becomes required. This is a parent tool, not a child app.</string>
+    <string name="feature_parent_sub">On the child device. A second PIN locks all management. This is a parent tool, not a child app.</string>
     <string name="feature_parent_enable">Enabled</string>
 
     <!-- Plan B (2.1) — شاشات التحدي والتركيز العميق وأدواتي -->
@@ -618,6 +618,7 @@
     <string name="feature_night_guard_start">From</string>
     <string name="feature_night_guard_end">To</string>
     <string name="feature_night_guard_unlock_success">Unlocked for 15 minutes.</string>
+    <string name="feature_night_guard_unlocked">Unlocked for about %1$d more minutes.</string>
     <string name="feature_triggers_log_prompt">What pushed you? Tag it to see your pattern.</string>
     <string name="feature_triggers_insights">Your pattern</string>
     <string name="feature_triggers_total">Logged moments: %1$d</string>
@@ -637,6 +638,7 @@
     <string name="feature_backup_wrong_pass">Wrong passphrase, or the file is damaged.</string>
     <string name="feature_backup_failed">Could not finish the operation.</string>
     <string name="feature_backup_short">The passphrase needs at least 8 characters.</string>
+    <string name="feature_backup_import_confirm">Importing replaces your blocklists and schedules with the ones in the backup file. Protected days are merged. Continue?</string>
     <string name="feature_parent_pin_section">Parent PIN</string>
     <string name="feature_parent_pin_set_done">A parent PIN is set — management stays locked with it.</string>
     <string name="feature_parent_pin_missing">No parent PIN yet — set one to lock management.</string>
