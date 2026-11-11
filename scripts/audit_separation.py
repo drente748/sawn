@@ -74,12 +74,30 @@ def main():
 
     # ---------------------------------------------------------- 2. every blob
     print("")
-    print("== 2. every blob in the object database ==")
+    print("== 2. every blob in every reachable commit ==")
+    # `git grep` over every commit is the authoritative check: it walks the trees
+    # of the whole history. The batch reader below walks the object database
+    # instead, which also covers unreachable objects.
+    revisions = git("rev-list", "--all").split()
+    blob_hits = 0
+    if revisions:
+        found = subprocess.run(
+            ["git", "grep", "-I", "-l", "-i", NEEDLES[0].decode(), *revisions],
+            cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
+        ).stdout
+        for line in found.splitlines():
+            if line.strip():
+                blob_hits += 1
+                print("  XX " + line.strip())
+    print("  %s (%d commits searched)" % (
+        "OK no blob mentions it" if blob_hits == 0 else "FOUND", len(revisions)))
+
+    # The object database itself, including objects no ref points at any more.
     proc = subprocess.Popen(
         ["git", "cat-file", "--batch-all-objects", "--batch"],
         cwd=ROOT, stdout=subprocess.PIPE,
     )
-    blob_hits = 0
+    loose_hits = 0
     count = 0
     stream = proc.stdout
     while True:
@@ -91,17 +109,17 @@ def main():
             continue
         sha, kind, size = parts[0], parts[1], int(parts[2])
         data = stream.read(size)
-        stream.read(1)  # trailing newline
+        stream.read(1)
         if kind != "blob":
             continue
         count += 1
         snippet = find(data)
         if snippet:
-            blob_hits += 1
-            hits.append("blob %s: %s" % (sha[:8], snippet))
-            print("  XX blob %s -> %s" % (sha[:8], snippet))
+            loose_hits += 1
+            print("  XX object %s -> %s" % (sha[:8], snippet))
     proc.wait()
-    print("  %s (%d blobs scanned)" % ("OK no blob mentions it" if blob_hits == 0 else "FOUND", count))
+    print("  %s (%d objects in the database)" % (
+        "OK no object mentions it" if loose_hits == 0 else "FOUND", count))
 
     # ---------------------------------------------------------- 3. commit messages
     print("")
