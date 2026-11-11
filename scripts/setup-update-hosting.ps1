@@ -145,13 +145,40 @@ Write-Step "Ensuring the gh-pages branch exists"
 
 $OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
 
-& gh api "repos/$Repo/git/ref/heads/gh-pages" --silent 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
+# A missing branch answers 404, and gh reports that on stderr. With
+# $ErrorActionPreference = 'Stop' that becomes a terminating error, so the
+# probe runs with the preference relaxed and reports only its exit code.
+function Test-GhCall {
+    param([string[]]$Arguments)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $null = & gh @Arguments 2>&1
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $previous
+    return ($code -eq 0)
+}
+
+# gh --input - reads stdin, and a PowerShell pipeline into a native command
+# does not arrive as clean JSON (BOM/line-ending handling differs). Writing
+# the body to a file and passing --input <file> is what actually works.
+function Send-GhJson {
+    param([string]$Method, [string]$Path, [object]$Body)
+    $file = Join-Path $env:TEMP ("sawn-gh-" + [Guid]::NewGuid().ToString("N") + ".json")
+    try {
+        [IO.File]::WriteAllText($file, ($Body | ConvertTo-Json -Depth 6 -Compress), [Text.UTF8Encoding]::new($false))
+        & gh api --method $Method $Path --input $file | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } finally {
+        Remove-Item $file -Force -ErrorAction SilentlyContinue
+    }
+}
+
+if (-not (Test-GhCall @("api", "repos/$Repo/git/ref/heads/gh-pages", "--silent"))) {
     $defaultBranch = (& gh api "repos/$Repo" --jq ".default_branch").Trim()
     $headSha = (& gh api "repos/$Repo/git/ref/heads/$defaultBranch" --jq ".object.sha").Trim()
-    $refPayload = @{ ref = "refs/heads/gh-pages"; sha = $headSha } | ConvertTo-Json
-    $refPayload | & gh api --method POST "repos/$Repo/git/refs" --input - | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Could not create the gh-pages branch." }
+    if (-not (Send-GhJson -Method POST -Path "repos/$Repo/git/refs" -Body @{ ref = "refs/heads/gh-pages"; sha = $headSha })) {
+        throw "Could not create the gh-pages branch."
+    }
     Write-Ok "created gh-pages from $defaultBranch"
 } else {
     Write-Ok "gh-pages already exists"
@@ -159,8 +186,7 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Step "Seeding the update manifest placeholder"
 
-& gh api "repos/$Repo/contents/updates/manifest.json?ref=gh-pages" --silent 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
+if (-not (Test-GhCall @("api", "repos/$Repo/contents/updates/manifest.json?ref=gh-pages", "--silent"))) {
     # versionCode 1 keeps the placeholder valid: the app reads it as "no newer
     # version" rather than as a broken manifest. versionCode 0 would make the
     # checker report an error instead of "you are up to date".
@@ -173,13 +199,14 @@ if ($LASTEXITCODE -ne 0) {
         mandatory  = $false
     } | ConvertTo-Json
     $content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($placeholder))
-    $contentPayload = @{
+    $contentBody = @{
         message = "chore: initialise update manifest"
         content = $content
         branch  = "gh-pages"
-    } | ConvertTo-Json
-    $contentPayload | & gh api --method PUT "repos/$Repo/contents/updates/manifest.json" --input - | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Could not seed updates/manifest.json on gh-pages." }
+    }
+    if (-not (Send-GhJson -Method PUT -Path "repos/$Repo/contents/updates/manifest.json" -Body $contentBody)) {
+        throw "Could not seed updates/manifest.json on gh-pages."
+    }
     Write-Ok "seeded updates/manifest.json"
 } else {
     Write-Ok "updates/manifest.json already exists (left untouched)"
@@ -190,14 +217,13 @@ Write-Step "Enabling GitHub Pages (gh-pages branch)"
 $pagesBody = @{ "source" = @{ "branch" = "gh-pages"; "path" = "/" } }
 $pagesJson = $pagesBody | ConvertTo-Json -Depth 5
 
-$pagesExists = (& gh api "repos/$Repo/pages" --silent 2>$null)
-if ($LASTEXITCODE -eq 0) {
-    $pagesJson | & gh api --method PUT "repos/$Repo/pages" --input - | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Failed to update the GitHub Pages configuration." }
+if (Test-GhCall @("api", "repos/$Repo/pages", "--silent")) {
+    if (-not (Send-GhJson -Method PUT -Path "repos/$Repo/pages" -Body $pagesBody)) {
+        throw "Failed to update the GitHub Pages configuration."
+    }
     Write-Ok "GitHub Pages updated to publish from gh-pages / (root)"
 } else {
-    $pagesJson | & gh api --method POST "repos/$Repo/pages" --input - | Out-Null
-    if ($LASTEXITCODE -ne 0) {
+    if (-not (Send-GhJson -Method POST -Path "repos/$Repo/pages" -Body $pagesBody)) {
         throw ("Could not enable GitHub Pages. Enable it manually: " +
                "Settings -> Pages -> Deploy from a branch -> gh-pages / (root).")
     }
