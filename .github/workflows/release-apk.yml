@@ -166,9 +166,12 @@ jobs:
           generate_release_notes: true
           # The artefact is published to the public distribution repository: a
           # release asset on a private repository cannot be fetched anonymously,
-          # and the app downloads it without any credentials.
-          repo: ${{ env.DISTRIBUTION_REPO }}
+          # and the app downloads it without any credentials. The input is
+          # `repository` — `repo` is silently ignored by the action, which then
+          # publishes into the private source repository where nothing can fetch it.
+          repository: ${{ env.DISTRIBUTION_REPO }}
           token: ${{ secrets.SAWN_DISTRIBUTION_TOKEN }}
+          target_commitish: main
           files: |
             app/build/outputs/apk/release/app-release.apk
             manifest.json
