@@ -41,8 +41,18 @@ function Write-Ok   { param([string]$Text) Write-Host "    OK  $Text" -Foregroun
 function Write-Fail { param([string]$Text) Write-Host "    XX  $Text" -ForegroundColor Red }
 
 $root = Split-Path -Parent $PSScriptRoot
-if (-not $Apk) { $Apk = Join-Path $root "app\build\outputs\apk\release\app-release.apk" }
-if (-not (Test-Path $Apk)) { throw "APK not found: $Apk" }
+if (-not $Apk) {
+    # Prefer the Gradle output; fall back to the published artefact in release/.
+    $gradleApk = Join-Path $root "app\build\outputs\apk\release\app-release.apk"
+    if (Test-Path $gradleApk) {
+        $Apk = $gradleApk
+    } else {
+        $published = Get-ChildItem (Join-Path $root "release") -Filter "Sawn-*.apk" -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($published) { $Apk = $published.FullName }
+    }
+}
+if (-not $Apk -or -not (Test-Path $Apk)) { throw "APK not found. Build it, or pass -Apk explicitly." }
 Write-Step "Verifying $([IO.Path]::GetFileName($Apk))"
 Write-Host "    at  $Apk" -ForegroundColor DarkGray
 
