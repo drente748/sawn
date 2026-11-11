@@ -51,7 +51,14 @@ jobs:
           SAWN_KEY_PASSWORD: ${{ secrets.SAWN_KEY_PASSWORD }}
         run: |
           if [ -n "$SAWN_KEYSTORE_BASE64" ]; then
-            echo "$SAWN_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/sawn-release.keystore"
+            # Strip any stray CR/LF: GNU base64 rejects a carriage return with
+            # "invalid input", and a secret published from a Windows shell can
+            # easily carry one.
+            echo "$SAWN_KEYSTORE_BASE64" | tr -d '\r\n' | base64 --decode > "$RUNNER_TEMP/sawn-release.keystore"
+            if [ ! -s "$RUNNER_TEMP/sawn-release.keystore" ]; then
+              echo "The keystore secret decoded to an empty file." >&2
+              exit 1
+            fi
             {
               echo "SAWN_STORE_FILE=$RUNNER_TEMP/sawn-release.keystore"
               echo "SAWN_STORE_PASSWORD=$SAWN_STORE_PASSWORD"
