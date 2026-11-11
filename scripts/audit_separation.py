@@ -16,7 +16,9 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-NEEDLES = [b"drente748", b"drente748"]
+# The needle is assembled from parts so that this file does not itself carry the
+# name it is looking for.
+NEEDLES = [b"christopher" + b"laughlin", b"Christopher" + b"Laughlin"]
 SKIP_DIRS = {".git"}
 BINARY_SUFFIXES = {".apk", ".png", ".jpg", ".webp", ".jar", ".zip", ".keystore", ".class"}
 MAX_FILE_BYTES = 20 * 1024 * 1024
