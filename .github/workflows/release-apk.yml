@@ -24,6 +24,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default package list asks for the retired "tools" package,
+          # which is no longer in the SDK repository - sdkmanager then exits 1 and
+          # the whole run dies before a single line is built. Name exactly what the
+          # build needs instead.
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       - name: Resolve public manifest URL
         id: url
@@ -93,7 +99,15 @@ jobs:
           # The tag is the address of the release asset. If it disagrees with the APK's
           # own version, the published manifest would advertise a version nobody can
           # download under the right name — refuse instead of publishing a broken link.
-          if tag.startswith("v") and tag != f"v{version_name}":
+          if not tag.startswith("v"):
+              print(
+                  "This workflow must run from a version tag like 'v2.2.0'; "
+                  f"the ref was '{tag}'. A branch run would publish an asset URL "
+                  "that nobody can download from.",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          if tag != f"v{version_name}":
               print(f"Tag {tag} does not match APK version {version_name}.", file=sys.stderr)
               sys.exit(1)
 
