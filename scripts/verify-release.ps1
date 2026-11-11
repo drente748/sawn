@@ -44,6 +44,7 @@ $root = Split-Path -Parent $PSScriptRoot
 if (-not $Apk) { $Apk = Join-Path $root "app\build\outputs\apk\release\app-release.apk" }
 if (-not (Test-Path $Apk)) { throw "APK not found: $Apk" }
 Write-Step "Verifying $([IO.Path]::GetFileName($Apk))"
+Write-Host "    at  $Apk" -ForegroundColor DarkGray
 
 # ---------------------------------------------------------------- toolchain
 $sdk = $null
@@ -109,28 +110,49 @@ if (-not $versionCode) {
 
 # ---------------------------------------------------------------- manifest url
 Write-Step "Update manifest URL"
-$found = $false
+
 Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
-$zip = [IO.Compression.ZipFile]::OpenRead($Apk)
-try {
-    foreach ($entry in $zip.Entries) {
-        if ($entry.FullName -notmatch '^classes\d*\.dex$') { continue }
-        $stream = $entry.Open()
-        $reader = New-Object IO.BinaryReader($stream)
-        $bytes = $reader.ReadBytes([int]$entry.Length)
-        $text = [Text.Encoding]::ASCII.GetString($bytes)
-        if ($text.Contains($ManifestUrl)) { $found = $true; break }
-        $stream.Close()
+
+# The dex entries inside an APK are deflated, so the text is invisible in the raw
+# file - it has to be decompressed before it can be searched.
+function Get-DexText {
+    param([string]$Path)
+    $texts = @()
+    $zip = [IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        foreach ($entry in $zip.Entries) {
+            if ($entry.FullName -notmatch '^classes\d*\.dex$') { continue }
+            $stream = $entry.Open()
+            try {
+                $memory = New-Object IO.MemoryStream
+                $stream.CopyTo($memory)
+                $texts += [Text.Encoding]::ASCII.GetString($memory.ToArray())
+            } finally {
+                $stream.Dispose()
+            }
+        }
+    } finally {
+        $zip.Dispose()
     }
-} finally {
-    $zip.Dispose()
+    return $texts
 }
+
+$dexText = (Get-DexText $Apk) -join "`n"
+$found = $dexText.Contains($ManifestUrl)
 
 if ($found) {
     Write-Ok "manifest URL is baked into the APK"
 } else {
     Write-Fail "manifest URL is NOT in the APK — update checks stay disabled in this build."
     Write-Host "        expected: $ManifestUrl"
+    # Say which hosting the build actually points at, if it points at one. A stale
+    # URL from an earlier owner is the failure mode that silently disables every
+    # update check, so it deserves to be named rather than merely reported missing.
+    $stale = [regex]::Match($dexText, "https://[a-z0-9.\-]+\.github\.io/warden/updates/manifest\.json")
+    if ($stale.Success) {
+        Write-Host "        this build points at: $($stale.Value)"
+        Write-Host "        it was built before the hosting moved; rebuild it."
+    }
     Write-Host "        rebuild with: `$env:SAWN_UPDATE_MANIFEST_URL = `"$ManifestUrl`""
     $failures++
 }
