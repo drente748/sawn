@@ -29,7 +29,7 @@
 param(
     [string]$Apk = "",
     [string]$ExpectedVersion = "",
-    [string]$ManifestUrl = "https://drente748.github.io/warden/updates/manifest.json"
+    [string]$ManifestUrl = "https://drente748.github.io/sawn-releases/updates/manifest.json"
 )
 
 $ErrorActionPreference = "Stop"

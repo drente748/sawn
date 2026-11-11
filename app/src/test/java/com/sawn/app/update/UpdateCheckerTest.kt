@@ -32,7 +32,7 @@ class UpdateCheckerTest {
         {
           "versionCode": 31,
           "versionName": "2.2.0",
-          "apkUrl": "https://github.com/drente748/warden/releases/download/v2.2.0/app-release.apk",
+          "apkUrl": "https://github.com/drente748/sawn-releases/releases/download/v2.2.0/app-release.apk",
           "sha256": "$fileDigest",
           "changelog": "ثغرات تجاوز الحماية\nأنهيارات\nشبكة/نفق",
           "mandatory": false
@@ -87,7 +87,7 @@ class UpdateCheckerTest {
     @Test
     fun nonHttpsApkUrlIsRejected() {
         val manifest = publishedManifest.replace(
-            "https://github.com/drente748/warden/releases/download/v2.2.0/app-release.apk",
+            "https://github.com/drente748/sawn-releases/releases/download/v2.2.0/app-release.apk",
             "http://example.test/app-release.apk",
         )
         assertEquals(

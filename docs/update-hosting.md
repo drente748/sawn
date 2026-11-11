@@ -6,8 +6,8 @@
 
 | القيمة | القيمة |
 |---|---|
-| المستودع | `drente748/warden` |
-| رابط البيان | `https://drente748.github.io/warden/updates/manifest.json` |
+| المستودع | `drente748/sawn` |
+| رابط البيان | `https://drente748.github.io/sawn-releases/updates/manifest.json` |
 | فرع النشر | `gh-pages` (جذر المجلد) |
 | ملف البيان | `updates/manifest.json` |
 | بصمة شهادة التوقيع | `3e2ffe2f03ef0c9506a863fb32b63e5e8ed2a44ed99e819c0306da8bae2d1d86` |
@@ -69,7 +69,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-update-hosting.ps1 -Versi
 3. أضف الأسرار الخمسة من **Settings → Secrets and variables → Actions → New repository secret**:
    - `SAWN_KEYSTORE_BASE64`: محتوى ملف keystore مشفّرًا بـ Base64. على PowerShell:
      ```powershell
-     [Convert]::ToBase64String([IO.File]::ReadAllBytes("sawn-release.keystore")) | gh secret set SAWN_KEYSTORE_BASE64 --repo drente748/warden
+     [Convert]::ToBase64String([IO.File]::ReadAllBytes("sawn-release.keystore")) | gh secret set SAWN_KEYSTORE_BASE64 --repo drente748/sawn
      ```
      احتفظ بالسر الأصلي في مكان آمن؛ فقده يمنع تحديث التطبيقات المثبتة.
    - `SAWN_STORE_PASSWORD`: كلمة مرور المخزن.
@@ -92,7 +92,7 @@ git tag v2.2.0
 git push origin v2.2.0
 ```
 
-ينتظر الـ Workflow (~٥ دقائق) ثم: يصبح `https://drente748.github.io/warden/updates/manifest.json` متاحًا، ويظهر الإصدار في **Releases**، ويكتشفه التطبيق عند الضغط على «تحقّق من وجود تحديث».
+ينتظر الـ Workflow (~٥ دقائق) ثم: يصبح `https://drente748.github.io/sawn-releases/updates/manifest.json` متاحًا، ويظهر الإصدار في **Releases**، ويكتشفه التطبيق عند الضغط على «تحقّق من وجود تحديث».
 
 ## النسخة المثبّتة على الأجهزة
 
@@ -103,7 +103,7 @@ APKات قديمة بُنيت برابط بيان فارغ لا تعرف عنو�
 للبناء محليًا بالرابط:
 
 ```powershell
-$env:SAWN_UPDATE_MANIFEST_URL = "https://drente748.github.io/warden/updates/manifest.json"
+$env:SAWN_UPDATE_MANIFEST_URL = "https://drente748.github.io/sawn-releases/updates/manifest.json"
 .\gradlew.bat :app:assembleRelease
 ```
 
@@ -155,7 +155,7 @@ $env:SAWN_UPDATE_MANIFEST_URL = "https://drente748.github.io/warden/updates/mani
 {
   "versionCode": 31,
   "versionName": "2.2.0",
-  "apkUrl": "https://github.com/drente748/warden/releases/download/v2.2.0/app-release.apk",
+  "apkUrl": "https://github.com/drente748/sawn-releases/releases/download/v2.2.0/app-release.apk",
   "sha256": "<64 lowercase hexadecimal characters>",
   "changelog": "ملاحظات الإصدار مستخرجة من docs/CHANGELOG.md",
   "mandatory": false

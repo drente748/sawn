@@ -10,7 +10,7 @@
    certutil -hashfile Sawn-2.2.0.apk SHA256   # Windows
    sha256sum Sawn-2.2.0.apk                    # Linux/macOS
    ```
-   قارن مع البصمة المنشورة (SHA-256) في بيان التحديث: `https://drente748.github.io/warden/updates/manifest.json`.
+   قارن مع البصمة المنشورة (SHA-256) في بيان التحديث: `https://drente748.github.io/sawn-releases/updates/manifest.json`.
 3. **السماح بالتثبيت من هذا المصدر** (مرة واحدة):
    - افتح الملف `.apk` ← «يحتاج إلى إذن لتثبيت تطبيقات غير معروفة» ← **الإعدادات** ← فعّل ← عُد للملف ← **تثبيت**.
 4. **Play Protect**: «قد يكون هذا التطبيق غير آمن» ← **مزيد من التفاصيل** ← **التثبيت على أي حال**.

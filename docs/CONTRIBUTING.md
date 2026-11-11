@@ -68,7 +68,7 @@ DNS filter and accessibility poorly.
 4. Build with the public manifest URL baked in — the address is compiled in, so an
    APK built without it can never check for updates later:
    ```powershell
-   $env:SAWN_UPDATE_MANIFEST_URL = "https://drente748.github.io/warden/updates/manifest.json"
+   $env:SAWN_UPDATE_MANIFEST_URL = "https://drente748.github.io/sawn-releases/updates/manifest.json"
    ./gradlew.bat :app:assembleRelease
    ```
 5. Gate the artifact, then copy it to `release/Sawn-<ver>.apk`:

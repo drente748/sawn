@@ -9,6 +9,14 @@ on:
 permissions:
   contents: write
 
+env:
+  # The source repository is private, so it cannot serve the update channel:
+  # GitHub Pages and release assets on a private repository are not readable
+  # without authentication, and the app fetches them anonymously. The published
+  # artefacts therefore live in a separate public repository that holds nothing
+  # but the built APK and the manifest.
+  DISTRIBUTION_REPO: drente748/sawn-releases
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -35,8 +43,8 @@ jobs:
         id: url
         shell: bash
         run: |
-          owner="${GITHUB_REPOSITORY%%/*}"
-          repo="${GITHUB_REPOSITORY##*/}"
+          owner="${DISTRIBUTION_REPO%%/*}"
+          repo="${DISTRIBUTION_REPO##*/}"
           # lowercase: the Pages hostname is case-insensitive, but some CDNs match the
           # Host header exactly — one canonical spelling avoids a 404 on the manifest.
           url="https://${owner,,}.github.io/${repo,,}/updates/manifest.json"
@@ -100,6 +108,8 @@ jobs:
       - name: Prepare public update manifest
         id: manifest
         shell: bash
+        env:
+          DISTRIBUTION_REPOSITORY: ${{ env.DISTRIBUTION_REPO }}
         run: |
           python3 - <<'PY'
           import hashlib, json, os, pathlib, re, subprocess, sys
@@ -134,10 +144,11 @@ jobs:
               text=True,
           ).strip() or f"Sawn {version_name}: fixes and improvements."
           digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+          distribution = os.environ["DISTRIBUTION_REPOSITORY"]
           manifest = {
               "versionCode": version_code,
               "versionName": version_name,
-              "apkUrl": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/{tag}/app-release.apk",
+              "apkUrl": f"https://github.com/{distribution}/releases/download/{tag}/app-release.apk",
               "sha256": digest,
               "changelog": notes,
               "mandatory": False,
@@ -153,14 +164,19 @@ jobs:
           tag_name: ${{ steps.manifest.outputs.tag }}
           name: Sawn ${{ steps.manifest.outputs.tag }}
           generate_release_notes: true
+          # The artefact is published to the public distribution repository: a
+          # release asset on a private repository cannot be fetched anonymously,
+          # and the app downloads it without any credentials.
+          repo: ${{ env.DISTRIBUTION_REPO }}
+          token: ${{ secrets.SAWN_DISTRIBUTION_TOKEN }}
           files: |
             app/build/outputs/apk/release/app-release.apk
             manifest.json
 
       - name: Prepare GitHub Pages branch
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.SAWN_DISTRIBUTION_TOKEN }}
+          GH_REPOSITORY: ${{ env.DISTRIBUTION_REPO }}
           GH_API_URL: ${{ github.api_url }}
         run: |
           python3 - <<'PY'
@@ -188,8 +204,8 @@ jobs:
 
       - name: Update GitHub Pages manifest
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.SAWN_DISTRIBUTION_TOKEN }}
+          GH_REPOSITORY: ${{ env.DISTRIBUTION_REPO }}
           GH_API_URL: ${{ github.api_url }}
         run: |
           python3 - <<'PY'

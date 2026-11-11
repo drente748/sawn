@@ -32,7 +32,7 @@ sha256sum Sawn-2.2.0.apk                   # Linux / macOS
 ```
 
 Compare with the fingerprint published in the update manifest:
-`https://drente748.github.io/warden/updates/manifest.json` — look for the `sha256` field.
+`https://drente748.github.io/sawn-releases/updates/manifest.json` — look for the `sha256` field.
 If they match, the file is intact, and it is the same file the app offers under “Check for updates”.
 
 > The digest is published with every release, so it never goes stale when a new version ships.

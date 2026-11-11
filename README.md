@@ -104,7 +104,7 @@ already-installed copies. The keystore and `local.properties` are git-ignored on
 
 ```bash
 # 1. bake the public manifest URL into the build (the URL is compiled in, not fetched)
-export SAWN_UPDATE_MANIFEST_URL="https://drente748.github.io/warden/updates/manifest.json"
+export SAWN_UPDATE_MANIFEST_URL="https://drente748.github.io/sawn-releases/updates/manifest.json"
 ./gradlew :app:assembleRelease
 
 # 2. gate the artifact

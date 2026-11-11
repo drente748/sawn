@@ -10,7 +10,7 @@
    certutil -hashfile Sawn-2.2.0.apk SHA256   # Windows
    sha256sum Sawn-2.2.0.apk                    # Linux/macOS
    ```
-   Compare against the published SHA-256 fingerprint in the update manifest: `https://drente748.github.io/warden/updates/manifest.json`.
+   Compare against the published SHA-256 fingerprint in the update manifest: `https://drente748.github.io/sawn-releases/updates/manifest.json`.
 3. **Allow install from this source** (once):
    - Open the `.apk` → "needs permission to install apps from unknown sources" → **Settings** → toggle on → back → **Install**.
 4. **Play Protect**: "This app may be unsafe" → **More details** → **Install anyway**.
