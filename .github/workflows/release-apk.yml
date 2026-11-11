@@ -74,7 +74,15 @@ jobs:
       - name: Build release APK
         env:
           SAWN_UPDATE_MANIFEST_URL: ${{ steps.url.outputs.url }}
-        run: ./gradlew --no-daemon --max-workers=2 :app:assembleRelease
+        run: |
+          # gradle.properties caps the daemon heap at 1 GB because the developer's
+          # machine has 4 GB of RAM. The runner has far more, and R8 needs more than
+          # 1 GB to shrink a 37 MB APK - it died with "OutOfMemoryError: Java heap
+          # space". Raise the heap for this build only; the local cap stays.
+          ./gradlew --no-daemon --max-workers=2 \
+            -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8" \
+            -Pkotlin.daemon.jvmargs=-Xmx2g \
+            :app:assembleRelease
 
       - name: Verify signing certificate
         run: |
