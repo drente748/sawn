@@ -145,6 +145,8 @@ fun HomeScreen(
     var guardBusy by remember { mutableStateOf(false) }
     var desiredGuard by remember { mutableStateOf(enabled) }
 
+    LaunchedEffect(enabled) { if (!guardBusy) desiredGuard = enabled }
+
     LaunchedEffect(focusEndsAt) {
         while (focusEndsAt > System.currentTimeMillis()) {
             now = System.currentTimeMillis()
@@ -598,7 +600,18 @@ fun HomeScreen(
                 showVerify = false
                 desiredGuard = false
                 guardBusy = true
-                onToggleBlocking(false) { guardBusy = false }
+                onToggleBlocking(false) { settled ->
+                    guardBusy = false
+                    if (!settled) {
+                        // PIN صحيح لكن الإيقاف رُفض (strict-mode/focus lock) — دون
+                        // رسالة كان يبدو أن PIN لا يعمل. نقل السبب من الحجب للعرض.
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.disable_refused_strict),
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
             },
             onDismiss = { showVerify = false },
         )

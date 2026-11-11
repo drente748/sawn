@@ -104,11 +104,44 @@ object UpdateInstaller {
         }
 
     fun install(context: Context, packageUri: Uri) {
+        // ACTION_INSTALL_PACKAGE is deprecated in favour of the PackageInstaller API, but
+        // it stays the safer choice here: ACTION_VIEW with the APK mime type can be
+        // intercepted by another app that registers for the same type, and this installer
+        // hands over an already-verified file. The system screen still asks the user to
+        // confirm — the app cannot install without them.
         val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
             setDataAndType(packageUri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
+    }
+
+    /**
+     * URI عام لملف APK مُتحقَّق منه، عبر FileProvider.
+     *
+     * لا يُمنح أي تطبيق آخر وصولاً إلى ذاكرة التطبيق: URI محصور بصلاحية
+     * مؤقتة على ملف واحد. هذا ما يسمح للإشعار بأن يفتح المثبّت مباشرةً.
+     */
+    fun uriFor(context: Context, apkPath: String): Uri? {
+        val file = File(apkPath)
+        if (!file.exists()) return null
+        return runCatching {
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        }.getOrNull()
+    }
+
+    /** المسار الذي يكتب فيه [downloadAndVerify] الملف المُتحقَّق منه. */
+    fun apkFileFor(context: Context, versionCode: Int): File =
+        File(File(context.cacheDir, APKS_DIR), "Sawn-$versionCode.apk")
+
+    /** يحذف ملفات التحديث القديمة التي لم تعد مطلوبة. */
+    fun pruneOldApks(context: Context, keepVersionCode: Int) {
+        runCatching {
+            File(context.cacheDir, APKS_DIR).listFiles()
+                ?.filter { it.name.startsWith("Sawn-") && it.name.endsWith(".apk") }
+                ?.filter { !it.name.equals("Sawn-$keepVersionCode.apk", ignoreCase = true) }
+                ?.forEach { it.delete() }
+        }
     }
 }

@@ -75,16 +75,47 @@ class SawnVpnService : VpnService() {
     /** Last day already written to the streak log, so the 30s tick writes at most once a day. */
     @Volatile private var lastProtectedDay: java.time.LocalDate? = null
 
-    /** Safe-host hostname → resolved IPv4 (as Int), cached for the tunnel's lifetime. */
-    private val safeHostIps = HashMap<String, Int>()
+    /** TTL for a failed safe-host resolve; successes stay cached for the tunnel's life. */
+    private val FAILED_U32 = -1 // 255.255.255.255 sentinel: resolve recently failed
+    private val FAILED_TTL_MS = 30_000L
 
-    /** Resolve [host] once and cache; returns null on failure (caller falls back). */
-    private fun safeHostIp(host: String): Int? = synchronized(safeHostIps) {
-        safeHostIps[host]
-    } ?: run {
+    /**
+     * Safe-host IP cache. Resolve failures are cached too ([FAILED_U32]) so an offline
+     * device does not re-run a full system-resolver timeout on every google.com query -
+     * that would repeatedly freeze the single packet-loop thread for seconds.
+     */
+    private val safeHostIps = HashMap<String, Int>() // hostname -> A ip or FAILED_U32
+    private val safeHostFailAt = HashMap<String, Long>()
+
+    /** Safe-host names with a resolve currently in flight (dedupe the off-loop resolver). */
+    private val safeResolveInFlight = java.util.Collections.newSetFromMap(HashMap<String, Boolean>())
+
+    /** Resolve [host] once and cache success AND failure; returns null on failure. */
+    private fun safeHostIp(host: String): Int? {
+        var retry = false
+        synchronized(safeHostIps) {
+            when (val cached = safeHostIps[host]) {
+                null -> Unit // not cached - resolve below
+                FAILED_U32 -> {
+                    val age = System.currentTimeMillis() - safeHostFailAt.getOrDefault(host, 0L)
+                    if (age < FAILED_TTL_MS) return null // recent failure - don't stall the loop again
+                    retry = true // expired failure - re-resolve below
+                }
+                else -> return cached
+            }
+        }
+        if (retry) synchronized(safeHostIps) { safeHostIps.remove(host) }
         val ip = resolveA(host)
-        if (ip != null) synchronized(safeHostIps) { safeHostIps[host] = ip }
-        ip
+        synchronized(safeHostIps) {
+            if (ip != null) {
+                safeHostIps[host] = ip
+                safeHostFailAt.remove(host)
+            } else {
+                safeHostIps[host] = FAILED_U32
+                safeHostFailAt[host] = System.currentTimeMillis()
+            }
+        }
+        return ip
     }
 
     /** Plain system-resolver lookup of an A record for [host]. */
@@ -228,6 +259,20 @@ class SawnVpnService : VpnService() {
         val extras = if (blockingActive && snapshot.pornGuard) settings.adultExtraDomains.first() else emptySet()
         blockedDomains = domains + extras
 
+        // Pre-resolve the safe-search anchors OFF the packet loop so the very first
+        // search after tunnel start already gets the rewritten (safe) answer instead
+        // of silently passing through until the cache fills.
+        if (safeSearchOn) {
+            val anchors = SafeSearchHosts.MAPPINGS.values.distinct()
+            for (anchor in anchors) {
+                if (!safeResolveInFlight.add(anchor)) continue
+                scope.launch {
+                    runCatching { safeHostIp(anchor) }
+                    safeResolveInFlight.remove(anchor)
+                }
+            }
+        }
+
         // Midnight rollover: WorkManager may be delayed by Doze, so the running tunnel also
         // records the day. Guarded by a local date check, so this writes once per day at most.
         if (blockingActive) {
@@ -331,26 +376,51 @@ class SawnVpnService : VpnService() {
         if (parsed.dstPort != DnsPacket.DNS_PORT) return
 
         val name = parsed.qname ?: return
-        val safeOverride = if (safeSearchOn) SafeSearchHosts.safeHostFor(name) else null
-        if (safeOverride != null) {
-            // Rewrite: answer with the safe host's A record (resolved+cached). If we
-            // don't have it yet, resolve once on this thread then serve from cache.
-            val ip = safeHostIp(safeOverride)
-            if (ip != null) {
-                val reply = DnsPacket.buildSinkholeIpResponse(packet, read, parsed, ip)
-                runCatching { writeResponse(output, reply) }
-                return
-            }
-            // resolve failed → fall through to normal forward (never brick a host)
+        val blocked = isBlocked(name)
+        // Safe-search rewrites a user-blocked host only when it actually improves the
+        // outcome; a block the user set themselves must win over the rewrite, so we
+        // resolve the override first and let the block take precedence below.
+        val safeOverride = if (safeSearchOn && !blocked) SafeSearchHosts.safeHostFor(name) else null
+
+        // IPv6: neither a blocked domain nor a safe-search target may hand the client a
+        // real AAAA answer — we only terminate A inside the tunnel, so any genuine v6
+        // address would route around us (a complete enforcement bypass on dual-stack).
+        // An empty NOERROR reply stops the client from retrying v6 paths.
+        if (parsed.queryType == DnsPacket.TYPE_AAAA && (blocked || safeOverride != null)) {
+            val reply = DnsPacket.buildNullResponse(packet, read, parsed)
+            runCatching { writeResponse(output, reply) }
+            return
         }
-        if (isBlocked(name)) {
+
+        if (safeOverride != null && parsed.queryType == DnsPacket.TYPE_A) {
+            val cachedReady = synchronized(safeHostIps) { safeHostIps.containsKey(safeOverride) }
+            if (cachedReady) {
+                val ip = safeHostIp(safeOverride)
+                if (ip != null) {
+                    val reply = DnsPacket.buildSinkholeIpResponse(packet, read, parsed, ip)
+                    runCatching { writeResponse(output, reply) }
+                    return
+                }
+                // cached failure → fall through to normal forward (never brick a host)
+            } else {
+                // Not cached yet: resolve OFF the packet-loop thread so a slow/offline
+                // system resolver never freezes the tunnel. This query is forwarded
+                // unfiltered (the safe host itself is not in the blocklist); the very
+                // next query for this host hits the cached rewrite.
+                if (safeResolveInFlight.add(safeOverride)) {
+                    scope.launch { safeHostIp(safeOverride); safeResolveInFlight.remove(safeOverride) }
+                }
+            }
+        }
+        if (blocked) {
             // Never log the domain — that would leak browsing history into logcat.
-            // AAAA gets an empty (NOERROR, 0-answer) reply: the domain has no v6
-            // address, so clients stop probing IPv6 instead of leaking past us.
-            val reply = if (parsed.queryType == DnsPacket.TYPE_AAAA)
-                DnsPacket.buildNullResponse(packet, read, parsed)
-            else
+            // AAAA handled above. Other non-A qtypes (HTTPS/65, TXT, MX...) get an
+            // empty NOERROR reply too: Chromium fetches HTTPS records for blocked
+            // hosts, and a dropped query means multi-second stalls instead of a fast 0.
+            val reply = if (parsed.queryType == DnsPacket.TYPE_A)
                 DnsPacket.buildSinkholeResponse(packet, read, parsed)
+            else
+                DnsPacket.buildNullResponse(packet, read, parsed)
             runCatching { writeResponse(output, reply) }
         } else {
             // Bound in-flight queries; overload drops a query so the client retries
@@ -380,28 +450,46 @@ class SawnVpnService : VpnService() {
      * Uses a fresh **connected** socket per query so only the intended resolver's replies are
      * accepted, and verifies the DNS transaction ID — together these block off-path response
      * spoofing / cache-poisoning on a hostile network.
+     *
+     * Resolvers are tried in order: the first is the active network's primary; on timeout
+     * (or any send failure) the next resolver — and finally the hard fallback — takes the
+     * query, so a stale or unreachable resolver no longer means "internet broken" while
+     * the tunnel reports running.
      */
     private fun forward(packet: ByteArray, parsed: DnsPacket.Parsed, output: FileOutputStream) {
         val query = packet.copyOfRange(parsed.dnsPayloadOffset, parsed.dnsPayloadOffset + parsed.dnsPayloadLen)
-        val target = upstreamDns.firstOrNull() ?: fallbackDns
+        val resolvers = buildList {
+            upstreamDns.forEach(::add)
+            if (fallbackDns !in upstreamDns) add(fallbackDns)
+        }
         var socket: DatagramSocket? = null
         try {
-            socket = DatagramSocket()
-            protect(socket)
-            socket.connect(target, DnsPacket.DNS_PORT) // only accept replies from this resolver
-            socket.soTimeout = 3000
-            socket.send(DatagramPacket(query, query.size))
+            for (target in resolvers) {
+                try {
+                    runCatching { socket?.close() }
+                    socket = DatagramSocket()
+                    protect(socket)
+                    socket.connect(target, DnsPacket.DNS_PORT) // only accept replies from this resolver
+                    socket.soTimeout = 3000
+                    socket.send(DatagramPacket(query, query.size))
 
-            val buf = ByteArray(MTU)
-            val replyPacket = DatagramPacket(buf, buf.size)
-            socket.receive(replyPacket)
-            val replyLen = replyPacket.length
-            // Transaction-ID must match the query, else it's a spoofed / stray reply — drop it.
-            if (replyLen < 2 || buf[0] != query[0] || buf[1] != query[1]) return
-            writeResponse(output, wrapReply(packet, parsed, buf.copyOf(replyLen)))
-        } catch (e: Exception) {
-            // Don't log the domain (privacy); the exception class is enough to diagnose.
-            Log.w(TAG, "DNS forward failed: ${e.javaClass.simpleName}")
+                    val buf = ByteArray(MTU)
+                    val replyPacket = DatagramPacket(buf, buf.size)
+                    socket.receive(replyPacket)
+                    val replyLen = replyPacket.length
+                    // Transaction-ID must match the query, else it's a spoofed / stray reply — drop it.
+                    if (replyLen >= 2 && buf[0] == query[0] && buf[1] == query[1]) {
+                        writeResponse(output, wrapReply(packet, parsed, buf.copyOf(replyLen)))
+                        return
+                    }
+                    // A bad reply consumed the socket's timeout window — try the next resolver.
+                } catch (e: Exception) {
+                    // Don't log the domain (privacy); the exception class is enough to diagnose.
+                    Log.w(TAG, "DNS forward failed: ${e.javaClass.simpleName}")
+                    // fall through to the next resolver
+                }
+            }
+            // All resolvers failed — drop the query; the client retries.
         } finally {
             runCatching { socket?.close() }
         }

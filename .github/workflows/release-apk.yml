@@ -25,6 +25,18 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Resolve public manifest URL
+        id: url
+        shell: bash
+        run: |
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY##*/}"
+          # lowercase: the Pages hostname is case-insensitive, but some CDNs match the
+          # Host header exactly — one canonical spelling avoids a 404 on the manifest.
+          url="https://${owner,,}.github.io/${repo,,}/updates/manifest.json"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Public manifest URL: $url"
+
       - name: Restore signing key
         env:
           SAWN_KEYSTORE_BASE64: ${{ secrets.SAWN_KEYSTORE_BASE64 }}
@@ -48,7 +60,7 @@ jobs:
 
       - name: Build release APK
         env:
-          SAWN_UPDATE_MANIFEST_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/updates/manifest.json
+          SAWN_UPDATE_MANIFEST_URL: ${{ steps.url.outputs.url }}
         run: ./gradlew --no-daemon --max-workers=2 :app:assembleRelease
 
       - name: Verify signing certificate
@@ -56,8 +68,11 @@ jobs:
           actual=$($ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk | awk -F': ' '/Signer #1 certificate SHA-256 digest/ { print tolower($2) }')
           if [ -z "$actual" ] || [ "$actual" != "${SAWN_EXPECTED_CERT_SHA256,,}" ]; then
             echo "Release APK signing certificate does not match the expected update key." >&2
+            echo "expected: ${SAWN_EXPECTED_CERT_SHA256,,}" >&2
+            echo "actual:   $actual" >&2
             exit 1
           fi
+          echo "Signing certificate verified: $actual"
         env:
           SAWN_EXPECTED_CERT_SHA256: ${{ secrets.SAWN_SIGNING_CERT_SHA256 }}
 
@@ -66,24 +81,41 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import hashlib, json, os, pathlib, re, subprocess
+          import hashlib, json, os, pathlib, re, subprocess, sys
+
           apk = pathlib.Path("app/build/outputs/apk/release/app-release.apk")
           aapt = pathlib.Path(os.environ["ANDROID_HOME"]) / "build-tools" / "36.0.0" / "aapt"
           data = subprocess.check_output([str(aapt), "dump", "badging", str(apk)], text=True)
           version_code = int(re.search(r"versionCode='(\d+)'", data).group(1))
           version_name = re.search(r"versionName='([^']+)'", data).group(1)
           tag = os.environ.get("GITHUB_REF_NAME") or f"build-{os.environ['GITHUB_RUN_NUMBER']}"
+
+          # The tag is the address of the release asset. If it disagrees with the APK's
+          # own version, the published manifest would advertise a version nobody can
+          # download under the right name — refuse instead of publishing a broken link.
+          if tag.startswith("v") and tag != f"v{version_name}":
+              print(f"Tag {tag} does not match APK version {version_name}.", file=sys.stderr)
+              sys.exit(1)
+
+          # The release notes come from scripts/extract_changelog.py — the same script
+          # that is run locally before a release, so the dialog and the changelog
+          # file can never drift apart.
+          notes = subprocess.check_output(
+              [sys.executable, "scripts/extract_changelog.py", "--version", version_name],
+              text=True,
+          ).strip() or f"Sawn {version_name}: fixes and improvements."
           digest = hashlib.sha256(apk.read_bytes()).hexdigest()
           manifest = {
               "versionCode": version_code,
               "versionName": version_name,
               "apkUrl": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/{tag}/app-release.apk",
               "sha256": digest,
-              "changelog": f"Sawn {version_name}: fixes and improvements.",
+              "changelog": notes,
               "mandatory": False,
           }
           pathlib.Path("manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           print(f"tag={tag}", file=open(os.environ["GITHUB_OUTPUT"], "a"))
+          print(f"versionCode={version_code} versionName={version_name}", file=sys.stderr)
           PY
 
       - name: Publish GitHub release
@@ -152,3 +184,22 @@ jobs:
           with urllib.request.urlopen(request) as response:
               print(f"GitHub Pages manifest published: {response.status}")
           PY
+
+      - name: Verify the published manifest is reachable
+        env:
+          MANIFEST_URL: ${{ steps.url.outputs.url }}
+        run: |
+          # Pages can take a minute to publish the first time. Poll rather than fail the
+          # run on a cold start — a false alarm here would hide a real outage.
+          for attempt in $(seq 1 12); do
+            code=$(curl -s -o /tmp/sawn-manifest.json -w '%{http_code}' "$MANIFEST_URL" || true)
+            if [ "$code" = "200" ]; then
+              echo "Manifest is live: $MANIFEST_URL"
+              cat /tmp/sawn-manifest.json
+              exit 0
+            fi
+            echo "attempt $attempt: HTTP $code — retrying in 15s"
+            sleep 15
+          done
+          echo "Manifest did not become reachable at $MANIFEST_URL" >&2
+          exit 1

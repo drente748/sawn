@@ -48,17 +48,23 @@ class AccessController(
     /**
      * لقطة مخزّنة لوضع التركيز العميق: القرار يُتخذ مع كل تبديل للتطبيق الأمامي،
      * فلا نقرأ DataStore في كل مرة (القيمة في الذاكرة أصلًا، لكن تجميع التدفق كل
-     * حدثٍ يكلّف).
+     * حدثٍ يكلّف). الحقلان بقيمة واحدة عبر [unsafe] pair داخلي، فلا تُخلط حالةٌ
+     * جديدةٌ بطابعٍ زمنيّ قديم.
      */
-    @Volatile private var cachedDeepFocus: DeepFocusState? = null
-    @Volatile private var cachedDeepFocusAt = 0L
+    private data class DeepFocusCache(val state: DeepFocusState, val at: Long)
+
+    @Volatile private var cachedDeepFocusPair: DeepFocusCache = DeepFocusCache(DeepFocusState(), Long.MIN_VALUE)
 
     private suspend fun deepFocusSnapshot(now: Long): DeepFocusState {
-        val cached = cachedDeepFocus
-        if (cached != null && now - cachedDeepFocusAt < DEEP_FOCUS_CACHE_MS) return cached
+        val cachedSnapshot = cachedDeepFocusPair
+        if (now - cachedSnapshot.at < DEEP_FOCUS_CACHE_MS) return cachedSnapshot.state
         val fresh = runCatching { deepFocusState() }.getOrDefault(DeepFocusState())
-        cachedDeepFocus = fresh
-        cachedDeepFocusAt = now
+        if (fresh != cachedSnapshot.state) {
+            cachedDeepFocusPair = DeepFocusCache(fresh, now)
+            return fresh
+        }
+        // Same state — refresh just the timestamp atomically.
+        cachedDeepFocusPair = DeepFocusCache(fresh, now)
         return fresh
     }
 

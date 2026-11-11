@@ -60,6 +60,7 @@ import com.sawn.app.ui.theme.SawnTheme
 import com.sawn.app.util.PermissionsHelper
 import com.sawn.app.vpn.VpnController
 import com.sawn.app.vpn.SawnVpnService
+import com.sawn.app.widget.SawnWidgetProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -129,6 +130,7 @@ class MainActivity : AppCompatActivity() {
                                         R.string.protection_start_failed,
                                         Toast.LENGTH_LONG,
                                     ).show()
+                                    SawnWidgetProvider.requestUpdate(this@MainActivity)
                                     onSettled(started)
                                 }
                             }
@@ -138,7 +140,16 @@ class MainActivity : AppCompatActivity() {
                             val outcome = vm.disableProtectionNow()
                             if (outcome.disabled && !outcome.focusActive) {
                                 VpnController.stop(this@MainActivity)
+                            } else if (!outcome.disabled) {
+                                // الرفض الصامت كان يبدو كسرّ PIN: strict-mode发表论文 يمنع الإيقاف
+                                // والمستخدم لا يعرف السبب. نشرح بدل أن نكتفي بالمهلة.
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    R.string.disable_refused_strict,
+                                    Toast.LENGTH_LONG,
+                                ).show()
                             }
+                            SawnWidgetProvider.requestUpdate(this@MainActivity)
                             onSettled(outcome.disabled)
                         }
                     }
@@ -189,6 +200,7 @@ private fun SawnScaffold(
     val settingsReady by vm.settingsReady.collectAsStateWithLifecycle()
     val onboardingDone by vm.onboardingDone.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val onboardingAnswers by vm.onboardingAnswers.collectAsStateWithLifecycle()
 
     // إذن الإشعارات يُطلب مرة واحدة بعد الترحيب — لا داخل زر التشغيل فقط. بدونه لا
     // يظهر إشعار «الحماية تعمل»، وبعض الشركات تقتل الخدمة الأمامية بلا إشعار.
@@ -210,14 +222,35 @@ private fun SawnScaffold(
         }
         return
     }
+    // يُضبط أثناء Onboarding ثم ينفَّذ بعد أن يجد NavHost مصيره في التركيب:
+    // navigate() قبل setGraph يرمي IllegalArgumentException، ونكبّر نافذة الفرصة
+    // بما أن NavHost يتأخر ضبط الـgraph لضربة تركيب واحدة بعد onboardingDone.
+    var pendingPostOnboardingRoute by remember { mutableStateOf<String?>(null) }
     if (!onboardingDone) {
-        OnboardingHost(vm = vm, onDone = vm::setOnboardingDone)
+        OnboardingHost(
+            vm = vm,
+            initialAnswers = onboardingAnswers,
+            onComplete = { answers, plan ->
+                vm.completeOnboarding(answers, plan) { pendingPostOnboardingRoute = "setup" }
+            },
+        )
         return
     }
 
-    var managementUnlocked by remember { mutableStateOf(false) }
+    // After onboarding completes, pendingPostOnboardingRoute fires once NavHost
+    // has been composed (this effect runs after composition commits).
+    LaunchedEffect(Unit) {
+        pendingPostOnboardingRoute?.let { route ->
+            runCatching {
+                navController.navigate(route) {
+                    popUpTo("home") { inclusive = true }
+                }
+            }
+            pendingPostOnboardingRoute = null
+        }
+    }
 
-    // قفل الإدارة يُغلق ثانيةً عند خروج التطبيق إلى الخلفية: فتحٌ واحد لا
+    var managementUnlocked by remember { mutableStateOf(false) }    // قفل الإدارة يُغلق ثانيةً عند خروج التطبيق إلى الخلفية: فتحٌ واحد لا
     // يبقى مفتوحًا طوال الجلسة، خاصةً في وضع ولي الأمر.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {

@@ -10,6 +10,7 @@ object PlanFeature {
     const val STRICT = "strict"
     const val FOCUS = "focus"
     const val APPS = "apps"
+    const val FEEDS = "feeds"
 }
 
 /** خطة المستخدم المبنية من إجاباته — ما سيظهر في «خطتك الشخصية». */
@@ -24,7 +25,8 @@ data class Plan(
  * - «صارم» → الخطة تتطلب PIN (وضع الانضباط في نفس الخطة).
  * - «إباحية» → حجب الإباحية + البحث الآمن أولاً (أولوية المنتج).
  * - «إعلانات» → الإعلانات + حظر DNS المشفر للمواقع المموهة.
- * - هدف «تقليل التشتيت» أو «حماية العائلة» → حجب التطبيقات حاضر.
+ * - هدف «تقليل التشتيت» → حجب التطبيقات؛ «حماية العائلة» → انضباط يحتاج PIN.
+ * - اختيار خلاصات المحتوى يفعّل فلاتر Reels/Shorts بمعزل عن قائمة التطبيقات.
  * - هدف «تركيز» → جلسات التركيز حاضرة.
  * - بلا إجابات → التشكيلة المتوازنة (6 ميزات).
  */
@@ -39,7 +41,8 @@ object PlanBuilder {
         if (PORN_CONTENT in a.content || a.goal == GOAL_PORN) features += PlanFeature.SAFE_SEARCH
         if (ADS_CONTENT in a.content || a.goal == GOAL_ADS) features += PlanFeature.ADS
         if (ADS_CONTENT in a.content || a.goal == GOAL_ADS) features += PlanFeature.DOH
-        if (FEEDS_CONTENT in a.content || a.goal == GOAL_DISTRACTION) features += PlanFeature.APPS
+        if (FEEDS_CONTENT in a.content) features += PlanFeature.FEEDS
+        if (APPS_CONTENT in a.content || a.goal == GOAL_DISTRACTION) features += PlanFeature.APPS
         if (a.goal == GOAL_FOCUS) features += PlanFeature.FOCUS
         if (a.commitment == COMMIT_STRICT || a.goal == GOAL_FAMILY) features += PlanFeature.STRICT
         if (a.commitment == COMMIT_SOFT || a.goal == GOAL_FOCUS) features += PlanFeature.FOCUS
@@ -58,7 +61,7 @@ object PlanBuilder {
 
         return Plan(
             featureIds = features.distinct().take(6),
-            requiresPin = a.commitment == COMMIT_STRICT,
+            requiresPin = a.commitment == COMMIT_STRICT || a.goal == GOAL_FAMILY,
         )
     }
 

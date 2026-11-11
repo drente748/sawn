@@ -59,13 +59,22 @@ data class BackupSettings(
     val accountabilityName: String?,
     val accountabilityContact: String?,
     val nudgesEnabled: Boolean,
+    val socialGuardEnabled: Boolean = false,
+    val enabledSocialPlatforms: List<String> = emptyList(),
+    // 2.2.0: تفضيلات التحديث التلقائي. تُحفظ في النسخة الاحتياطية حتى لا تعود
+    // مفعّلةً بعد الاستعادة إن كان المستخدم قد أوقفها.
+    val autoUpdateEnabled: Boolean = true,
+    val autoDownloadEnabled: Boolean = true,
+    val autoNotifyEnabled: Boolean = true,
 )
 
 /** Decoding deliberately has no Android dependency; bad input yields null, never a crash. */
 object BackupCodec {
 
-    const val VERSION = 1
-    private const val HEADER = "SAWNBAK1:"
+    const val VERSION = 3
+    private const val HEADER_V1 = "SAWNBAK1:"
+    private const val HEADER_V2 = "SAWNBAK2:"
+    private const val HEADER = "SAWNBAK3:"
 
     fun encode(doc: BackupDocument): String = buildString {
         append(HEADER)
@@ -79,17 +88,27 @@ object BackupCodec {
         append(doc.enabledFeatures.joinToString(","))
     }
 
-    /** Returns null for anything that is not a version-1 Sawn backup. */
+    /** Returns null for unsupported or malformed Sawn backups. */
     fun decode(text: String): BackupDocument? = runCatching {
-        require(text.startsWith(HEADER)) { "not a backup" }
-        val parts = text.removePrefix(HEADER).split('\t')
+        val header = when {
+            text.startsWith(HEADER) -> HEADER
+            text.startsWith(HEADER_V2) -> HEADER_V2
+            text.startsWith(HEADER_V1) -> HEADER_V1
+            else -> error("unsupported backup version")
+        }
+        val settingsVersion = when (header) {
+            HEADER -> 3
+            HEADER_V2 -> 2
+            else -> 1
+        }
+        val parts = text.removePrefix(header).split('\t')
         require(parts.size >= 8) { "truncated" }
         BackupDocument(
             profile = BackupProfile(
                 name = parts[0].unb64()?.ifBlank { null },
                 age = parts[1].toIntOrNull(),
             ),
-            settings = decodeSettings(parts[2]),
+            settings = decodeSettings(parts[2], settingsVersion),
             // Must mirror [encode] exactly: name, age, settings, answers, items, schedules, days, features.
             onboardingAnswers = parts[3].unb64()?.ifBlank { null },
             blockedItems = decodeItems(parts[4]),
@@ -155,11 +174,13 @@ private fun encodeSettings(s: BackupSettings): String = listOf(
     s.reduceMotion, s.locale, s.deepFocusEnabled, s.deepFocusWhitelist.joinToString("^"),
     s.nightGuardEnabled, s.nightGuardStartMin, s.nightGuardEndMin,
     s.accountabilityName.orEmpty(), s.accountabilityContact.orEmpty(), s.nudgesEnabled,
+    s.socialGuardEnabled, s.enabledSocialPlatforms.joinToString("^"),
+    s.autoUpdateEnabled, s.autoDownloadEnabled, s.autoNotifyEnabled,
 ).joinToString(",") {
     it.toString().replace(",", "\u0001")
 }
 
-private fun decodeSettings(raw: String): BackupSettings {
+private fun decodeSettings(raw: String, version: Int): BackupSettings {
     val f = raw.split(',').map { it.replace("\u0001", ",") }
     fun s(i: Int, d: String) = f.getOrNull(i)?.ifBlank { null } ?: d
     fun b(i: Int, d: Boolean) = f.getOrNull(i)?.toBooleanStrictOrNull() ?: d
@@ -182,5 +203,10 @@ private fun decodeSettings(raw: String): BackupSettings {
         accountabilityName = f.getOrNull(14)?.ifBlank { null },
         accountabilityContact = f.getOrNull(15)?.ifBlank { null },
         nudgesEnabled = b(16, false),
+        socialGuardEnabled = version >= 2 && b(17, false),
+        enabledSocialPlatforms = if (version < 2) emptyList() else s(18, "").split("^").filter { it.isNotBlank() },
+        autoUpdateEnabled = if (version < 3) true else b(19, true),
+        autoDownloadEnabled = if (version < 3) true else b(20, true),
+        autoNotifyEnabled = if (version < 3) true else b(21, true),
     )
 }

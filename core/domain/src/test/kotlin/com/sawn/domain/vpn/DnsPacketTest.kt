@@ -61,20 +61,60 @@ class DnsPacketTest {
         assertEquals(53, parsed.dstPort)
         assertEquals(srcPort, parsed.srcPort)
         assertEquals(DnsPacket.TYPE_A, parsed.queryType)
+        assertEquals(0x0100, parsed.dnsFlags)
+    }
+
+    @Test fun rejectsDnsNamePastReceivedPacketLength() {
+        val packet = buildQuery("example.com")
+        assertNull(DnsPacket.parse(packet, packet.size - 2))
+    }
+
+    @Test fun rejectsInvalidSingleQuestionAndNonQueryPackets() {
+        val multipleQuestions = buildQuery("example.com")
+        multipleQuestions[25] = 2
+        assertNull(DnsPacket.parse(multipleQuestions, multipleQuestions.size))
+
+        val response = buildQuery("example.com")
+        response[30] = 0x81.toByte()
+        assertNull(DnsPacket.parse(response, response.size))
     }
 
     @Test fun nullResponseForAaaaOnBlockedDomain() {
-        // Same query but TYPE=28 (AAAA): the sinkhole returns NOERROR with zero answers,
-        // so clients don't chase IPv6 paths for a blocked domain.
+        // Same query but TYPE=28 (AAAA): return a matching empty answer.
         val packet = buildQuery("tracker.example.com", queryType = 28)
         val parsed = DnsPacket.parse(packet, packet.size)!!
         val resp = DnsPacket.buildNullResponse(packet, packet.size, parsed)
         val d = 20 + 8
         assertTrue("QR bit not set", resp[d + 2].toInt() and 0x80 != 0)
+        val responseTypeOffset = d + 12 + "tracker.example.com".split('.').sumOf { it.length + 1 } + 1
+        assertEquals(
+            DnsPacket.TYPE_AAAA,
+            ((resp[responseTypeOffset].toInt() and 0xFF) shl 8) or
+                (resp[responseTypeOffset + 1].toInt() and 0xFF),
+        )
         val ancount = ((resp[d + 6].toInt() and 0xFF) shl 8) or (resp[d + 7].toInt() and 0xFF)
         assertEquals(0, ancount)
         val declaredLen = ((resp[2].toInt() and 0xFF) shl 8) or (resp[3].toInt() and 0xFF)
         assertEquals(resp.size, declaredLen)
+    }
+
+    @Test fun nullResponseForHttpsType65OnBlockedDomain() {
+        // Chromium pre-fetches HTTPS (type 65) records even for blocked hosts; a dropped
+        // query stalls the page for seconds, so the sinkhole must also answer these
+        // with an empty NOERROR reply echoing the queried type.
+        val packet = buildQuery("tracker.example.com", queryType = 65)
+        val parsed = DnsPacket.parse(packet, packet.size)!!
+        val resp = DnsPacket.buildNullResponse(packet, packet.size, parsed)
+        val d = 20 + 8
+        assertTrue("QR bit not set", resp[d + 2].toInt() and 0x80 != 0)
+        val responseTypeOffset = d + 12 + "tracker.example.com".split('.').sumOf { it.length + 1 } + 1
+        assertEquals(
+            65,
+            ((resp[responseTypeOffset].toInt() and 0xFF) shl 8) or
+                (resp[responseTypeOffset + 1].toInt() and 0xFF),
+        )
+        val ancount = ((resp[d + 6].toInt() and 0xFF) shl 8) or (resp[d + 7].toInt() and 0xFF)
+        assertEquals(0, ancount)
     }
 
     @Test fun ignoresNonUdpAndTooShort() {

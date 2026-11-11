@@ -38,10 +38,10 @@ class SawnApp : Application() {
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             runCatching {
-                // release يحذف Log.* (proguard-rules.pro) — الملف هو السجل الوحيد.
+                // Keep a single bounded crash trace locally; never include Intent or user content.
                 val trace = "thread=${thread.name} at=${System.currentTimeMillis()}\n" +
-                    android.util.Log.getStackTraceString(throwable) + "\n\n"
-                openFileOutput("last-crash.txt", Context.MODE_APPEND).use { out ->
+                    android.util.Log.getStackTraceString(throwable).take(MAX_CRASH_TRACE_CHARS) + "\n\n"
+                openFileOutput(CRASH_FILE, Context.MODE_PRIVATE).use { out ->
                     out.write(trace.toByteArray())
                 }
             }
@@ -64,6 +64,9 @@ class SawnApp : Application() {
         runCatching { com.sawn.app.system.GuardHealthWorker.schedule(this) }
         runCatching { com.sawn.app.system.NightGuardWorker.schedule(this) }
         runCatching { com.sawn.app.system.NudgesWorker.schedule(this) }
+        // التحديث الذاتي: فحص دوري كل ست ساعات. العامل نفسه يحترم مفتاح
+        // «التحديث التلقائي» — إن أوقفه المستخدم لا يفعل شيئاً ولا يفتح شبكة.
+        runCatching { com.sawn.app.system.UpdateCheckWorker.schedule(this) }
         restoreActiveLockdown()
     }
 
@@ -101,6 +104,8 @@ class SawnApp : Application() {
     }
 
     companion object {
+        private const val CRASH_FILE = "last-crash.txt"
+        private const val MAX_CRASH_TRACE_CHARS = 32_000
         const val VPN_CHANNEL_ID = "sawn_blocking"
 
         /** App-scoped reference for notifiers that run outside an Activity context. */

@@ -58,8 +58,9 @@ This document is the threat model and the measures in place.
   boot, so advancing the wall clock does not shorten it. Constant-time comparison. Settings,
   blocklist, schedules, app/feed management, and disable paths are PIN-gated.
 - **Screen protection**: `FLAG_SECURE` on the PIN pad (release builds) blocks
-  screenshots/recording; `filterTouchesWhenObscured` + `setHideOverlayWindows` on the PIN and
-  the intercept screen defeat tapjacking overlays.
+  screenshots/recording; `filterTouchesWhenObscured` + `setHideOverlayWindows` are applied
+  to the *dialog window itself* and the host activity (the dialog's context is a
+  ContextThemeWrapper, so the old activity-cast silently no-op'd inside dialogs).
 - **Network**: `network_security_config.xml` with `cleartextTrafficPermitted=false` and
   `usesCleartextTraffic=false`. List refresh uses HTTPS only, rejects non-2xx responses,
   validates every hostname, limits response size, and keeps the previous list on failure.
@@ -68,12 +69,17 @@ This document is the threat model and the measures in place.
 - **Exported surface**: only the launcher activity is exported. The intercept activity is
   `exported=false`; the VPN/accessibility/tile/notification/device-admin services are
   system-bound and protected by their respective `BIND_*` permissions.
-- **Release builds**: R8 shrinks + obfuscates and **strips all `android.util.Log`** calls, so
-  no diagnostic logging can leak in production.
-- **Packet handling**: `DnsPacket` bounds-checks every offset before reading and drops
-  malformed packets. DNS forwarding is concurrency-bounded and shared tunnel writes are
-  synchronized. If the packet loop stops, Sawn clears its health flag and stops the
-  service instead of appearing protected while filtering has stopped.
+- **Release builds**: R8 shrinking and log stripping are on by default from v2.2.0
+  (`-PSAWN_MINIFY_RELEASE=false` only for a diagnostic unminified build). The manifest
+  keep rules cover every manifest-referenced component; if a release build fails at
+  runtime with a missing class, add a targeted keep rule rather than disabling minify.
+  The uncaught crash handler writes one bounded, private trace (`last-crash.txt`) locally;
+  review and erase it before sharing diagnostic files.
+- **Packet handling**: `DnsPacket` validates received IP/UDP lengths, the DNS question and
+  each hostname label before reading and drops malformed packets. DNS forwarding is
+  concurrency-bounded and shared tunnel writes are synchronized. If the packet loop stops,
+  Sawn clears its health flag and stops the service instead of appearing protected while
+  filtering has stopped.
 
 ## Known limitations (honest)
 
@@ -101,6 +107,14 @@ This document is the threat model and the measures in place.
   outside this layer.
 - **Adult list refresh** is manual and trusts the maintained upstream sources over HTTPS. It
   validates formats and sizes but does not yet verify a signed manifest or prevent rollback.
+- **Update channel**: the manifest is served from GitHub Pages and the APK from GitHub Releases.
+  SHA-256 detects a corrupted or substituted file, and Android additionally verifies the APK
+  signature against the key that signed the installed copy — so a hostile APK signed by another
+  key cannot install over the app. What SHA-256 is *not* is an independent signature: if both
+  hosting surfaces were compromised at once, a manifest and APK that agree with each other would
+  still pass. The release key therefore stays out of GitHub and in Actions secrets only. The
+  check is manual and the whole channel is inert until `SAWN_UPDATE_MANIFEST_URL` is baked into
+  a build; there is no automatic check on app start.
 - **Strict mode** locks Sawn's own disable paths (switch, tile, early focus exit, in-app
   admin disable), not Android's system Settings. Deactivating device admin or force-stopping
   the app from the OS remains possible — the deliberate emergency exit.

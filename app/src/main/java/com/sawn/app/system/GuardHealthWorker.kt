@@ -76,6 +76,9 @@ class GuardHealthWorker(context: Context, params: WorkerParameters) : CoroutineW
             GuardHealthNotifier.clearVpn(applicationContext)
         }
 
+        // الودجت يعرض حالة الحماية والعداد — حدّثه بعد أن استقرّت الحالة.
+        com.sawn.app.widget.SawnWidgetProvider.requestUpdate(applicationContext)
+
         return Result.success()
     }
 

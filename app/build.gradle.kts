@@ -41,8 +41,8 @@ android {
         applicationId = "com.sawn.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 29
-        versionName = "2.1.9"
+        versionCode = 31
+        versionName = "2.2.0"
         buildConfigField("String", "UPDATE_MANIFEST_URL", "\"$sawnManifestUrl\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -60,15 +60,19 @@ android {
 
     buildTypes {
         release {
-            // Skip R8 for the sideloaded APK: it exceeds the memory limit of the build machine.
-            isMinifyEnabled = false
+            // الإصدار النهائي مضغوط الخفة: R8 بالقواعد الافتراضية + قواعد Sawn الخاصة
+            //_KEEP للخدمات المرجعَية من الـManifest فقط. استخدم SAWN_MINIFY_RELEASE=false
+            // فقط للتشخيص، فالنسخة المصغرة هي المفترض نُشرها (حجم نزول ملحوظ).
+            isMinifyEnabled = providers.gradleProperty("SAWN_MINIFY_RELEASE")
+                .orElse("true").get().toBoolean()
+            isShrinkResources = isMinifyEnabled
             isDebuggable = false
             if (sawnSigningValues.all { it != null }) {
                 signingConfig = signingConfigs.getByName("release")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }

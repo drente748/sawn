@@ -63,9 +63,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private val imageScreening = ImageScreeningOrchestrator(this)
     private val scanInFlight = AtomicBoolean(false)
 
-    private var lastFeatureScan = 0L
-    private var interceptedFeatureKey: String? = null
-    private var interceptedSocialKey: String? = null
+    // Written from onAccessibilityEvent (main thread) and from scan coroutines on
+    // Dispatchers.Default — plain fields would let one side see a stale value.
+    @Volatile private var lastFeatureScan = 0L
+    @Volatile private var interceptedFeatureKey: String? = null
+    @Volatile private var interceptedSocialKey: String? = null
 
     // Cache blocking-active + enabled features so scroll-heavy apps don't hammer DataStore/DB
     // on every content-changed event. Refreshed at most once per CACHE_TTL_MS.
@@ -373,7 +375,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
      * target has been *absent* for SOCIAL_REARM_MS we keep suppressing repeats so
      * scroll-heavy feeds don't spam intercepts for the same warning bar.
      */
-    private var socialKeyAbsentSince = 0L
+    // Shared between the main thread and scan coroutines — must stay visible (@see above).
+    @Volatile private var socialKeyAbsentSince = 0L
 
     private fun onSocialScanResult(hit: SocialContentHit?, pkg: String): SocialContentHit? {
         if (hit == null) {

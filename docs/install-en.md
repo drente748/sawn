@@ -27,11 +27,15 @@
 ## Verify file integrity (SHA-256)
 
 ```
-certutil -hashfile Sawn-2.0.0.apk SHA256    # Windows
-sha256sum Sawn-2.0.0.apk                   # Linux / macOS
+certutil -hashfile Sawn-2.2.0.apk SHA256    # Windows
+sha256sum Sawn-2.2.0.apk                   # Linux / macOS
 ```
 
-Compare with the published fingerprint — if they match, the file is intact.
+Compare with the fingerprint published in the update manifest:
+`https://drente748.github.io/warden/updates/manifest.json` — look for the `sha256` field.
+If they match, the file is intact, and it is the same file the app offers under “Check for updates”.
+
+> The digest is published with every release, so it never goes stale when a new version ships.
 
 ## Uninstall the old build first
 

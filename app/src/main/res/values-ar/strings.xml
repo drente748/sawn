@@ -9,6 +9,7 @@
     <string name="vpn_notification_text">فلترة المواقع المحجوبة نشطة الآن.</string>
     <string name="vpn_permission_needed">صَوْن بحاجة إلى إذن إنشاء اتصال الحماية ليبدأ الحجب.</string>
     <string name="protection_start_failed">لم يبدأ الفلتر — افتح شاشة الأذونات ومنح صَوْن إذن اتصال الحماية.</string>
+    <string name="disable_refused_strict">لا يمكن إيقاف الحماية أثناء قفل الوضع الصارم أو جلسة تركيزٍ محبوسة.</string>
     <string name="device_admin_description">تمنع إزالة صَوْن طوال فعالية الحماية. لا يطلب صَوْن أي صلاحيات إدارية أخرى.</string>
 
     <!-- الفحص الصحي -->
@@ -157,7 +158,7 @@
     <string name="notifications_status_off">الكتم مطفأ — فعّله من الصفحة الرئيسية.</string>
     <string name="notifications_grant">منح إذن الإشعارات</string>
     <string name="privacy_title">خصوصيتك</string>
-    <string name="privacy_body">لا نجمع بيانات شخصية — لا سيرفر ولا حساب ولا تسجيل. يعمل كل شيء على جهازك، وتُسحب قوائم الحجب من مصادر عامة عند تحديثها.</string>
+    <string name="privacy_body">لا نجمع بيانات شخصية — لا سيرفر ولا حساب ولا تسجيل. يعمل كل شيء على جهازك. وكل ما يجلبه صَوْن هو قوائم حجب عامة وبيان تحديث عام، ويمكن إيقاف فحص التحديث كلياً.</string>
     <string name="help_title">أحتاج مساعدة</string>
     <string name="help_body">خط مساندة عالمي مجاني يفتح في متصفحك. لا يسجّل صَوْن أي شيء عند استخدامه.</string>
     <string name="help_action">فتح صفحة المساعدة</string>
@@ -421,16 +422,37 @@
     <string name="sos_delay_running">المؤقّت يعمل</string>
     <string name="stats_urge_week_total">جلسات تجاوز الرغبة هذا الأسبوع: %1$d · المكتملة منذ البداية: %2$d</string>
     <string name="update_title">تحديث صَوْن</string>
-    <string name="update_privacy">يتحقق صَوْن من التحديثات فقط عند ضغطك على الزر. لا تُرسل بيانات استخدامك.</string>
+    <string name="update_privacy">يتحقّق صَوْن من بيان عام عن وجود نسخة جديدة. بلا حساب، وبلا معرّفات، وبلا بيانات استخدام — ويمكنك إيقاف الفحص التلقائي من الأعلى.</string>
     <string name="update_check">تحقّق من وجود تحديث</string>
     <string name="update_checking">جارٍ التحقق من التحديث…</string>
     <string name="update_downloading">جارٍ تنزيل التحديث والتحقق من سلامته…</string>
+    <string name="update_installing">تم التحقق من التحديث — وافق عليه في شاشة التثبيت لإتمامه.</string>
     <string name="update_up_to_date">لديك أحدث إصدار.</string>
     <string name="update_available">يتوفر الإصدار %1$s. راجع التفاصيل ثم ثبّته بموافقتك.</string>
     <string name="update_install">تنزيل التحديث وتثبيته</string>
     <string name="update_failed">تعذّر إكمال التحديث: %1$s</string>
     <string name="update_host_not_configured">لم تُربط الاستضافة بعد. أعد بناء التطبيق بعد إعداد رابط manifest عبر SAWN_UPDATE_MANIFEST_URL.</string>
     <string name="update_install_permission_missing">لم يُمنح الإذن بتثبيت تطبيقات من هذا المصدر.</string>
+    <string name="widget_open">افتح</string>
+    <string name="widget_streak_format">%1$s يوماً</string>
+
+    <!-- التحديث الذاتي (2.2.0) -->
+    <string name="update_channel_name">التحديثات</string>
+    <string name="update_channel_desc">تنبيه عند توفّر نسخة جديدة من صَوْن.</string>
+    <string name="update_notif_available_title">توجد نسخة جديدة من صَوْن</string>
+    <string name="update_notif_available_text">الإصدار %1$s — اضغط للتنزيل والتثبيت.</string>
+    <string name="update_notif_ready_title">التحديث جاهز</string>
+    <string name="update_notif_ready_text">الإصدار %1$s نُزِّل وتُحقِّق من سلامته — اضغط للتثبيت.</string>
+    <string name="update_auto_title">التحديث التلقائي</string>
+    <string name="update_auto_sub">يفحص صَوْن بياناً عاماً عن نسخة جديدة كل بضع ساعات. ولا يُثبَّت شيء دون موافقتك.</string>
+    <string name="update_auto_download_title">التنزيل التلقائي</string>
+    <string name="update_auto_download_sub">يُنزَّل التحديث فور 발견ه، فيصير التثبيت ضغطة واحدة. ويُتحقَّق من بصمة الملف قبل عرضه.</string>
+    <string name="update_auto_install_title">التثبيت فور الجاهزية</string>
+    <string name="update_auto_install_sub">يُخبرك فور جهوزية التحديث المُتحقَّق منه، بدل تركه في الخلفية. وأندرويد يطلب منك تأكيد التثبيت نفسه دائماً — ولا يملك أي تطبيق تجاوز هذه الخطوة.</string>
+    <string name="update_pending_title">الإصدار %1$s جاهز للتثبيت</string>
+    <string name="update_pending_sub">نُزِّل وتُحقِّق من سلامته. والتثبيت يحتاج موافقتك في مثبّت النظام.</string>
+    <string name="update_install_now">ثبّت الآن</string>
+    <string name="update_failed_pending">لم يعد الملف المُنزَّل متاحاً — تحقّق من التحديث مرّة أخرى.</string>
 
     <!-- الترحيب v3 -->
 
@@ -517,7 +539,7 @@
     <string name="plan_feature_strict_title">Discipline mode with a PIN</string>
     <string name="plan_feature_strict_sub">No breaking protection in a weak moment</string>
     <string name="plan_feature_apps_title">Distracting apps blocked</string>
-    <string name="plan_feature_apps_sub">Reels and Shorts detected and blocked</string>
+    <string name="plan_feature_apps_sub">اختر التطبيقات التي تريد حجبها من قائمة التطبيقات</string>
     <string name="plan_feature_focus_title">Focus sessions + day streaks</string>
     <string name="plan_feature_focus_sub">25 quiet minutes, and your wins counted</string>
     <string name="plan_feature_notifications_title">Notifications silenced for blocked apps</string>
@@ -574,6 +596,7 @@
     <string name="feature_challenge_record">سجِّل اليوم</string>
     <string name="feature_challenge_restart">أعد البدء</string>
     <string name="feature_challenge_restart_confirm">إعادة البدء تمسح الأيام التي حسبتها. تبدأ من جديد؟</string>
+    <string name="feature_challenge_needs_protection">الحماية ليست فعّالة الآن — الأيام المحمية فقط تُقدِّم التحدي. فعِّل الترشيح أولًا.</string>
     <string name="feature_night_guard_title">الحارس الليلي</string>
     <string name="feature_night_guard_sub">يُفعِّل وضع الانضباط تلقائيًا ليلًا (الافتراضي 22:00–06:00). الاتصال والرسائل والخرائط تبقى مسموحة.</string>
     <string name="feature_night_guard_enable">مفعّل</string>
@@ -642,6 +665,15 @@
     <string name="feature_parent_pin_set">تعيين رقم ولي الأمر</string>
     <string name="feature_parent_pin_remove">إزالة رقم ولي الأمر</string>
     <string name="feature_parent_pin_removed">أُزيل رقم ولي الأمر.</string>
+    <string name="feature_parent_pin_remove_blocked">أوقف وضع ولي الأمر قبل إزالة رقمه السري.</string>
+    <string name="feature_blocking_title">حماية المحتوى داخل التطبيقات</string>
+    <string name="feature_blocking_subtitle">تعمل هذه الفلاتر مع تفعيل الحماية ومنح إذن إمكانية الوصول.</string>
+    <string name="feature_blocking_social">فحص محتوى التطبيقات الاجتماعية</string>
+    <string name="feature_blocking_feeds">حجب خلاصات محددة</string>
+    <string name="feature_blocking_feed">حجب %1$s</string>
+    <string name="feature_night_guard_locked">القفل الزمني النشط يمنع هذا التغيير.</string>
+    <string name="plan_feature_feeds_title">حجب Reels وShorts والخلاصات</string>
+    <string name="plan_feature_feeds_sub">اختر الخلاصات والتطبيقات الاجتماعية المراد حمايتها</string>
     <string name="feature_parent_report">أرسل تقرير ولي الأمر</string>
     <string name="feature_parent_report_body">التقرير الأسبوعي نفسه، جاهزًا لتسليمه لولي الأمر أو شريك المساءلة.</string>
     <string name="parent_unlock_title">أدخل رقم ولي الأمر</string>

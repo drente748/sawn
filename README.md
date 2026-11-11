@@ -1,4 +1,4 @@
-# Sawn 2.1.9
+# Sawn 2.2.0
 
 **صَوْن (Sawn) — a local, account-free, tracking-free Android blocker.** Blocks websites (via an
 on-device DNS filter), apps, adult content, ads/trackers, and the endless scroll (Reels/Shorts
@@ -58,7 +58,7 @@ warden/
 - `:app` — Compose UI, services (VPN / Accessibility / DeviceAdmin / QS tile / boot / workers),
   ViewModels, Hilt.
 
-## Feature status (2.1.9)
+## Feature status (2.2.0)
 
 - [x] Single-page home: protection hero, rich streak card, daily summary, focus, urge shield,
       time lock, tools
@@ -72,10 +72,19 @@ warden/
 - [x] Encrypted-free, PIN-gated management sections; local profile; AR/EN with RTL
 - [x] Optional in-app update check against a free GitHub Pages manifest, with SHA-256 and
       package/version verification before the Android installer opens
+- [x] Automatic updates (on by default): periodic manifest check, background download and
+      verification, and a "ready to install" notification that opens the system installer on
+      the already-verified file. Android always requires the user's own tap to install — no
+      app can install silently.
 - [x] Plan B fully wired: night guard (PIN unlock), trigger analyzer with an hourly chart,
       accountability partner, encrypted `.sawnbak` backup (AES-256-GCM, real export/import),
       parent mode with a separate parent PIN that locks management
-- [ ] Year heatmap, widget, biometric unlock
+- [ ] Year heatmap, biometric unlock
+
+  The biometric helper (`BiometricHelper`) is in place but not wired to any
+  screen yet — every path is still PIN-gated.
+- [x] Home-screen widget (2×2): protected-day streak + protection state, refreshed
+  whenever protection state changes
 
 ## Build
 
@@ -84,12 +93,30 @@ warden/
 ./gradlew :app:assembleRelease
 ```
 
-Target: `minSdk 26`, `targetSdk 36`, `versionName 2.1.9`, `versionCode 29`.
+Target: `minSdk 26`, `targetSdk 36`, `versionName 2.2.0`, `versionCode 31`.
 
 Release signing reads `SAWN_STORE_FILE`, `SAWN_STORE_PASSWORD`, `SAWN_KEY_ALIAS`,
 `SAWN_KEY_PASSWORD` from the environment or `local.properties` (all or none). Keep
 `sawn-release.keystore` and those secrets safe: losing them blocks all future updates of
 already-installed copies. The keystore and `local.properties` are git-ignored on purpose.
+
+### Release
+
+```bash
+# 1. bake the public manifest URL into the build (the URL is compiled in, not fetched)
+export SAWN_UPDATE_MANIFEST_URL="https://drente748.github.io/warden/updates/manifest.json"
+./gradlew :app:assembleRelease
+
+# 2. gate the artifact
+powershell -ExecutionPolicy Bypass -File scripts/verify-release.ps1 -ExpectedVersion 2.2.0
+
+# 3. one-time hosting setup (Actions secrets + GitHub Pages), then tag and push
+powershell -ExecutionPolicy Bypass -File scripts/setup-update-hosting.ps1 -Version 2.2.0
+git tag v2.2.0 && git push origin v2.2.0
+```
+
+An APK built without `SAWN_UPDATE_MANIFEST_URL` can never check for updates later —
+the address is compiled in. Details: [`docs/update-hosting.md`](docs/update-hosting.md).
 
 ## Documentation
 
@@ -102,7 +129,12 @@ already-installed copies. The keystore and `local.properties` are git-ignored on
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Threat model, known limits |
 | [`docs/setup.md`](docs/setup.md) | Local toolchain setup |
 | [`docs/device-testing.md`](docs/device-testing.md) | On-device test plan |
+| [`docs/feature-organization.html`](docs/feature-organization.html) | Design exploration: how the features could be grouped and ordered (open in a browser) |
 | [`docs/update-hosting.md`](docs/update-hosting.md) | Free update hosting (GitHub Pages/Releases) |
+| [`scripts/setup-update-hosting.ps1`](scripts/setup-update-hosting.ps1) | One-time setup of Actions secrets + GitHub Pages (publishes nothing) |
+| [`scripts/verify-release.ps1`](scripts/verify-release.ps1) | Release gate: signing certificate, version, and manifest URL inside the APK |
+| [`scripts/audit_release.py`](scripts/audit_release.py) | Pre-release audit: secrets, string parity, XML, doc links, version ladder |
+| [`scripts/extract_changelog.py`](scripts/extract_changelog.py) | Pulls release notes out of `docs/CHANGELOG.md` for the update manifest |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Version history |
 | [`docs/install-ar.md`](docs/install-ar.md) · [`docs/install-en.md`](docs/install-en.md) | Install guides |
 | [`docs/site-activation-ar.md`](docs/site-activation-ar.md) · [`docs/site-activation-en.md`](docs/site-activation-en.md) | Per-OEM activation |

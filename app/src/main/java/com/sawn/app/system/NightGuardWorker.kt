@@ -21,7 +21,10 @@ class NightGuardWorker(context: Context, params: WorkerParameters) : CoroutineWo
 
     override suspend fun doWork(): Result {
         val settings = applicationContext.sawnContainer.settings
-        if (!settings.nightGuardEnabled.first()) return Result.success()
+        if (!settings.nightGuardEnabled.first()) {
+            settings.restoreNightGuardOverrides()
+            return Result.success()
+        }
 
         val cal = Calendar.getInstance()
         val nowMin = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
@@ -34,22 +37,11 @@ class NightGuardWorker(context: Context, params: WorkerParameters) : CoroutineWo
         val unlocked = unlockUntil > nowMs
 
         if (within && !unlocked) {
-            // داخل النافذة وبلا فك → تُفرض الحماية كاملة. الوضع الصارم يحتاج رقمًا
-            // سريًا، فإذا لم يكن موجودًا يُفرض ما أمكن ويُسجَّل ما فُرض فعلًا.
-            val forcedStrict = settings.setStrictMode(true)
-            settings.setAlwaysOn(true)
-            settings.setMasterEnabled(true)
-            settings.setNightGuardForced(strict = forcedStrict, alwaysOn = true)
+            // Enforce the night policy atomically while retaining only overrides made here.
+            settings.applyNightGuardOverrides()
         } else {
-            // خارج النافذة أو انتهى الفك → نُعيد ما فرضه الحارس فقط، فلا يبقى
-            // الانضباط الصارم معلّقًا حتى الصباح.
-            val forced = settings.nightGuardForced()
-            if (forced.strict) settings.setStrictMode(false)
-            if (forced.alwaysOn) settings.setAlwaysOn(false)
-            if (forced.strict || forced.alwaysOn) settings.setNightGuardForced(false, false)
-            if (unlocked && nowMs > unlockUntil) {
-                settings.setNightGuardUnlock(0L)
-            }
+            // Restore only the settings the night guard itself changed.
+            settings.restoreNightGuardOverrides()
         }
         return Result.success()
     }

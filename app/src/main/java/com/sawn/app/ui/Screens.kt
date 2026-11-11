@@ -96,6 +96,8 @@ import com.sawn.app.R
 import com.sawn.domain.model.BlockType
 import com.sawn.core.data.BlockedItem
 import com.sawn.domain.feature.ParentalModePolicy
+import com.sawn.domain.feature.FeatureCatalog
+import com.sawn.domain.feature.SocialPlatform
 import com.sawn.domain.model.InterceptMode
 import com.sawn.core.data.Schedule
 import com.sawn.domain.security.PinResult
@@ -134,6 +136,10 @@ fun BlocklistScreen(
     onBack: () -> Unit = {},
 ) {
     val items by vm.items.collectAsStateWithLifecycle()
+    val enabledFeatures by vm.enabledFeatureKeys.collectAsStateWithLifecycle()
+    val socialGuardEnabled by vm.socialGuardEnabled.collectAsStateWithLifecycle()
+    val enabledSocialPlatforms by vm.enabledSocialPlatforms.collectAsStateWithLifecycle()
+    val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<BlockedItem?>(null) }
 
@@ -163,14 +169,25 @@ fun BlocklistScreen(
             Text(stringResource(R.string.add_apps))
         }
         Spacer(Modifier.height(16.dp))
-        if (items.isEmpty()) {
-            Text(
-                stringResource(R.string.blocklist_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            item(key = "in_app_protection") {
+                InAppProtectionSettings(
+                    vm = vm,
+                    socialGuardEnabled = socialGuardEnabled,
+                    enabledSocialPlatforms = enabledSocialPlatforms,
+                    enabledFeatures = enabledFeatures,
+                    locked = lockdownActive,
+                )
+            }
+            if (items.isEmpty()) {
+                item(key = "empty_blocklist") {
+                    Text(
+                        stringResource(R.string.blocklist_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             items(items, key = { it.id }) { item ->
                 Card(Modifier.fillMaxWidth().clickable { editing = item }) {
                     Row(
@@ -216,6 +233,63 @@ fun BlocklistScreen(
             onSave = { vm.saveItem(it) },
             onDismiss = { editing = null },
         )
+    }
+}
+
+@Composable
+private fun InAppProtectionSettings(
+    vm: SawnViewModel,
+    socialGuardEnabled: Boolean,
+    enabledSocialPlatforms: Set<String>,
+    enabledFeatures: Set<String>,
+    locked: Boolean,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.feature_blocking_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.feature_blocking_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.feature_blocking_social),
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Switch(checked = socialGuardEnabled, enabled = !locked || socialGuardEnabled, onCheckedChange = vm::setSocialGuardEnabled)
+            }
+            if (socialGuardEnabled) {
+                SocialPlatform.entries.forEach { platform ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(platform.label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        val checked = platform.key in enabledSocialPlatforms
+                        Switch(
+                            checked = checked,
+                            enabled = !locked || checked,
+                            onCheckedChange = { vm.setSocialPlatformEnabled(platform.key, it) },
+                        )
+                    }
+                }
+            }
+            Text(stringResource(R.string.feature_blocking_feeds), style = MaterialTheme.typography.titleSmall)
+            FeatureCatalog.ALL.forEach { feature ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.feature_blocking_feed, feature.label),
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    val checked = feature.key in enabledFeatures
+                    Switch(
+                        checked = checked,
+                        enabled = !locked || checked,
+                        onCheckedChange = { vm.setFeatureEnabled(feature.key, it) },
+                    )
+                }
+            }
+        }
     }
 }
 

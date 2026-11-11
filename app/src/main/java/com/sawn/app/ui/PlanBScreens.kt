@@ -22,7 +22,10 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
 import com.sawn.app.ui.theme.SawnPalette
+import com.sawn.app.system.AdminManager
 import com.sawn.domain.feature.ChallengePolicy
 import com.sawn.domain.feature.TriggerTag
 import kotlinx.coroutines.launch
@@ -67,6 +71,8 @@ fun ChallengeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     val complete = ChallengePolicy.isComplete(days)
     val remaining = ChallengePolicy.daysRemaining(days)
     var confirmRestart by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     SettingsSectionScreen(stringResource(R.string.feature_challenge_title), onBack) {
         DawnCard {
@@ -122,7 +128,14 @@ fun ChallengeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
         }
 
         Button(
-            onClick = { vm.recordChallengeDay() },
+            onClick = {
+                // «لا يتقدّم إلا بيوم محمي» — إن لم تكن الحماية فعّالة الآن نشرح السبب.
+                vm.recordChallengeDay(
+                    onRejected = {
+                        message = context.getString(R.string.feature_challenge_needs_protection)
+                    },
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
@@ -138,6 +151,14 @@ fun ChallengeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             ) {
                 Text(stringResource(R.string.feature_challenge_restart), color = SawnPalette.InkSoft)
             }
+        }
+        message?.let {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
     }
 
@@ -296,7 +317,10 @@ fun NightGuardScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
 
     fun apply(newStart: Int, newEnd: Int, on: Boolean = enabled) {
-        scope.launch { vm.setNightGuard(on, newStart, newEnd) }
+        scope.launch {
+            val applied = vm.setNightGuard(on, newStart, newEnd)
+            if (!applied) message = context.getString(R.string.feature_night_guard_locked)
+        }
     }
 
     SettingsSectionScreen(stringResource(R.string.feature_night_guard_title), onBack) {
@@ -642,6 +666,7 @@ fun AccountabilityScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
 @Composable
 fun BackupScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
     var passphrase by remember { mutableStateOf("") }
+    var showPassphrase by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     var confirmImport by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -688,6 +713,24 @@ fun BackupScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
                 onValueChange = { passphrase = it },
                 label = { Text(stringResource(R.string.feature_backup_passphrase)) },
                 singleLine = true,
+                // The passphrase decrypts the protected-day log, profile and blocklist:
+                // show it masked by default with an explicit reveal affordance, so
+                // recording or an onlooker cannot capture it while it is being typed.
+                visualTransformation = if (showPassphrase) androidx.compose.ui.text.input.VisualTransformation.None
+                else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = if (showPassphrase) androidx.compose.ui.text.input.KeyboardType.Text
+                    else androidx.compose.ui.text.input.KeyboardType.Password,
+                ),
+                trailingIcon = {
+                    IconButton(onClick = { showPassphrase = !showPassphrase }) {
+                        Icon(
+                            if (showPassphrase) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = null,
+                            tint = SawnPalette.InkSoft,
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(6.dp))
@@ -756,7 +799,17 @@ fun ParentModeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
                 title = stringResource(R.string.feature_parent_enable),
                 subtitle = stringResource(R.string.feature_parent_sub),
                 checked = enabled,
-                onChange = { vm.setParentModeEnabled(it) },
+                onChange = { requested ->
+                    scope.launch {
+                        val applied = vm.setParentModeEnabled(requested)
+                        if (applied && requested && !AdminManager.isActive(context)) {
+                            context.startActivity(AdminManager.enableIntent(context))
+                        }
+                        if (!applied) {
+                            message = context.getString(R.string.feature_parent_pin_missing)
+                        }
+                    }
+                },
             )
         }
 
@@ -781,13 +834,16 @@ fun ParentModeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
             ) {
                 Text(stringResource(R.string.feature_parent_pin_set))
             }
-            if (pinSet) {
+            if (pinSet && !enabled) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = {
                         scope.launch {
-                            vm.clearParentPin()
-                            message = context.getString(R.string.feature_parent_pin_removed)
+                            val removed = vm.clearParentPin()
+                            message = context.getString(
+                                if (removed) R.string.feature_parent_pin_removed
+                                else R.string.feature_parent_pin_remove_blocked,
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -827,7 +883,11 @@ fun ParentModeScreen(vm: SawnViewModel, onBack: () -> Unit = {}) {
 
     if (askPin) {
         SetPinDialog(
-            onSubmit = { pin -> vm.setParentPin(pin) },
+            onSubmit = { pin ->
+                val saved = vm.setParentPin(pin)
+                if (saved && enabled) vm.setParentModeEnabled(true)
+                saved
+            },
             onDismiss = {
                 askPin = false
                 if (pinSet) message = context.getString(R.string.feature_parent_pin_set_done)

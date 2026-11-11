@@ -18,3 +18,5 @@ local.properties
 core/*/build/
 .superpowers/
 .kotlin/
+build-*.log
+*.log

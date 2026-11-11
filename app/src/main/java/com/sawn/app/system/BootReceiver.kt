@@ -70,6 +70,8 @@ class BootReceiver : BroadcastReceiver() {
                 if (decision.startFilter && !com.sawn.app.vpn.SawnVpnService.running && lockdownActive) {
                     GuardHealthNotifier.notifyVpnDown(context)
                 }
+                // الحالة تغيّرت بعد إعادة التشغيل — الودجت يجب أن يعكسها فوراً.
+                com.sawn.app.widget.SawnWidgetProvider.requestUpdate(context)
             } finally {
                 pending.finish()
             }

@@ -77,6 +77,11 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.onboardingDone
         .catch { emit(false) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val onboardingAnswers: StateFlow<OnboardingAnswers?> =
+        container.settings.onboardingAnswers
+        .map(OnboardingAnswers::deserialize)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     /** False until DataStore has produced its first snapshot; UI treats that as locked. */
     val settingsReady: StateFlow<Boolean> = combine(
         container.settings.masterEnabled,
@@ -90,8 +95,6 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         .catch { emit(true) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    fun setOnboardingDone() = viewModelScope.launch { container.settings.setOnboardingDone() }
-
     val profileName: StateFlow<String?> =
         container.settings.profileName
         .catch { emit(null) }
@@ -100,11 +103,42 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.profileAge
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-    /** يخزّن ملف البروفايل المحلي + إجابات الترحيب، ويختم الترحيب كمكتمل. */
-    fun completeOnboarding(answers: OnboardingAnswers) = viewModelScope.launch {
-        container.settings.setProfile(answers.name, answers.age)
-        container.settings.setOnboardingAnswers(answers.serialize())
-        container.settings.setOnboardingDone()
+    /** Stores onboarding answers, applies the selected protection plan, then completes setup. */
+    fun completeOnboarding(
+        answers: OnboardingAnswers,
+        plan: com.sawn.domain.Plan,
+        onComplete: () -> Unit = {},
+    ) = viewModelScope.launch {
+        runCatching {
+            applyPlan(plan)
+            container.settings.setProfile(answers.name, answers.age)
+            container.settings.setOnboardingAnswers(answers.serialize())
+            container.settings.setOnboardingDone()
+        }.onSuccess { onComplete() }
+    }
+
+    private suspend fun applyPlan(plan: com.sawn.domain.Plan) {
+        val features = plan.featureIds.toSet()
+        container.settings.setPornGuard(com.sawn.domain.PlanFeature.PORN in features)
+        container.settings.setSafeSearchForce(com.sawn.domain.PlanFeature.SAFE_SEARCH in features)
+        container.settings.setBlockAds(com.sawn.domain.PlanFeature.ADS in features)
+        container.settings.setBlockDoh(com.sawn.domain.PlanFeature.DOH in features)
+        container.settings.setBlockNotifications(com.sawn.domain.PlanFeature.NOTIFICATIONS in features)
+
+        val feedsSelected = com.sawn.domain.PlanFeature.FEEDS in features
+        val inAppFeatures = if (feedsSelected) {
+            com.sawn.domain.feature.FeatureCatalog.ALL.mapTo(linkedSetOf()) { it.key }
+        } else {
+            emptySet()
+        }
+        container.settings.setEnabledFeatureKeys(inAppFeatures)
+        container.settings.setSocialPlatformsEnabled(
+            if (feedsSelected) com.sawn.domain.feature.SocialPlatform.allKeys else emptySet(),
+        )
+        container.settings.setSocialGuardEnabled(feedsSelected)
+        if (com.sawn.domain.PlanFeature.STRICT in features && container.settings.hasPin.first()) {
+            container.settings.enableStrictMode(container.settings.trustedNow())
+        }
     }
     val strictMode: StateFlow<Boolean> =
         container.settings.strictMode
@@ -166,6 +200,61 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     fun setPornGuard(value: Boolean) = viewModelScope.launch { container.settings.setPornGuard(value) }
     fun setSafeSearchForce(value: Boolean) = viewModelScope.launch { container.settings.setSafeSearchForce(value) }
     fun setReduceMotion(value: Boolean) = viewModelScope.launch { container.settings.setReduceMotion(value) }
+
+    // --- التحديث الذاتي (2.2.0) ---
+    /** مفعّل افتراضياً: المستخدم يتوقّع أن يتلقّى التحديث دون أن يبحث عنه. */
+    val autoUpdateEnabled: StateFlow<Boolean> =
+        container.settings.autoUpdateEnabled
+            .catch { emit(true) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val autoDownloadEnabled: StateFlow<Boolean> =
+        container.settings.autoDownloadEnabled
+            .catch { emit(true) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val autoNotifyEnabled: StateFlow<Boolean> =
+        container.settings.autoNotifyEnabled
+            .catch { emit(true) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    /**
+     * تحديث نُزِّل وتُحقِّق منه، بانتظار موافقة المستخدم على التثبيت.
+     *
+     * يُخفى إن صار رقمه أقل أو مساوياً لنسخة التطبيق — أي بعد تثبيته فعلاً.
+     * وإلّا لبقيت البطاقة تعرض «الإصدار X جاهز للتثبيت» لنسخة هي نفسها الآن.
+     */
+    val pendingUpdate: StateFlow<com.sawn.domain.update.PendingUpdate?> =
+        container.settings.pendingUpdate
+            .map { pending ->
+                pending?.takeIf { it.versionCode > com.sawn.app.BuildConfig.VERSION_CODE }
+            }
+            .catch { emit(null) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun setAutoUpdateEnabled(value: Boolean) =
+        viewModelScope.launch { container.settings.setAutoUpdateEnabled(value) }
+
+    fun setAutoDownloadEnabled(value: Boolean) =
+        viewModelScope.launch { container.settings.setAutoDownloadEnabled(value) }
+
+    fun setAutoNotifyEnabled(value: Boolean) =
+        viewModelScope.launch { container.settings.setAutoNotifyEnabled(value) }
+
+    /**
+     * يسجّل تحديثاً نُزِّل يدوياً من زر «تحقّق من وجود تحديث»، فيتّفق المساران:
+     * التنزيل اليدوي والتنزيل التلقائي ينتجان نفس الحالة، فتبقى بطاقة
+     * «جاهز للتثبيت» والإشعار متسقين.
+     */
+    fun savePendingUpdate(info: com.sawn.app.update.UpdateInfo, apkPath: String) =
+        viewModelScope.launch {
+            container.settings.setPendingUpdate(
+                com.sawn.domain.update.PendingUpdate(
+                    versionCode = info.versionCode,
+                    versionName = info.versionName,
+                    sha256 = info.sha256,
+                    changelog = info.changelog,
+                    apkPath = apkPath,
+                ),
+            )
+        }
 
     // --- القفل الزمني (Lockdown) ---
     val lockdownUntil: StateFlow<Long> =
@@ -289,7 +378,10 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
             // would drop the lock, so it waits until the timer ends like every other change.
             if (container.settings.isLockdownActiveNow()) return@launch
             runCatching {
-                SawnDatabase.get(getApplication()).clearAllTables()
+                // clearAllTables يحجب على SQLite — لا يجوز على الخيط الرئيسي (ANR).
+                withContext(Dispatchers.IO) {
+                    SawnDatabase.get(getApplication()).clearAllTables()
+                }
                 container.settings.clearAllData()
                 VpnController.stop(getApplication())
             }
@@ -354,6 +446,14 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         container.settings.enabledFeatureKeys
         .catch { emit(emptySet()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    val socialGuardEnabled: StateFlow<Boolean> =
+        container.settings.socialGuard
+        .catch { emit(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val enabledSocialPlatforms: StateFlow<Set<String>> =
+        container.settings.enabledSocialPlatforms
+        .catch { emit(emptySet()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     val focusEndsAt: StateFlow<Long> =
         container.settings.focusEndsAt
@@ -403,6 +503,23 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setFeatureEnabled(key: String, enabled: Boolean) = viewModelScope.launch {
         container.settings.setFeatureEnabled(key, enabled)
+    }
+
+    fun setSocialGuardEnabled(enabled: Boolean) = viewModelScope.launch {
+        if (enabled && container.settings.enabledSocialPlatforms.first().isEmpty()) {
+            container.settings.setSocialPlatformsEnabled(com.sawn.domain.feature.SocialPlatform.allKeys)
+        }
+        container.settings.setSocialGuardEnabled(enabled)
+    }
+
+    fun setSocialPlatformEnabled(key: String, enabled: Boolean) = viewModelScope.launch {
+        val current = container.settings.enabledSocialPlatforms.first().toMutableSet()
+        if (enabled) current.add(key) else current.remove(key)
+        container.settings.setSocialPlatformsEnabled(current)
+    }
+
+    fun setEnabledFeatureKeys(keys: Set<String>) = viewModelScope.launch {
+        container.settings.setEnabledFeatureKeys(keys)
     }
 
     /**
@@ -540,8 +657,16 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         .catch { emit(0) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    /** يُسجَّل اليوم في الجولة الجارية — والتاريخ مفتاحه الأساسي فلا يُحتسب مرتين. */
-    fun recordChallengeDay() = viewModelScope.launch {
+    /**
+     * يُسجَّل اليوم في الجولة الجارية — والتاريخ مفتاحه الأساسي فلا يُحتسب مرتين.
+     * شرط المشروع المعلَن في الواجهة: «لا يتقدّم إلا بيوم محمي» — بلا حمايةٍ فعّالةٍ
+     * الآن لا يُسجَّل اليوم (الواجهة تُظهر رسالة التوضيح).
+     */
+    fun recordChallengeDay(onRejected: (suspend () -> Unit)? = null) = viewModelScope.launch {
+        if (!container.blockEngine.isBlockingActiveNow()) {
+            onRejected?.invoke()
+            return@launch
+        }
         val runId = container.database.challengeDao().latestRun()?.id
             ?: container.database.challengeDao().insertRun(
                 ChallengeRunEntity(startedAt = System.currentTimeMillis()),
@@ -601,7 +726,7 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         .catch { emit(false) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    fun setNightGuard(enabled: Boolean, startMin: Int, endMin: Int) = viewModelScope.launch {
+    suspend fun setNightGuard(enabled: Boolean, startMin: Int, endMin: Int): Boolean = withContext(Dispatchers.IO) {
         container.settings.setNightGuard(enabled, startMin, endMin)
     }
 
@@ -758,9 +883,8 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         .catch { emit(false) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    fun setParentModeEnabled(enabled: Boolean) = viewModelScope.launch {
+    suspend fun setParentModeEnabled(enabled: Boolean): Boolean = withContext(Dispatchers.IO) {
         container.settings.setParentModeEnabled(enabled)
-        if (!enabled) container.settings.clearParentPin()
     }
 
     /** يضبط رقم الوالدين (مجزّأ بملح) — مستقل تماماً عن رقم المستخدم. */
@@ -771,7 +895,7 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         true
     }
 
-    suspend fun clearParentPin() = withContext(Dispatchers.IO) {
+    suspend fun clearParentPin(): Boolean = withContext(Dispatchers.IO) {
         container.settings.clearParentPin()
     }
 

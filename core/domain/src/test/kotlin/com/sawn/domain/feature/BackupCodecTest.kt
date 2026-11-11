@@ -45,6 +45,43 @@ class BackupCodecTest {
     }
 
     @Test
+    fun `version one backups remain importable without social filter settings`() {
+        val current = BackupCodec.encode(doc())
+        val fields = current.removePrefix("SAWNBAK3:").split('\t').toMutableList()
+        val oldSettings = fields[2].split(',').take(17).joinToString(",")
+        fields[2] = oldSettings
+        val legacy = "SAWNBAK1:" + fields.joinToString("\t")
+        val restored = BackupCodec.decode(legacy)
+        assertEquals(false, restored?.settings?.socialGuardEnabled)
+        assertEquals(emptyList<String>(), restored?.settings?.enabledSocialPlatforms)
+    }
+
+    @Test
+    fun `version two backups remain importable and keep the update defaults`() {
+        val current = BackupCodec.encode(doc())
+        val fields = current.removePrefix("SAWNBAK3:").split('\t').toMutableList()
+        // v2 carried 19 settings fields; the two update preferences came later.
+        fields[2] = fields[2].split(',').take(19).joinToString(",")
+        val legacy = "SAWNBAK2:" + fields.joinToString("\t")
+        val restored = BackupCodec.decode(legacy)
+        assertEquals(true, restored?.settings?.autoUpdateEnabled)
+        assertEquals(true, restored?.settings?.autoDownloadEnabled)
+        assertEquals(false, restored?.settings?.socialGuardEnabled)
+    }
+
+    @Test
+    fun `disabled automatic updates survive a backup round trip`() {
+        val original = doc().let {
+            it.copy(
+                settings = it.settings.copy(autoUpdateEnabled = false, autoDownloadEnabled = false),
+            )
+        }
+        val restored = BackupCodec.decode(BackupCodec.encode(original))
+        assertEquals(false, restored?.settings?.autoUpdateEnabled)
+        assertEquals(false, restored?.settings?.autoDownloadEnabled)
+    }
+
+    @Test
     fun `the old placeholder is not accepted as a backup`() {
         assertNull(BackupCodec.decode("sawn-backup-export"))
         assertNull(BackupCodec.decode(""))

@@ -87,22 +87,38 @@ class InterceptActivity : ComponentActivity() {
         setContent {
             SawnTheme {
                 var item by remember { mutableStateOf<BlockedItem?>(null) }
-                LaunchedEffect(itemId) { item = sawnContainer.repository.item(itemId) }
+                var loadDone by remember { mutableStateOf(false) }
+                LaunchedEffect(itemId) {
+                    item = sawnContainer.repository.item(itemId)
+                    // settled: found, or definitively absent (deleted while active)
+                    loadDone = true
+                }
 
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val current = item
+                    val needsItem = kind == KIND_PAUSE || kind == KIND_LIMIT
+                    val itemLoaded = !needsItem || (current != null || loadDone)
                     when {
-                        kind == KIND_ADULT -> AdultBlockScreen(onHome = ::goHome)
-                        kind == KIND_SOCIAL -> SocialBlockScreen(platformLabel = contentLabel, onHome = ::goHome)
-                        kind == KIND_FEATURE -> FeatureBlockScreen(featureLabel = contentLabel, onHome = ::goHome)
-                        kind == KIND_PAUSE && current != null -> PauseScreen(
+                        itemLoaded && kind == KIND_ADULT -> AdultBlockScreen(onHome = ::goHome)
+                        itemLoaded && kind == KIND_SOCIAL -> SocialBlockScreen(platformLabel = contentLabel, onHome = ::goHome)
+                        itemLoaded && kind == KIND_FEATURE -> FeatureBlockScreen(featureLabel = contentLabel, onHome = ::goHome)
+                        itemLoaded && kind == KIND_PAUSE && current != null -> PauseScreen(
                             item = current,
                             escalations = escalations,
                             onContinue = { minutes -> grantAndEnter(current, minutes) },
                             onGiveUp = { recordDefeatAndGoHome() },
                         )
-                        kind == KIND_LIMIT && current != null -> LimitScreen(current, reason, ::goHome)
-                        kind == KIND_DEEP_FOCUS -> DeepFocusBlockScreen(onHome = ::goHome)
+                        itemLoaded && kind == KIND_LIMIT && current != null -> LimitScreen(current, reason, ::goHome)
+                        itemLoaded && kind == KIND_DEEP_FOCUS -> DeepFocusBlockScreen(onHome = ::goHome)
+                        !itemLoaded -> {
+                            // Pause/Limit while the row is still resolving: a neutral
+                            // spinner instead of one (or many) frames of the wrong
+                            // hard-block wall — and Hold-to-Leave is never bound to
+                            // onHome in that window, so a defeat cannot be lost.
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
                         else -> HardBlockScreen(current, ::goHome)
                     }
                 }

@@ -33,20 +33,27 @@ class PlanBuilderTest {
     }
 
     @Test
+    fun `feeds selection enables the in-app feed feature independently of app blocking`() {
+        val plan = PlanBuilder.build(
+            OnboardingAnswers(content = setOf(PlanBuilder.FEEDS_CONTENT)),
+        )
+        assertTrue(PlanFeature.FEEDS in plan.featureIds)
+        assertFalse(PlanFeature.APPS in plan.featureIds)
+    }
+
+    @Test
+    fun `family goal requires a parent PIN for strict protection`() {
+        assertTrue(
+            PlanBuilder.build(OnboardingAnswers(goal = PlanBuilder.GOAL_FAMILY)).requiresPin,
+        )
+    }
+
+    @Test
     fun `distraction goal puts apps under control`() {
         val plan = PlanBuilder.build(
             OnboardingAnswers(goal = PlanBuilder.GOAL_DISTRACTION),
         )
         assertTrue(PlanFeature.APPS in plan.featureIds)
-    }
-
-    @Test
-    fun `family goal adds strict mode`() {
-        val plan = PlanBuilder.build(
-            OnboardingAnswers(goal = PlanBuilder.GOAL_FAMILY),
-        )
-        assertTrue(PlanFeature.STRICT in plan.featureIds)
-        assertFalse(plan.requiresPin)
     }
 
     @Test

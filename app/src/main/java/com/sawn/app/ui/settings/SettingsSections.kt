@@ -19,6 +19,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -155,6 +156,10 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var updateStatus by remember { mutableStateOf<UpdateStatus?>(null) }
     var installUri by remember { mutableStateOf<Uri?>(null) }
+    val autoUpdateEnabled by vm.autoUpdateEnabled.collectAsStateWithLifecycle()
+    val autoDownloadEnabled by vm.autoDownloadEnabled.collectAsStateWithLifecycle()
+    val autoNotifyEnabled by vm.autoNotifyEnabled.collectAsStateWithLifecycle()
+    val pendingUpdate by vm.pendingUpdate.collectAsStateWithLifecycle()
     val installPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
@@ -186,6 +191,19 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
 
         UpdateSettingsCard(
             status = updateStatus,
+            autoUpdate = autoUpdateEnabled,
+            autoDownload = autoDownloadEnabled,
+            autoNotify = autoNotifyEnabled,
+            pending = pendingUpdate,
+            onAutoUpdateChange = { enabled ->
+                scope.launch { vm.setAutoUpdateEnabled(enabled) }
+            },
+            onAutoDownloadChange = { enabled ->
+                scope.launch { vm.setAutoDownloadEnabled(enabled) }
+            },
+            onAutoNotifyChange = { enabled ->
+                scope.launch { vm.setAutoNotifyEnabled(enabled) }
+            },
             onCheck = {
                 updateStatus = UpdateStatus.Checking
                 scope.launch {
@@ -199,6 +217,23 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
                     }
                 }
             },
+            onInstallPending = { pending ->
+                val uri = UpdateInstaller.uriFor(context, pending.apkPath)
+                if (uri == null) {
+                    updateStatus = UpdateStatus.Error(context.getString(R.string.update_failed_pending))
+                    return@UpdateSettingsCard
+                }
+                if (android.os.Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
+                    runCatching {
+                        installPermissionLauncher.launch(
+                            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")),
+                        )
+                    }.onFailure { updateStatus = UpdateStatus.Error(it.message ?: "unknown") }
+                } else {
+                    UpdateInstaller.install(context, uri)
+                    updateStatus = UpdateStatus.Installing
+                }
+            },
             onInstall = { info ->
                 updateStatus = UpdateStatus.Downloading
                 scope.launch {
@@ -206,6 +241,10 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
                         is InstallUpdateResult.Failed -> updateStatus = UpdateStatus.Error(result.reason)
                         is InstallUpdateResult.Ready -> {
                             installUri = result.packageUri
+                            // نفس ما يفعله العامل التلقائي: يُسجَّل التحديث المعلّق
+                            // فيبقى في بطاقة «جاهز للتثبيت» وفي الإشعار.
+                            val apk = UpdateInstaller.apkFileFor(context, info.versionCode)
+                            if (apk.exists()) vm.savePendingUpdate(info, apk.absolutePath)
                             if (android.os.Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
                                 runCatching {
                                     installPermissionLauncher.launch(
@@ -214,7 +253,10 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
                                 }.onFailure { updateStatus = UpdateStatus.Error(it.message ?: "unknown") }
                             } else {
                                 UpdateInstaller.install(context, result.packageUri)
-                                updateStatus = UpdateStatus.UpToDate
+                                // The APK is verified and Android's installer is open — the
+                                // update is NOT installed yet. Saying "up to date" here told
+                                // the user they had the newest build while it was still pending.
+                                updateStatus = UpdateStatus.Installing
                             }
                         }
                     }
@@ -277,7 +319,15 @@ fun PrivacySupportSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
 @Composable
 private fun UpdateSettingsCard(
     status: UpdateStatus?,
+    autoUpdate: Boolean,
+    autoDownload: Boolean,
+    autoNotify: Boolean,
+    pending: com.sawn.domain.update.PendingUpdate?,
+    onAutoUpdateChange: (Boolean) -> Unit,
+    onAutoDownloadChange: (Boolean) -> Unit,
+    onAutoNotifyChange: (Boolean) -> Unit,
     onCheck: () -> Unit,
+    onInstallPending: (com.sawn.domain.update.PendingUpdate) -> Unit,
     onInstall: (com.sawn.app.update.UpdateInfo) -> Unit,
 ) {    Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -288,11 +338,64 @@ private fun UpdateSettingsCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            // --- التحديث التلقائي (مفعّل افتراضياً) ---
+            Spacer(Modifier.height(12.dp))
+            SwitchRow(
+                title = stringResource(R.string.update_auto_title),
+                subtitle = stringResource(R.string.update_auto_sub),
+                checked = autoUpdate,
+                onChange = onAutoUpdateChange,
+            )
+            if (autoUpdate) {
+                SwitchRow(
+                    title = stringResource(R.string.update_auto_download_title),
+                    subtitle = stringResource(R.string.update_auto_download_sub),
+                    checked = autoDownload,
+                    onChange = onAutoDownloadChange,
+                )
+                SwitchRow(
+                    title = stringResource(R.string.update_auto_install_title),
+                    subtitle = stringResource(R.string.update_auto_install_sub),
+                    checked = autoNotify,
+                    onChange = onAutoNotifyChange,
+                )
+            }
+
+            // --- تحديث جاهز ومُتحقَّق منه ---
+            if (pending != null) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Text(
+                            stringResource(R.string.update_pending_title, pending.versionName),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            stringResource(R.string.update_pending_sub),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Button(
+                            onClick = { onInstallPending(pending) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.update_install_now)) }
+                    }
+                }
+            }
+
             if (status != null) {
                 Spacer(Modifier.height(8.dp))
                 when (status) {
                     UpdateStatus.Checking -> Text(stringResource(R.string.update_checking))
                     UpdateStatus.Downloading -> Text(stringResource(R.string.update_downloading))
+                    UpdateStatus.Installing -> Text(stringResource(R.string.update_installing))
                     UpdateStatus.UpToDate -> Text(stringResource(R.string.update_up_to_date))
                     UpdateStatus.Disabled -> Text(stringResource(R.string.update_host_not_configured))
                     is UpdateStatus.Error -> Text(

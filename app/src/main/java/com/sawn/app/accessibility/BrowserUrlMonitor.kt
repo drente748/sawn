@@ -59,6 +59,9 @@ class BrowserUrlMonitor(private val service: AccessibilityService) {
     /** One URL-bar read per package per [SCAN_INTERVAL_MS] (Block's event throttle). */
     private val lastScanAt = HashMap<String, Long>()
 
+    /** A job tearing down (destroy) must not receive an emit that was racing it. */
+    @Volatile private var destroyed = false
+
     /**
      * Returns true when an adult URL was on screen and the intercept was launched.
      * Called from the accessibility hot path, so it launches its own coroutine.
@@ -70,6 +73,7 @@ class BrowserUrlMonitor(private val service: AccessibilityService) {
             return
         }
         if (!shouldScan(pkg)) return
+        if (destroyed) return
 
         scope.launch {
             try {
@@ -204,6 +208,7 @@ class BrowserUrlMonitor(private val service: AccessibilityService) {
     fun clearLastIntercepted() { lastInterceptedHost = null }
 
     fun destroy() {
+        destroyed = true
         scope.cancel()
         synchronized(lastScanAt) { lastScanAt.clear() }
     }

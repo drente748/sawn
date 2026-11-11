@@ -54,6 +54,11 @@ class BackupRepository(
                 accountabilityName = settings.accountabilityName.first(),
                 accountabilityContact = settings.accountabilityContact.first(),
                 nudgesEnabled = settings.nudgesEnabled.first(),
+                socialGuardEnabled = settings.socialGuard.first(),
+                enabledSocialPlatforms = settings.enabledSocialPlatforms.first().toList(),
+                autoUpdateEnabled = settings.autoUpdateEnabled.first(),
+                autoDownloadEnabled = settings.autoDownloadEnabled.first(),
+                autoNotifyEnabled = settings.autoNotifyEnabled.first(),
             ),
             blockedItems = items.map { item ->
                 BackupItem(
@@ -93,81 +98,169 @@ class BackupRepository(
      * محذوفة بلا بديل.
      */
     suspend fun applyDocument(doc: BackupDocument) {
-        settings.setProfile(doc.profile.name, doc.profile.age)
-        doc.onboardingAnswers?.let { settings.setOnboardingAnswers(it) }
+        val currentSettings = settingsSnapshot()
+        val current = databaseSnapshot()
+        try {
+            with(doc.settings) {
+                settings.restoreMasterEnabled(masterEnabled)
+                settings.setAlwaysOn(alwaysOn)
+                settings.setBlockDoh(blockDoh)
+                settings.setBlockAds(blockAds)
+                settings.setBlockNotifications(blockNotifications)
+                settings.setPornGuard(pornGuard)
+                settings.setSafeSearchForce(safeSearchForce)
+                settings.setReduceMotion(reduceMotion)
+                settings.setLocale(locale)
+                settings.setDeepFocus(deepFocusEnabled)
+                settings.setDeepFocusWhitelist(
+                    if (deepFocusWhitelist.isEmpty()) DeepFocusPolicy.DEFAULT_WHITELIST
+                    else deepFocusWhitelist.toSet(),
+                )
+                settings.setNightGuard(nightGuardEnabled, nightGuardStartMin, nightGuardEndMin)
+                settings.setAccountability(accountabilityName, accountabilityContact)
+                settings.setNudgesEnabled(nudgesEnabled)
+                settings.setEnabledSocialPlatforms(enabledSocialPlatforms.toSet())
+                settings.setSocialGuardEnabled(socialGuardEnabled)
+            }
+            settings.setProfile(doc.profile.name, doc.profile.age)
+            doc.onboardingAnswers?.let { settings.setOnboardingAnswers(it) }
+            settings.clearDeepFocusUnlock()
+            settings.setNightGuardUnlock(0L)
+            settings.setEnabledFeatureKeys(doc.enabledFeatures.toSet())
 
-        with(doc.settings) {
-            settings.restoreMasterEnabled(masterEnabled)
-            settings.setAlwaysOn(alwaysOn)
-            settings.setBlockDoh(blockDoh)
-            settings.setBlockAds(blockAds)
-            settings.setBlockNotifications(blockNotifications)
-            settings.setPornGuard(pornGuard)
-            settings.setSafeSearchForce(safeSearchForce)
-            settings.setReduceMotion(reduceMotion)
-            settings.setLocale(locale)
-            settings.setDeepFocus(deepFocusEnabled)
-            // قائمة بيضاء فارغة مع تفعيل التركيز = حجب كل شيء بما فيه الهاتف؛
-            // نستخدم الافتراضية بدل ذلك.
-            settings.setDeepFocusWhitelist(
-                if (deepFocusWhitelist.isEmpty()) DeepFocusPolicy.DEFAULT_WHITELIST
-                else deepFocusWhitelist.toSet(),
-            )
-            settings.setNightGuard(nightGuardEnabled, nightGuardStartMin, nightGuardEndMin)
-            settings.setAccountability(accountabilityName, accountabilityContact)
-            settings.setNudgesEnabled(nudgesEnabled)
+            database.withTransaction {
+                database.blockDao().deleteAllItems()
+                doc.blockedItems.forEach { item ->
+                    val type = runCatching { BlockType.valueOf(item.type) }.getOrNull() ?: return@forEach
+                    val mode = runCatching { InterceptMode.valueOf(item.interceptMode) }
+                        .getOrDefault(InterceptMode.BLOCK)
+                    database.blockDao().upsertItem(
+                        BlockedItem(
+                            type = type,
+                            value = item.value,
+                            label = item.label,
+                            enabled = item.enabled,
+                            createdAt = 0L,
+                            interceptMode = mode,
+                            pauseSeconds = item.pauseSeconds.coerceIn(1, 3600),
+                            customPrompt = item.customPrompt,
+                            openLimitPerDay = item.openLimitPerDay.coerceAtLeast(0),
+                            dailyLimitMinutes = item.dailyLimitMinutes.coerceAtLeast(0),
+                            cooldownMinutes = item.cooldownMinutes.coerceAtLeast(0),
+                        ),
+                    )
+                }
+
+                database.blockDao().deleteAllSchedules()
+                doc.schedules.forEach { schedule ->
+                    database.blockDao().upsertSchedule(
+                        Schedule(
+                            name = schedule.name,
+                            enabled = schedule.enabled,
+                            daysMask = schedule.daysMask and 0x7F,
+                            startMinute = schedule.startMinute.coerceIn(0, 1439),
+                            endMinute = schedule.endMinute.coerceIn(0, 1439),
+                        ),
+                    )
+                }
+
+                doc.protectedDays.forEach { date ->
+                    runCatching { java.time.LocalDate.parse(date) }.getOrNull()?.let { valid ->
+                        database.protectedDaysDao().upsert(
+                            ProtectedDayEntity(date = valid.toString(), source = "backup", recordedAt = System.currentTimeMillis()),
+                        )
+                    }
+                }
+            }
+        } catch (error: Exception) {
+            runCatching { restoreSettings(currentSettings) }
+                .onFailure(error::addSuppressed)
+            runCatching { restoreDatabase(current) }
+                .onFailure(error::addSuppressed)
+            throw error
         }
+    }
 
-        // نافذتا الفكّ لا تُستعادان: نافذة خروج قديمة يجب ألا تبقى مفتوحة بعد الاستيراد.
-        settings.clearDeepFocusUnlock()
-        settings.setNightGuardUnlock(0L)
+    private data class SettingsSnapshot(
+        val profileName: String?, val profileAge: Int?, val onboardingAnswers: String?,
+        val masterEnabled: Boolean, val alwaysOn: Boolean, val blockDoh: Boolean, val blockAds: Boolean,
+        val blockNotifications: Boolean, val pornGuard: Boolean, val safeSearchForce: Boolean,
+        val reduceMotion: Boolean, val locale: String, val deepFocusEnabled: Boolean,
+        val deepFocusWhitelist: Set<String>, val nightGuardEnabled: Boolean,
+        val nightGuardStartMin: Int, val nightGuardEndMin: Int,
+        val accountabilityName: String?, val accountabilityContact: String?, val nudgesEnabled: Boolean,
+        val enabledFeatures: Set<String>, val socialGuard: Boolean, val socialPlatforms: Set<String>,
+        val strictMode: Boolean, val userDisabledProtection: Boolean,
+        val autoUpdateEnabled: Boolean, val autoDownloadEnabled: Boolean, val autoNotifyEnabled: Boolean,
+    )
 
+    private data class DatabaseSnapshot(
+        val items: List<BlockedItem>, val schedules: List<Schedule>, val protectedDays: List<String>,
+    )
+
+    private suspend fun settingsSnapshot() = SettingsSnapshot(
+        profileName = settings.profileName.first(), profileAge = settings.profileAge.first(),
+        onboardingAnswers = settings.onboardingAnswers.first(), masterEnabled = settings.masterEnabled.first(),
+        alwaysOn = settings.alwaysOn.first(), blockDoh = settings.blockDoh.first(), blockAds = settings.blockAds.first(),
+        blockNotifications = settings.blockNotifications.first(), pornGuard = settings.pornGuard.first(),
+        safeSearchForce = settings.safeSearchForce.first(), reduceMotion = settings.reduceMotion.first(),
+        locale = settings.locale.first(), deepFocusEnabled = settings.deepFocusEnabled.first(),
+        deepFocusWhitelist = settings.deepFocusWhitelist.first(), nightGuardEnabled = settings.nightGuardEnabled.first(),
+        nightGuardStartMin = settings.nightGuardStartMin.first(), nightGuardEndMin = settings.nightGuardEndMin.first(),
+        accountabilityName = settings.accountabilityName.first(), accountabilityContact = settings.accountabilityContact.first(),
+        nudgesEnabled = settings.nudgesEnabled.first(), enabledFeatures = settings.enabledFeatureKeys.first(),
+        socialGuard = settings.socialGuard.first(), socialPlatforms = settings.enabledSocialPlatforms.first(),
+        strictMode = settings.strictMode.first(), userDisabledProtection = settings.userDisabledProtection.first(),
+        autoUpdateEnabled = settings.autoUpdateEnabled.first(), autoDownloadEnabled = settings.autoDownloadEnabled.first(),
+        autoNotifyEnabled = settings.autoNotifyEnabled.first(),
+    )
+
+    private suspend fun databaseSnapshot() = DatabaseSnapshot(
+        items = database.blockDao().allItems(),
+        schedules = database.blockDao().allSchedules(),
+        protectedDays = database.protectedDaysDao().all(),
+    )
+
+    private suspend fun restoreSettings(snapshot: SettingsSnapshot) {
+        settings.restoreMasterEnabled(snapshot.masterEnabled)
+        settings.setAlwaysOn(snapshot.alwaysOn)
+        settings.setStrictMode(snapshot.strictMode)
+        settings.setUserDisabledProtection(snapshot.userDisabledProtection)
+        settings.setBlockDoh(snapshot.blockDoh)
+        settings.setBlockAds(snapshot.blockAds)
+        settings.setBlockNotifications(snapshot.blockNotifications)
+        settings.setPornGuard(snapshot.pornGuard)
+        settings.setSafeSearchForce(snapshot.safeSearchForce)
+        settings.setReduceMotion(snapshot.reduceMotion)
+        settings.setLocale(snapshot.locale)
+        settings.setDeepFocus(snapshot.deepFocusEnabled)
+        settings.setDeepFocusWhitelist(snapshot.deepFocusWhitelist)
+        settings.setNightGuard(snapshot.nightGuardEnabled, snapshot.nightGuardStartMin, snapshot.nightGuardEndMin)
+        settings.setAccountability(snapshot.accountabilityName, snapshot.accountabilityContact)
+        settings.setNudgesEnabled(snapshot.nudgesEnabled)
+        settings.setProfile(snapshot.profileName, snapshot.profileAge)
+        snapshot.onboardingAnswers?.let { settings.setOnboardingAnswers(it) }
+        settings.setEnabledFeatureKeys(snapshot.enabledFeatures)
+        settings.setEnabledSocialPlatforms(snapshot.socialPlatforms)
+        settings.setSocialGuardEnabled(snapshot.socialGuard)
+        // تفضيلات التحديث التلقائي تُستعاد كما هي: من أوقفها يجب ألّا تعود
+        // مفعّلةً بعد الاستعادة، فالتواصل مع الشبكة قرارٌ يخصّه وحده.
+        settings.setAutoUpdateEnabled(snapshot.autoUpdateEnabled)
+        settings.setAutoDownloadEnabled(snapshot.autoDownloadEnabled)
+        settings.setAutoNotifyEnabled(snapshot.autoNotifyEnabled)
+    }
+
+    private suspend fun restoreDatabase(snapshot: DatabaseSnapshot) {
         database.withTransaction {
             database.blockDao().deleteAllItems()
-            doc.blockedItems.forEach { item ->
-                val type = runCatching { BlockType.valueOf(item.type) }.getOrNull() ?: return@forEach
-                val mode = runCatching { InterceptMode.valueOf(item.interceptMode) }
-                    .getOrDefault(InterceptMode.BLOCK)
-                database.blockDao().upsertItem(
-                    BlockedItem(
-                        type = type,
-                        value = item.value,
-                        label = item.label,
-                        enabled = item.enabled,
-                        createdAt = 0L,
-                        interceptMode = mode,
-                        pauseSeconds = item.pauseSeconds,
-                        customPrompt = item.customPrompt,
-                        openLimitPerDay = item.openLimitPerDay,
-                        dailyLimitMinutes = item.dailyLimitMinutes,
-                        cooldownMinutes = item.cooldownMinutes,
-                    ),
-                )
-            }
-
+            snapshot.items.forEach { database.blockDao().upsertItem(it) }
             database.blockDao().deleteAllSchedules()
-            doc.schedules.forEach { schedule ->
-                database.blockDao().upsertSchedule(
-                    Schedule(
-                        name = schedule.name,
-                        enabled = schedule.enabled,
-                        daysMask = schedule.daysMask,
-                        startMinute = schedule.startMinute,
-                        endMinute = schedule.endMinute,
-                    ),
-                )
-            }
-
-            doc.protectedDays.forEach { date ->
+            snapshot.schedules.forEach { database.blockDao().upsertSchedule(it) }
+            snapshot.protectedDays.forEach { date ->
                 database.protectedDaysDao().upsert(
-                    ProtectedDayEntity(date = date, source = "backup", recordedAt = System.currentTimeMillis()),
+                    ProtectedDayEntity(date = date, source = "rollback", recordedAt = System.currentTimeMillis()),
                 )
             }
         }
-
-        // الميزات: تُستبدل (المفعّلة في النسخة تُفعَّل، وما ليس فيها يُطفأ).
-        val current = settings.enabledFeatureKeys.first()
-        current.forEach { key -> if (key !in doc.enabledFeatures) settings.setFeatureEnabled(key, false) }
-        doc.enabledFeatures.forEach { key -> settings.setFeatureEnabled(key, true) }
     }
 }

@@ -2,6 +2,8 @@ package com.sawn.app.ui
 
 import android.app.Activity
 import android.os.Build
+import android.view.ContextThemeWrapper
+import android.view.Window
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -14,20 +16,58 @@ import com.sawn.app.BuildConfig
  *   screenshots / screen recording of the PIN.
  * - filterTouchesWhenObscured + setHideOverlayWindows defeat tapjacking overlays that could
  *   trick the user into entering or revealing the PIN.
+ *
+ * Modals compose in their own window whose context is a [ContextThemeWrapper] chain, not the
+ * Activity — `view.context as? Activity` fails silently there. We therefore walk the context
+ * chain to find the hosting Activity AND secure the view's own window when it already is one
+ * (dialog decor views expose their window directly).
  */
 @Composable
 fun SecureScreen() {
     val view = LocalView.current
-    DisposableEffect(Unit) {
-        val window = (view.context as? Activity)?.window
+    DisposableEffect(view) {
         val applySecure = !BuildConfig.DEBUG
-        if (applySecure) window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        window?.decorView?.filterTouchesWhenObscured = true
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) window?.setHideOverlayWindows(true)
+
+        // The window this view actually renders into (works for dialogs too).
+        fun ownWindow(): Window? = runCatching { view.context.getSystemService(Window::class.java) }
+            .getOrNull()
+
+        // Activity underneath, following ContextWrapper/ContextThemeWrapper chains.
+        fun hostingActivity(): Activity? {
+            var ctx = view.context
+            var guard = 0
+            while (ctx != null && guard++ < 10) {
+                if (ctx is Activity) return ctx
+                ctx = (ctx as? ContextThemeWrapper)?.baseContext
+                    ?: (ctx as? android.content.ContextWrapper)?.baseContext
+            }
+            return null
+        }
+
+        val windows = buildList {
+            ownWindow()?.let(::add)
+            hostingActivity()?.window?.let(::add)
+        }.distinct()
+
+        for (window in windows) {
+            if (applySecure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            runCatching {
+                // May throw on windows we don't own (e.g. an activity behind a dialog).
+                window.decorView.filterTouchesWhenObscured = true
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                runCatching { window.setHideOverlayWindows(true) }
+            }
+        }
+
         onDispose {
-            if (applySecure) window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            window?.decorView?.filterTouchesWhenObscured = false
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) window?.setHideOverlayWindows(false)
+            for (window in windows) {
+                if (applySecure) window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                runCatching { window.decorView.filterTouchesWhenObscured = false }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    runCatching { window.setHideOverlayWindows(false) }
+                }
+            }
         }
     }
 }

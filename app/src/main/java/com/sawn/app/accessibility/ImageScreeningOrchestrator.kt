@@ -53,13 +53,33 @@ class ImageScreeningOrchestrator(private val service: AccessibilityService) {
         ) {
             onResult(false); return
         }
-        val classifier = NsfwClassifier.get(service)
-        if (classifier == null) {
-            onResult(false); return
-        }
         if (!captureInFlight.compareAndSet(false, true)) {
             onResult(false); return
         }
+        // прогреть/загрузить the TFLite model OFF the accessibility main thread: the
+        // first load reads the asset and builds the interpreter (hundreds of ms), and
+        // maybeScreen() runs inline in onAccessibilityEvent — blocking it risks input
+        // dispatch ANRs. When the ready callback fires we retry maybeScreen().
+        classifierExecutor.execute {
+            classifierReady = NsfwClassifier.get(service) != null
+            if (classifierReady) {
+                service.mainExecutor.execute { maybeScreenRetry(onResult) }
+            } else {
+                captureInFlight.set(false)
+                onResult(false)
+            }
+        }
+    }
+
+    @Volatile private var classifierReady = false
+
+    private fun maybeScreenRetry(onResult: (Boolean) -> Unit) {
+        val classifier = NsfwClassifier.get(service)
+        if (classifier == null) {
+            captureInFlight.set(false)
+            onResult(false); return
+        }
+        val now = SystemClock.uptimeMillis()
         lastCapture = now
         capture(classifier, onResult)
     }
@@ -97,6 +117,9 @@ class ImageScreeningOrchestrator(private val service: AccessibilityService) {
             val buffer = result.hardwareBuffer
             var bitmap: Bitmap? = null
             try {
+                // takeScreenshot() hands ownership to us: the buffer must be closed or
+                // gralloc-backed fds pile up over scroll-heavy captures and starve the
+                // fd table (which also breaks the VPN/socket layer in this process).
                 bitmap = Bitmap.wrapHardwareBuffer(buffer, result.colorSpace)
                     ?.copy(Bitmap.Config.ARGB_8888, false)
                 if (bitmap == null) { onResult(false); return }
@@ -107,6 +130,7 @@ class ImageScreeningOrchestrator(private val service: AccessibilityService) {
                 onResult(hit)
             } finally {
                 bitmap?.recycle()
+                buffer.close()
             }
         } catch (e: Exception) {
             onResult(false)

@@ -60,13 +60,30 @@ DNS filter and accessibility poorly.
 
 ## Release checklist
 
-1. Bump `versionCode` / `versionName` in `app/build.gradle.kts`.
+1. Bump `versionCode` / `versionName` in `app/build.gradle.kts`. The `versionCode`
+   must be **higher than every APK that was ever handed out** — the updater refuses
+   an APK that is not strictly newer.
 2. Update the version in the README title and the *Build* section.
 3. Add a `CHANGELOG.md` entry (Arabic, matching the existing format).
-4. `./gradlew :app:assembleRelease` → copy APK to `release/Sawn-<ver>.apk`.
-5. Tag the commit (`v<version>`), push, and let `.github/workflows/release-apk.yml`
-   build the CI APK.
-6. For update-channel changes see `update-hosting.md`.
+4. Build with the public manifest URL baked in — the address is compiled in, so an
+   APK built without it can never check for updates later:
+   ```powershell
+   $env:SAWN_UPDATE_MANIFEST_URL = "https://drente748.github.io/warden/updates/manifest.json"
+   ./gradlew.bat :app:assembleRelease
+   ```
+5. Gate the artifact, then copy it to `release/Sawn-<ver>.apk`:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File scripts/verify-release.ps1 -ExpectedVersion <ver>
+   ```
+6. Run the repository audit — no secrets tracked, Arabic/English string parity,
+   valid XML, resolvable doc links, sane version ladder:
+   ```powershell
+   python scripts/audit_release.py
+   ```
+7. Tag the commit (`v<version>`), push, and let `.github/workflows/release-apk.yml`
+   build the CI APK. The workflow refuses to publish if the tag and the APK's
+   `versionName` disagree.
+8. For update-channel changes see `update-hosting.md`.
 
 Signing keys are documented in `setup.md`. **Never commit** `local.properties`,
 the keystore password, or any `SAWN_*` secret.

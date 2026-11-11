@@ -216,6 +216,7 @@ private fun featureMeta(id: String): RevealFeature = when (id) {
     PlanFeature.DOH -> RevealFeature(Icons.Filled.Dns, Color(0xFF2563EB), R.string.plan_feature_doh_title, R.string.plan_feature_doh_sub)
     PlanFeature.STRICT -> RevealFeature(Icons.Filled.Lock, Color(0xFF7C3AED), R.string.plan_feature_strict_title, R.string.plan_feature_strict_sub)
     PlanFeature.APPS -> RevealFeature(Icons.Filled.Groups, Color(0xFF0EA5E9), R.string.plan_feature_apps_title, R.string.plan_feature_apps_sub)
+    PlanFeature.FEEDS -> RevealFeature(Icons.Filled.Groups, Color(0xFF0EA5E9), R.string.plan_feature_feeds_title, R.string.plan_feature_feeds_sub)
     PlanFeature.FOCUS -> RevealFeature(Icons.Filled.Bolt, Color(0xFFD97706), R.string.plan_feature_focus_title, R.string.plan_feature_focus_sub)
     PlanFeature.NOTIFICATIONS -> RevealFeature(Icons.Filled.NotificationsOff, Color(0xFF64748B), R.string.plan_feature_notifications_title, R.string.plan_feature_notifications_sub)
     else -> RevealFeature(Icons.Filled.Bolt, SawnPalette.Primary, R.string.plan_feature_focus_title, R.string.plan_feature_focus_sub)

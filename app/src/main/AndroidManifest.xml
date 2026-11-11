@@ -173,6 +173,16 @@
                 android:resource="@xml/sawn_widget_info" />
         </receiver>
 
+        <!-- Opens the system installer on an already-verified update APK. It cannot install
+             silently — Android always shows the install screen and asks the user to confirm. -->
+        <receiver
+            android:name=".system.UpdateInstallReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.sawn.app.INSTALL_PENDING_UPDATE" />
+            </intent-filter>
+        </receiver>
+
         <!-- Device admin: uninstall protection only (no enforcement policies declared). -->
         <receiver
             android:name=".system.SawnDeviceAdminReceiver"

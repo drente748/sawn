@@ -183,6 +183,46 @@ a dump of the app home screen to confirm the new signal does not leak there.
 - Toggle the system theme in Sawn and on an intercept screen. ✅ Both palettes stay readable,
   the day-letter row fits the narrowest phone, and nothing overlaps in right-to-left.
 
+### 18. Home-screen widget (new in 2.2.0)
+- Add the 2×2 widget to the home screen. ✅ The large number is the protected-day streak — **not
+  the app name** (before 2.2.0 the streak field showed «صَوْن» permanently), and the line under it
+  reads protected / off.
+- Tap the **افتح** button. ✅ The app opens. (Before 2.2.0 the button had no listener, so the tap
+  did nothing at all.) Tapping the widget body should open it too.
+- Toggle protection off and on. ✅ The widget must follow within a few seconds. It used to keep
+  showing the old state until the launcher happened to ask for an update.
+- Rotate to a fresh streak (or clear app data): ✅ the widget shows the app name instead of a
+  misleading `0 days`.
+
+### 19. In-app update channel (new in 2.2.0)
+- Open **Settings → Privacy & support → Check for updates**. ✅ It must reach the hosted
+  manifest over HTTPS. If it says the hosting is not configured, this APK was built **without**
+  `SAWN_UPDATE_MANIFEST_URL` — see `docs/update-hosting.md`; it cannot be fixed by the user.
+- With an older version installed, ✅ the dialog shows the new version name and the **real release
+  notes** (pulled from `docs/CHANGELOG.md`), not a generic sentence.
+- Tap download. ✅ The APK is downloaded, its SHA-256 is re-checked locally, and only then does
+  Android's installer open. The screen must say the update is verified and awaiting approval —
+  **not** “you already have the latest version” (before 2.2.0 that message appeared while the
+  update was still pending).
+- Cancel the system install. ✅ The app must not report the update as installed.
+
+### 20. Automatic updates (new in 2.2.0)
+- **Settings → Privacy & support → Sawn updates** must show three switches, **all on by default**:
+  *Automatic updates*, *Download automatically*, and *Install as soon as it is ready*.
+- Turn **Automatic updates** off, then force-stop the app and wait for the periodic worker
+  (or trigger it from `adb shell am broadcast`/WorkManager). ✅ No network request to the
+  manifest, and no notification. Check with `adb shell dumpsys netstats` or the app's own log.
+- Turn it back on and publish a test manifest with a higher `versionCode`. ✅ Within the
+  worker interval (or on the next app start) a notification appears: **«التحديث جاهز»**.
+- Tap the notification. ✅ Android's installer opens **directly on the already-downloaded,
+  already-verified APK** — no second download, no second progress bar.
+- The install screen must show the app name and require a tap on **Install**. ✅ That tap is
+  mandatory: Android offers no way to install silently, and Sawn must not pretend otherwise.
+- Install it. ✅ The app must come back with the new `versionCode`, and the pending-update
+  card must disappear.
+- Open **Settings → Privacy & support** before installing. ✅ The card must already show
+  **«الإصدار X جاهز للتثبيت»** with an *Install now* button, plus the real release notes.
+
 ## Report back
 Note which feeds detected correctly (and paste any `resource-id`s that need adding), whether
 DoH bypassed the block in your browser, and anything that didn't behave — those become the

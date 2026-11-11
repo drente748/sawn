@@ -7,10 +7,10 @@
 1. **Download the APK** from the official download page (signed `.apk`).
 2. **Verify file integrity**:
    ```
-   certutil -hashfile Sawn-2.0.0.apk SHA256   # Windows
-   sha256sum Sawn-2.0.0.apk                    # Linux/macOS
+   certutil -hashfile Sawn-2.2.0.apk SHA256   # Windows
+   sha256sum Sawn-2.2.0.apk                    # Linux/macOS
    ```
-   Compare against the published SHA-256 fingerprint on the download page.
+   Compare against the published SHA-256 fingerprint in the update manifest: `https://drente748.github.io/warden/updates/manifest.json`.
 3. **Allow install from this source** (once):
    - Open the `.apk` → "needs permission to install apps from unknown sources" → **Settings** → toggle on → back → **Install**.
 4. **Play Protect**: "This app may be unsafe" → **More details** → **Install anyway**.

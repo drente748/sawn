@@ -9,6 +9,7 @@
     <string name="vpn_notification_text">Blocked-site filtering is active now.</string>
     <string name="vpn_permission_needed">Sawn needs permission to establish the protection connection before blocking can start.</string>
     <string name="protection_start_failed">The filter did not start — open the permissions screen and grant Sawn connection permission.</string>
+    <string name="disable_refused_strict">Protection can\'t be turned off while Strict mode or a focus session is locked on.</string>
     <string name="device_admin_description">Prevents Sawn from being uninstalled while protection is active. Sawn requests no other admin permissions.</string>
 
     <!-- الفحص الصحي -->
@@ -157,7 +158,7 @@
     <string name="notifications_status_off">Muting is off — turn it on from the home screen.</string>
     <string name="notifications_grant">Grant notification permission</string>
     <string name="privacy_title">Your privacy</string>
-    <string name="privacy_body">We collect no personal data — no server, no account, no logs. Everything runs on your device, and block lists are pulled from public sources only when you update them.</string>
+    <string name="privacy_body">We collect no personal data — no server, no account, no logs. Everything runs on your device. The only things Sawn ever fetches are public block lists and a public update manifest, and the update check can be switched off entirely.</string>
     <string name="help_title">I need help</string>
     <string name="help_body">A free global support hotline opens in your browser. Sawn records nothing while you use it.</string>
     <string name="help_action">Open the help page</string>
@@ -424,16 +425,37 @@
     <string name="sos_delay_running">Timer is running</string>
     <string name="stats_urge_week_total">Urge pauses this week: %1$d · completed so far: %2$d</string>
     <string name="update_title">Sawn updates</string>
-    <string name="update_privacy">Sawn checks for updates only when you tap the button. No usage data is sent.</string>
+    <string name="update_privacy">Checks a public manifest for a new version. No account, no identifiers, no usage data — and you can turn the automatic check off above.</string>
     <string name="update_check">Check for updates</string>
     <string name="update_checking">Checking for an update…</string>
     <string name="update_downloading">Downloading the update and checking its integrity…</string>
+    <string name="update_installing">The update is verified — approve it in the installer to finish.</string>
     <string name="update_up_to_date">You already have the latest version.</string>
     <string name="update_available">Version %1$s is available. Review the details and approve installation.</string>
     <string name="update_install">Download and install update</string>
     <string name="update_failed">Could not complete update: %1$s</string>
     <string name="update_host_not_configured">Update hosting is not configured yet. Set SAWN_UPDATE_MANIFEST_URL and rebuild the app.</string>
     <string name="update_install_permission_missing">Permission to install apps from this source was not granted.</string>
+    <string name="widget_open">Open</string>
+    <string name="widget_streak_format">%1$s days</string>
+
+    <!-- Automatic updates (2.2.0) -->
+    <string name="update_channel_name">Updates</string>
+    <string name="update_channel_desc">Alerts when a new version of Sawn is available.</string>
+    <string name="update_notif_available_title">A new Sawn version is available</string>
+    <string name="update_notif_available_text">Version %1$s — tap to download and install.</string>
+    <string name="update_notif_ready_title">The update is ready</string>
+    <string name="update_notif_ready_text">Version %1$s is downloaded and verified — tap to install.</string>
+    <string name="update_auto_title">Automatic updates</string>
+    <string name="update_auto_sub">Check a public manifest for a new version every few hours. Nothing is installed without your approval.</string>
+    <string name="update_auto_download_title">Download automatically</string>
+    <string name="update_auto_download_sub">Download the update as soon as it is found, so installing is one tap. The file is checked against its fingerprint before it is offered.</string>
+    <string name="update_auto_install_title">Install as soon as it is ready</string>
+    <string name="update_auto_install_sub">Tell you the moment the verified update is waiting, instead of leaving it in the background. Android always asks you to confirm the install itself — no app can skip that step.</string>
+    <string name="update_pending_title">Version %1$s is ready to install</string>
+    <string name="update_pending_sub">Downloaded and verified. Installing needs your confirmation in the system installer.</string>
+    <string name="update_install_now">Install now</string>
+    <string name="update_failed_pending">The downloaded update is no longer available — check for it again.</string>
 
     <!-- الترحيب v3 -->
 
@@ -520,7 +542,7 @@
     <string name="plan_feature_strict_title">Discipline mode with a PIN</string>
     <string name="plan_feature_strict_sub">No breaking protection in a weak moment</string>
     <string name="plan_feature_apps_title">Distracting apps blocked</string>
-    <string name="plan_feature_apps_sub">Reels and Shorts detected and blocked</string>
+    <string name="plan_feature_apps_sub">Choose the apps you want to block from the app list</string>
     <string name="plan_feature_focus_title">Focus sessions + day streaks</string>
     <string name="plan_feature_focus_sub">25 quiet minutes, and your wins counted</string>
     <string name="plan_feature_notifications_title">Notifications silenced for blocked apps</string>
@@ -577,6 +599,7 @@
     <string name="feature_challenge_record">Record today</string>
     <string name="feature_challenge_restart">Restart</string>
     <string name="feature_challenge_restart_confirm">Restarting clears the days you have counted so far. Start over?</string>
+    <string name="feature_challenge_needs_protection">Protection isn\'t active right now — only protected days advance the challenge. Turn on the filter first.</string>
     <string name="feature_night_guard_title">Night Guard</string>
     <string name="feature_night_guard_sub">Auto-engages strict protection at night (default 22:00–06:00). Calls, messages and maps stay allowed.</string>
     <string name="feature_night_guard_enable">Enabled</string>
@@ -645,6 +668,15 @@
     <string name="feature_parent_pin_set">Set parent PIN</string>
     <string name="feature_parent_pin_remove">Remove parent PIN</string>
     <string name="feature_parent_pin_removed">Parent PIN removed.</string>
+    <string name="feature_parent_pin_remove_blocked">Turn off Parent mode before removing its PIN.</string>
+    <string name="feature_blocking_title">In-app content protection</string>
+    <string name="feature_blocking_subtitle">These filters run only while protection is active and Accessibility access is enabled.</string>
+    <string name="feature_blocking_social">Screen social apps for adult content</string>
+    <string name="feature_blocking_feeds">Block specific feeds</string>
+    <string name="feature_blocking_feed">Block %1$s</string>
+    <string name="feature_night_guard_locked">The active time lock prevents this change.</string>
+    <string name="plan_feature_feeds_title">Reels, Shorts and feeds blocked</string>
+    <string name="plan_feature_feeds_sub">Choose the specific feeds and social apps to cover</string>
     <string name="feature_parent_report">Send the parent report</string>
     <string name="feature_parent_report_body">The same weekly report, ready to hand to a parent or an accountability partner.</string>
     <string name="parent_unlock_title">Enter the parent PIN</string>

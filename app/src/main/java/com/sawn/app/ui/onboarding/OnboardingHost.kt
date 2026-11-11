@@ -13,6 +13,8 @@ import androidx.activity.compose.BackHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.ui.SawnViewModel
 import com.sawn.domain.OnboardingAnswers
+import com.sawn.domain.Plan
+import com.sawn.domain.PlanBuilder
 import com.sawn.app.ui.onboarding.steps.WelcomeStep
 import com.sawn.app.ui.onboarding.steps.ProfileStep
 import com.sawn.app.ui.onboarding.steps.QuestionOneStep
@@ -28,9 +30,13 @@ private enum class OnboardStep { WELCOME, PROFILE, Q1, Q2, Q3, Q4, PLAN }
  * كل الإجابات محلية 100% (DataStore) — لا اتصال بالإنترنت.
  */
 @Composable
-fun OnboardingHost(vm: SawnViewModel, onDone: () -> Unit) {
+fun OnboardingHost(
+    vm: SawnViewModel,
+    initialAnswers: OnboardingAnswers?,
+    onComplete: (OnboardingAnswers, Plan) -> Unit,
+) {
     var step by remember { mutableStateOf(OnboardStep.WELCOME) }
-    var answers by remember { mutableStateOf(OnboardingAnswers()) }
+    var answers by remember { mutableStateOf(initialAnswers ?: OnboardingAnswers()) }
     val reduceMotion by vm.reduceMotion.collectAsStateWithLifecycle()
 
     BackHandler(enabled = step != OnboardStep.WELCOME) {
@@ -85,14 +91,8 @@ fun OnboardingHost(vm: SawnViewModel, onDone: () -> Unit) {
                 OnboardStep.PLAN -> PlanRevealStep(
                     answers = answers,
                     reduceMotion = reduceMotion,
-                    onActivate = {
-                        vm.completeOnboarding(answers)
-                        onDone()
-                    },
-                    onExplore = {
-                        vm.completeOnboarding(answers)
-                        onDone()
-                    },
+                    onActivate = { onComplete(answers, PlanBuilder.build(answers)) },
+                    onExplore = { onComplete(answers, PlanBuilder.build(answers)) },
                 )
             }
         }

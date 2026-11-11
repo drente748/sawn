@@ -20,6 +20,7 @@ import com.sawn.domain.feature.JournalSnapshot
 import com.sawn.domain.feature.ShieldPreset
 import com.sawn.domain.repo.ProtectedDaysRepository
 import com.sawn.domain.security.PinLockoutPolicy
+import com.sawn.domain.update.PendingUpdate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -48,9 +49,6 @@ data class ProtectionSnapshot(
 
 /** Result of an atomic "turn protection off" request. */
 data class DisableOutcome(val disabled: Boolean, val focusActive: Boolean)
-
-/** ما فرضه الحارس الليلي من مفاتيح — يُعاد كما كان عند خروج النافذة. */
-data class NightGuardForced(val strict: Boolean = false, val alwaysOn: Boolean = false)
 
 /**
  * User settings & protection state. The PIN is stored as a salted hash — never plaintext.
@@ -114,6 +112,11 @@ class SettingsStore(
         val NIGHT_GUARD_UNLOCK_UNTIL = longPreferencesKey("night_guard_unlock_until")
         val NIGHT_GUARD_FORCED_STRICT = booleanPreferencesKey("night_guard_forced_strict")
         val NIGHT_GUARD_FORCED_ALWAYS_ON = booleanPreferencesKey("night_guard_forced_always_on")
+        val NIGHT_GUARD_FORCED_MASTER = booleanPreferencesKey("night_guard_forced_master")
+        val NIGHT_GUARD_PREVIOUS_STRICT = booleanPreferencesKey("night_guard_previous_strict")
+        val NIGHT_GUARD_PREVIOUS_ALWAYS_ON = booleanPreferencesKey("night_guard_previous_always_on")
+        val NIGHT_GUARD_PREVIOUS_MASTER = booleanPreferencesKey("night_guard_previous_master")
+        val NIGHT_GUARD_PREVIOUS_USER_DISABLED = booleanPreferencesKey("night_guard_previous_user_disabled")
         val DEEP_FOCUS_ENABLED = booleanPreferencesKey("deep_focus_enabled")
         val DEEP_FOCUS_WHITELIST = stringSetPreferencesKey("deep_focus_whitelist")
         val DEEP_FOCUS_UNLOCK_UNTIL = longPreferencesKey("deep_focus_unlock_until")
@@ -124,6 +127,19 @@ class SettingsStore(
         val ACCOUNTABILITY_NAME = stringPreferencesKey("accountability_name")
         val ACCOUNTABILITY_CONTACT = stringPreferencesKey("accountability_contact")
         val NUDGES_ENABLED = booleanPreferencesKey("nudges_enabled")
+        // --- التحديث الذاتي (2.2.0) ---------------------------------------------
+        // الافتراضي مفعّل: المستخدم يتوقع أن يتلقى التحديث دون أن يبحث عنه.
+        // الفحص والتنزيل والتحقق كلها تلقائية؛ ما يبقى للمستخدم هو الموافقة
+        // النهائية على التثبيت — لأن أندرويد لا يسمح بالتثبيت الصامت.
+        val AUTO_UPDATE_ENABLED = booleanPreferencesKey("auto_update_enabled")
+        val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
+        val AUTO_NOTIFY_ENABLED = booleanPreferencesKey("auto_notify_enabled")
+        // التحديث الذي نُزِّل وتحقّقنا منه، بانتظار موافقة المستخدم.
+        val PENDING_UPDATE_VERSION = intPreferencesKey("pending_update_version")
+        val PENDING_UPDATE_NAME = stringPreferencesKey("pending_update_name")
+        val PENDING_UPDATE_SHA = stringPreferencesKey("pending_update_sha")
+        val PENDING_UPDATE_CHANGELOG = stringPreferencesKey("pending_update_changelog")
+        val PENDING_UPDATE_PATH = stringPreferencesKey("pending_update_path")
     }
 
     /** A PIN is only usable when both its hash and salt are present. */
@@ -185,6 +201,65 @@ class SettingsStore(
 
     suspend fun setOnboardingAnswers(value: String) =
         context.dataStore.edit { it[Keys.ONBOARDING_ANSWERS] = value }.let { }
+
+    // --- التحديث الذاتي (2.2.0) ------------------------------------------------
+    // الافتراضي مفعّل: المستخدم يتوقّع أن يتلقّى التحديث دون أن يبحث عنه بنفسه.
+    // الفحص والتنزيل والتحقّق كلها تلقائية؛ ما يبقى للمستخدم هو الموافقة
+    // النهائية على التثبيت — لأن أندرويد لا يسمح لأي تطبيق بتثبيت صامت.
+    val autoUpdateEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.AUTO_UPDATE_ENABLED] ?: true }.distinctUntilChanged()
+    val autoDownloadEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.AUTO_DOWNLOAD_ENABLED] ?: true }.distinctUntilChanged()
+    /** إشعار «التحديث جاهز» فور توفّره — مفعّل افتراضياً. */
+    val autoNotifyEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.AUTO_NOTIFY_ENABLED] ?: true }.distinctUntilChanged()
+
+    suspend fun setAutoUpdateEnabled(value: Boolean) {
+        context.dataStore.edit { it[Keys.AUTO_UPDATE_ENABLED] = value }.let { }
+    }
+
+    suspend fun setAutoDownloadEnabled(value: Boolean) {
+        context.dataStore.edit { it[Keys.AUTO_DOWNLOAD_ENABLED] = value }.let { }
+    }
+
+    suspend fun setAutoNotifyEnabled(value: Boolean) {
+        context.dataStore.edit { it[Keys.AUTO_NOTIFY_ENABLED] = value }.let { }
+    }
+
+    /** التحديث الذي نُزِّل وتحقّقنا منه — ينتظر موافقة المستخدم على التثبيت. */
+    val pendingUpdate: Flow<PendingUpdate?> = context.dataStore.data
+        .map { p ->
+            val version = p[Keys.PENDING_UPDATE_VERSION] ?: return@map null
+            val path = p[Keys.PENDING_UPDATE_PATH] ?: return@map null
+            PendingUpdate(
+                versionCode = version,
+                versionName = p[Keys.PENDING_UPDATE_NAME] ?: "",
+                sha256 = p[Keys.PENDING_UPDATE_SHA] ?: "",
+                changelog = p[Keys.PENDING_UPDATE_CHANGELOG] ?: "",
+                apkPath = path,
+            )
+        }
+        .distinctUntilChanged()
+
+    suspend fun setPendingUpdate(update: PendingUpdate) {
+        context.dataStore.edit { p ->
+            p[Keys.PENDING_UPDATE_VERSION] = update.versionCode
+            p[Keys.PENDING_UPDATE_NAME] = update.versionName
+            p[Keys.PENDING_UPDATE_SHA] = update.sha256
+            p[Keys.PENDING_UPDATE_CHANGELOG] = update.changelog
+            p[Keys.PENDING_UPDATE_PATH] = update.apkPath
+        }.let { }
+    }
+
+    suspend fun clearPendingUpdate() {
+        context.dataStore.edit { p ->
+            p.remove(Keys.PENDING_UPDATE_VERSION)
+            p.remove(Keys.PENDING_UPDATE_NAME)
+            p.remove(Keys.PENDING_UPDATE_SHA)
+            p.remove(Keys.PENDING_UPDATE_CHANGELOG)
+            p.remove(Keys.PENDING_UPDATE_PATH)
+        }.let { }
+    }
 
     val alwaysOn: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.ALWAYS_ON] ?: true }.distinctUntilChanged()
@@ -257,7 +332,11 @@ class SettingsStore(
 
     /** يمسح كل التفضيلات — للخصوصية: «مسح كل بياناتي». */
     suspend fun clearAllData() =
-        context.dataStore.edit { it.clear() }.let { }
+        context.dataStore.edit { p ->
+            p.clear()
+            p[Keys.USER_DISABLED_PROTECTION] = true
+            p[Keys.PARENT_MODE_ENABLED] = false
+        }.let { }
 
     suspend fun setBlockDoh(value: Boolean) {
         context.dataStore.edit { p ->
@@ -289,12 +368,12 @@ class SettingsStore(
      */
     val enabledFeatureKeys: Flow<Set<String>> =
         context.dataStore.data.map { it[Keys.ENABLED_FEATURES] ?: emptySet() }.distinctUntilChanged()
-    // socialGuard/enabledSocialPlatforms: أُزيلت الميزة من السطح في 1.0.0؛ المفتاحان
-    // يُتركان في DataStore دون هجرة (تنظيف عميق لاحقاً). الخدمة تصل صفر منطقها
-    // عبر التيار أدناه.
-    /** دائمة false بعد 1.0.0 — مسار منصات التواصل في الخدمة لن يعمل. */
-    val socialGuard: Flow<Boolean> = flowOf(false)
-    val enabledSocialPlatforms: Flow<Set<String>?> = flowOf(null)
+    val socialGuard: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.SOCIAL_GUARD] ?: false }.distinctUntilChanged()
+    val enabledSocialPlatforms: Flow<Set<String>> =
+        context.dataStore.data.map {
+            it[Keys.ENABLED_SOCIAL_PLATFORMS] ?: emptySet()
+        }.distinctUntilChanged()
 
     /** Epoch millis a focus session ends (0 = none), and whether it can be cancelled early. */
     val focusEndsAt: Flow<Long> =
@@ -320,6 +399,32 @@ class SettingsStore(
             val current = (p[Keys.ENABLED_FEATURES] ?: emptySet()).toMutableSet()
             if (enabled) current.add(key) else current.remove(key)
             p[Keys.ENABLED_FEATURES] = current
+        }
+    }
+
+    suspend fun setEnabledFeatureKeys(keys: Set<String>) {
+        context.dataStore.edit { p ->
+            val current = p[Keys.ENABLED_FEATURES] ?: emptySet()
+            if (lockdownWindow(p).isActive && !keys.containsAll(current)) return@edit
+            p[Keys.ENABLED_FEATURES] = keys
+        }
+    }
+
+    suspend fun setSocialGuardEnabled(enabled: Boolean) {
+        context.dataStore.edit { p ->
+            if (!enabled && lockdownWindow(p).isActive) return@edit
+            p[Keys.SOCIAL_GUARD] = enabled
+        }
+    }
+
+    suspend fun setEnabledSocialPlatforms(platforms: Set<String>) =
+        context.dataStore.edit { p -> p[Keys.ENABLED_SOCIAL_PLATFORMS] = platforms }.let { }
+
+    suspend fun setSocialPlatformsEnabled(platforms: Set<String>) {
+        context.dataStore.edit { p ->
+            val current = p[Keys.ENABLED_SOCIAL_PLATFORMS] ?: emptySet()
+            if (lockdownWindow(p).isActive && !platforms.containsAll(current)) return@edit
+            p[Keys.ENABLED_SOCIAL_PLATFORMS] = platforms
         }
     }
 
@@ -702,33 +807,80 @@ class SettingsStore(
         context.dataStore.data.map { it[Keys.NIGHT_GUARD_END_MIN] ?: 360 }.distinctUntilChanged()
     val nightGuardUnlockUntil: Flow<Long> =
         context.dataStore.data.map { it[Keys.NIGHT_GUARD_UNLOCK_UNTIL] ?: 0L }.distinctUntilChanged()
-    suspend fun setNightGuard(enabled: Boolean, startMin: Int, endMin: Int) =
+    suspend fun setNightGuard(enabled: Boolean, startMin: Int, endMin: Int): Boolean {
+        var applied = false
         context.dataStore.edit { p ->
+            if (!enabled && lockdownWindow(p).isActive) return@edit
             p[Keys.NIGHT_GUARD_ENABLED] = enabled
-            p[Keys.NIGHT_GUARD_START_MIN] = startMin
-            p[Keys.NIGHT_GUARD_END_MIN] = endMin
-        }.let { }
+            p[Keys.NIGHT_GUARD_START_MIN] = startMin.coerceIn(0, 1439)
+            p[Keys.NIGHT_GUARD_END_MIN] = endMin.coerceIn(0, 1439)
+            if (!enabled) p[Keys.NIGHT_GUARD_UNLOCK_UNTIL] = 0L
+            applied = true
+        }
+        return applied
+    }
     suspend fun setNightGuardUnlock(untilMs: Long) =
         context.dataStore.edit { it[Keys.NIGHT_GUARD_UNLOCK_UNTIL] = untilMs }.let { }
 
-    /**
-     * ما فرضه الحارس الليلي فعلًا — ليعيده كما كان عند خروج النافذة، فلا يبقى
-     * الانضباط الصارم مفعّلًا إلى الأبد بعد السادسة صباحًا.
-     */
-    suspend fun nightGuardForced(): NightGuardForced {
-        val p = runCatching { context.dataStore.data.first() }.getOrNull()
-            ?: return NightGuardForced()
-        return NightGuardForced(
-            strict = p[Keys.NIGHT_GUARD_FORCED_STRICT] ?: false,
-            alwaysOn = p[Keys.NIGHT_GUARD_FORCED_ALWAYS_ON] ?: false,
-        )
+    suspend fun restoreNightGuardOverrides(): Boolean {
+        var restored = false
+        context.dataStore.edit { p ->
+            val forcedStrict = p[Keys.NIGHT_GUARD_FORCED_STRICT] ?: false
+            val forcedAlwaysOn = p[Keys.NIGHT_GUARD_FORCED_ALWAYS_ON] ?: false
+            val forcedMaster = p[Keys.NIGHT_GUARD_FORCED_MASTER] ?: false
+            if ((forcedStrict || forcedAlwaysOn || forcedMaster) && lockdownWindow(p).isActive) return@edit
+
+            if (forcedStrict) p[Keys.STRICT_MODE] = p[Keys.NIGHT_GUARD_PREVIOUS_STRICT] ?: false
+            if (forcedAlwaysOn) p[Keys.ALWAYS_ON] = p[Keys.NIGHT_GUARD_PREVIOUS_ALWAYS_ON] ?: false
+            if (forcedMaster) {
+                p[Keys.MASTER_ENABLED] = p[Keys.NIGHT_GUARD_PREVIOUS_MASTER] ?: false
+                p[Keys.USER_DISABLED_PROTECTION] = p[Keys.NIGHT_GUARD_PREVIOUS_USER_DISABLED] ?: true
+            }
+            p[Keys.NIGHT_GUARD_FORCED_STRICT] = false
+            p[Keys.NIGHT_GUARD_FORCED_ALWAYS_ON] = false
+            p[Keys.NIGHT_GUARD_FORCED_MASTER] = false
+            p.remove(Keys.NIGHT_GUARD_PREVIOUS_STRICT)
+            p.remove(Keys.NIGHT_GUARD_PREVIOUS_ALWAYS_ON)
+            p.remove(Keys.NIGHT_GUARD_PREVIOUS_MASTER)
+            p.remove(Keys.NIGHT_GUARD_PREVIOUS_USER_DISABLED)
+            p[Keys.NIGHT_GUARD_UNLOCK_UNTIL] = 0L
+            restored = true
+        }
+        return restored
     }
 
-    suspend fun setNightGuardForced(strict: Boolean, alwaysOn: Boolean) =
+    suspend fun applyNightGuardOverrides(): Boolean {
+        var strictApplied = false
+        var applied = false
         context.dataStore.edit { p ->
-            p[Keys.NIGHT_GUARD_FORCED_STRICT] = strict
-            p[Keys.NIGHT_GUARD_FORCED_ALWAYS_ON] = alwaysOn
-        }.let { }
+            if (lockdownWindow(p).isActive) {
+                forceLockdownCore(p)
+                return@edit
+            }
+            if (!(p[Keys.NIGHT_GUARD_FORCED_STRICT] ?: false) && pinPresent(p) && p[Keys.STRICT_MODE] != true) {
+                p[Keys.NIGHT_GUARD_PREVIOUS_STRICT] = false
+                p[Keys.NIGHT_GUARD_FORCED_STRICT] = true
+                p[Keys.STRICT_MODE] = true
+            }
+            strictApplied = StrictPolicy.isEffectiveStrictMode(p[Keys.STRICT_MODE] ?: false, pinPresent(p))
+
+            if (!(p[Keys.NIGHT_GUARD_FORCED_ALWAYS_ON] ?: false) && p[Keys.ALWAYS_ON] != true) {
+                p[Keys.NIGHT_GUARD_PREVIOUS_ALWAYS_ON] = false
+                p[Keys.NIGHT_GUARD_FORCED_ALWAYS_ON] = true
+                p[Keys.ALWAYS_ON] = true
+            }
+            if (!(p[Keys.NIGHT_GUARD_FORCED_MASTER] ?: false) && p[Keys.MASTER_ENABLED] != true) {
+                p[Keys.NIGHT_GUARD_PREVIOUS_MASTER] = false
+                p[Keys.NIGHT_GUARD_PREVIOUS_USER_DISABLED] = p[Keys.USER_DISABLED_PROTECTION] ?: true
+                p[Keys.NIGHT_GUARD_FORCED_MASTER] = true
+                p[Keys.MASTER_ENABLED] = true
+                p.remove(Keys.USER_DISABLED_PROTECTION)
+            }
+            applied = true
+        }
+        if (applied) recordActiveDay()
+        return strictApplied
+    }
     val deepFocusEnabled: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.DEEP_FOCUS_ENABLED] ?: false }.distinctUntilChanged()
     val deepFocusWhitelist: Flow<Set<String>> =
@@ -739,8 +891,19 @@ class SettingsStore(
         context.dataStore.edit { it[Keys.DEEP_FOCUS_WHITELIST] = values }.let { }
     val parentModeEnabled: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.PARENT_MODE_ENABLED] ?: false }.distinctUntilChanged()
-    suspend fun setParentModeEnabled(value: Boolean) =
-        context.dataStore.edit { it[Keys.PARENT_MODE_ENABLED] = value }.let { }
+    suspend fun setParentModeEnabled(value: Boolean): Boolean {
+        var applied = false
+        context.dataStore.edit { p ->
+            if (value && !parentPinPresent(p)) return@edit
+            p[Keys.PARENT_MODE_ENABLED] = value
+            if (!value) {
+                p.remove(Keys.PARENT_PIN_HASH)
+                p.remove(Keys.PARENT_PIN_SALT)
+            }
+            applied = true
+        }
+        return applied
+    }
     val accountabilityName: Flow<String?> =
         context.dataStore.data.map { it[Keys.ACCOUNTABILITY_NAME] }.distinctUntilChanged()
     val accountabilityContact: Flow<String?> =
@@ -766,11 +929,16 @@ class SettingsStore(
             p[Keys.PARENT_PIN_SALT] = salt
         }.let { }
 
-    suspend fun clearParentPin() =
+    suspend fun clearParentPin(): Boolean {
+        var cleared = false
         context.dataStore.edit { p ->
+            if (p[Keys.PARENT_MODE_ENABLED] == true) return@edit
             p.remove(Keys.PARENT_PIN_HASH)
             p.remove(Keys.PARENT_PIN_SALT)
-        }.let { }
+            cleared = true
+        }
+        return cleared
+    }
 
     /** Hash + salt of the parent PIN, or null when it was never set. */
     suspend fun parentPinCredentials(): Pair<String, String>? {
