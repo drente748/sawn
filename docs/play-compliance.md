@@ -77,7 +77,7 @@ stored, logged, or transmitted. The VPN is excluded from Sawn itself
 
 ```
 Sawn requests device administrator access SOLELY to prevent the app from being
-uninstalled while the user has enabled time-lock or strict mode. It declares
+uninstalled while the user has enabled a lock. It declares
 no enforcement policies, no passwords, no remote wipe — only the uninstall
 protection hook ("BIND_DEVICE_ADMIN" with an empty admin policy set).
 ```

@@ -45,4 +45,5 @@ If you have version 1.x of the previous app — **uninstall it, then install Saw
 
 - Swiping from recents does **not** stop protection — the filter runs in the background.
 - It stops only from inside the app.
-- If time lock / strict mode is enabled, turning protection off needs your PIN.
+- The time lock and the panic lock ask for your PIN when you switch them on, and they keep
+  protection from being switched off while they last.

@@ -18,7 +18,7 @@ This document is the threat model and the measures in place.
 
 | Adversary | Goal | Mitigation |
 |-----------|------|------------|
-| Impulsive self (the user) | Turn blocking off in a weak moment | PIN gate, strict mode, device-admin uninstall lock, focus sessions |
+| Impulsive self (the user) | Turn blocking off in a weak moment | PIN gate, locks that ask for the PIN, device-admin uninstall lock, focus sessions |
 | Thief / shoulder-surfer | Read the PIN, disable protection | PBKDF2 (310k) + salt, monotonic lockout, FLAG_SECURE, tapjacking guards |
 | Malicious app on device | Trick user into disabling; capture PIN via overlay | `filterTouchesWhenObscured` + `setHideOverlayWindows` on intercept/PIN |
 | Attacker with adb / backup | Extract PIN hash or blocklist | `allowBackup=false`; PIN stored only as salted hash |
@@ -42,9 +42,8 @@ This document is the threat model and the measures in place.
   Critical apps (launcher, settings, dialer, phone, Sawn itself) are never intercepted, so
   you can't be locked out of your own device.
 - **DeviceAdmin** — declares **no enforcement policies**; active-admin status alone provides
-  uninstall protection. Disable it from Sawn Settings (behind your PIN; strict mode blocks
-  the in-app path until strict mode is off) or from Android's system Settings, which remains
-  the emergency exit. Sawn never traps you.
+  uninstall protection. Disable it from Sawn Settings (behind your PIN) or from Android's
+  system Settings, which remains the emergency exit. Sawn never traps you.
 - **NotificationListener** — opt-in; reads only the posting package name to cancel
   notifications from blocked apps. Notification **content is never read, stored, or sent**.
 
@@ -101,9 +100,9 @@ This document is the threat model and the measures in place.
   upgraded installs.
 - **The DNS filter stays the user's choice, even under a lock.** A time lock and the panic
   lock keep the *app-level* blocking on — the app you locked stays blocked — but they do not
-  force the DNS layer on, and switching it off is allowed (with a warning). Strict mode is
-  the one setting that demands the advanced mode: the user turns it on deliberately, behind
-  a PIN. So the honest promise of a lock is *"this app stays blocked"*, not *"every site on
+  force the DNS layer on, and switching it off is allowed (with a warning). The panic lock
+  is the one exception: it switches the advanced mode on when the VPN permission is already
+  granted (it never prompts for it), and the user stays free to switch it off afterwards. So the honest promise of a lock is *"this app stays blocked"*, not *"every site on
   the device stays blocked"*.
 - **DNS-over-HTTPS/TLS** can bypass the DNS sinkhole. Sawn optionally sinkholes known DoH
   resolver hostnames (Settings → Block DNS-over-HTTPS) to close the common case, but clients
@@ -144,13 +143,13 @@ This document is the threat model and the measures in place.
   system no longer considers the service enabled and no app — Sawn included — can bring it
   back programmatically; the user has to re-enable it in Settings → Accessibility. This is a
   limitation of Android, not a bug in the app. What Sawn can do, it does: it notices the loss
-  within minutes (every 3 minutes while a time lock or strict mode holds, every 15 minutes
+  within minutes (every 3 minutes while a time lock or the panic lock holds, every 15 minutes
   otherwise), asks the system to rebind the service a bounded number of times with
   exponential backoff, and posts an ongoing notice whose tap opens the accessibility settings
   directly.
-- **Strict mode** locks Sawn's own disable paths (switch, tile, early focus exit, in-app
-  admin disable), not Android's system Settings. Deactivating device admin or force-stopping
-  the app from the OS remains possible — the deliberate emergency exit.
+- **~~Strict mode~~ — removed from the product.** The locks now ask for the PIN themselves
+  when they are switched on, and the uninstall protection is switched on with them, so the
+  impulsive-disable gap it covered is covered by the locks instead.
 - The PIN is not yet bound to the hardware Keystore/StrongBox — planned as defense-in-depth
   against offline extraction on rooted devices (the salted 310k-PBKDF2 hash + no-backup is the
   current protection).

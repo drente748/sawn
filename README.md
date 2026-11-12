@@ -1,7 +1,7 @@
 # Sawn 2.2.0
 
 **صَوْن (Sawn) — a local, account-free, tracking-free Android blocker.** Blocks websites (via an
-on-device DNS filter) and apps, with schedules, focus sessions, strict mode, a time lock, and a
+on-device DNS filter) and apps, with schedules, focus sessions, a time lock, a panic lock, and a
 streak rebuilt from a single source of truth. Arabic-first with full English; Latin digits
 everywhere.
 
@@ -43,8 +43,8 @@ reaches an address bar. It also cannot enforce SafeSearch or DoH blocking, which
 features. The advanced mode has no such gap.
 
 The DNS filter is the user's choice **even while a lock is running**: a time lock or the
-panic lock cannot switch it off for them, and strict mode is the one setting that demands
-the advanced mode — the user chooses strict mode deliberately, behind a PIN.
+panic lock cannot switch it off for them. The strict mode is gone: the locks themselves now
+ask for the PIN, and the panic lock switches the advanced mode on when it can.
 
 The badge, the modes, and the fact that a **live time lock keeps the app-level blocking
 on** are all covered by unit tests — see [`docs/SECURITY.md`](docs/SECURITY.md) for the

@@ -18,7 +18,7 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
 2. **Auditable.** Every permission's use is visible in code and documented in
    [SECURITY.md](SECURITY.md). This matters because a blocker asks for VPN + accessibility,
    exactly the permissions malware wants.
-3. **Hard to bypass, easy to leave.** Strict mode makes impulsive disabling hard, but the
+3. **Hard to bypass, easy to leave.** A lock makes impulsive disabling hard, but the
    user is always ultimately in control (no dark patterns, clean uninstall when not in strict
    mode).
 
@@ -76,8 +76,8 @@ domains the blocklist holds.
 **Two named modes, not a toggle.** `ProtectionMode.FULL` (DNS + accessibility) — *advanced* —
 and `ProtectionMode.LIGHT` (accessibility only) — *normal* — are the settings the user picks.
 The normal mode never starts the VPN, so the connection permission is never requested at all.
-Strict mode demands the advanced mode; the time lock and the panic lock keep the app-level
-blocking on but leave the DNS layer to the user.
+The time lock keeps the app-level blocking on but leaves the DNS layer to the user; the panic
+lock switches the advanced mode on when the VPN permission is already granted.
 
 ### Key files
 - `vpn/SawnVpnService.kt` — establishes a local TUN, routes only DNS into it, and either
@@ -117,8 +117,8 @@ blocking on but leave the DNS layer to the user.
 `isBlockingActiveNow = focusEndsAt > trustedNow || (masterEnabled && (alwaysOn || anyEnabledScheduleNow()))`.
 The VPN calls `blockedDomains()`; the accessibility service calls `decideForPackage(pkg)`;
 the browser engine calls `coordinator.evaluateDomain(host)`.
-Strict mode and a strict focus session lock the master switch, the Quick Settings tile, early
-focus exit, and in-app device-admin disable; enabling strict mode requires a PIN.
+A lock asks for the PIN when it is switched on, and switches the uninstall protection on
+with it; a strict focus session keeps its own extra friction.
 
 ## Schedules
 `Schedule` = name + `daysMask` (bit0=Mon…bit6=Sun) + start/end minute-of-day. Windows wrap
@@ -141,9 +141,9 @@ Destructive fallback is limited to downgrades in development; real upgrades migr
   profile (currently schedules gate the whole list).
 - **Conditions engine**: extend `BlockEngine` with pluggable `Condition`s — time (done),
   Wi-Fi SSID, location geofence, app launch-count, daily usage-limit.
-- **Strict mode enforcement** (implemented): while protection is on, lock the in-app master
+- **Lock enforcement** (implemented): while a lock is on, lock the in-app master
   switch, the Quick Settings tile, early focus exit, and in-app device-admin disable; require
-  a PIN to enable strict mode. Android's own device-admin deactivation remains the documented
+  a PIN. Android's own device-admin deactivation remains the documented
   emergency exit.
 - **PIN lock** (implemented): gates settings, blocklist, schedules, app/feed management, and
   disable paths; includes a compounding clock-tamper-resistant lockout.
@@ -164,7 +164,7 @@ Destructive fallback is limited to downgrades in development; real upgrades migr
 1. `ScheduleEvaluator` — pure logic, cover midnight-wrap and day boundaries.
 2. `DnsPacket` — parse/build round-trips against captured DNS packets.
 3. `BlockingPolicy` / `StrictPolicy` / `AccessController` — decision tables across schedules,
-   focus, grants, limits, and strict-mode combinations.
+   focus, grants, limits, and lock combinations.
 4. `DomainMatcher` / `PinLockoutPolicy` / `AdultListFetcher` parsing — suffix boundaries,
    malformed hosts, clock/boot transitions, and hostile response shapes.
 5. `EmergencyLockdown` / `LockdownPolicy` — the lock invariants: it cannot be cancelled, it
@@ -182,6 +182,6 @@ Destructive fallback is limited to downgrades in development; real upgrades migr
   photos/videos, private messages used as a bypass, and app-version changes to view ids can
   escape detection; users should also enable each platform's built-in sensitive-content
   filters. It covers native apps, not social sites inside a browser.
-- Strict mode enforces the in-app disable paths, tile, focus cancellation, and in-app
+- A lock enforces the in-app disable paths, tile, focus cancellation, and in-app
   device-admin disable. Android still allows deactivating device admin from system Settings;
   that is the deliberate emergency exit, not a bypass inside Sawn.

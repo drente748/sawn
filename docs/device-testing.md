@@ -22,8 +22,8 @@ references.
 - Pull down the shade → edit (pencil) → drag the **Sawn** tile into the active set.
 - Tap it. ✅ Blocking toggles on/off (tile shows active/inactive).
 - With a PIN set, tapping to turn **off** should open the app for the PIN.
-- With strict mode on and protection on, tapping **off** should open the app and must not
-  disable protection — the tile cannot bypass strict mode.
+- With a PIN set, tapping **off** opens the app for the PIN — the tile cannot switch
+  protection off by itself.
   *(Not verifiable on a headless emulator — `cmd statusbar click-tile` doesn't invoke it.)*
 
 ### 3. DNS-over-HTTPS reality check
@@ -39,7 +39,14 @@ references.
 - Try to uninstall Sawn from the launcher / system settings.
 - ✅ Android should refuse until you turn protection off first.
 
-### 5. Strict mode + PIN
+### 5. ~~Strict mode~~ — removed from the product
+The section is kept for the numbering; nothing to verify here.
+
+### 5a. ~~Strict mode~~ — removed from the product
+The strict mode is gone from the product; the locks ask for the PIN when they are
+switched on and the uninstall protection is switched on with them. The old checks are
+kept here for the record only, not as a promise:
+
 - Set a PIN, enable strict mode, turn protection on.
 - ✅ Home shows "Strict lock on"; the master switch cannot be turned off.
 - ✅ The tile opens Sawn instead of turning protection off.
@@ -69,7 +76,10 @@ references.
 - While a grant is active, go Home and wait past expiry. ✅ No intercept should appear in the
   background.
 
-### 9. Strict-mode bypass attempts
+### 9. ~~Strict-mode bypass attempts~~ — removed from the product
+The strict mode is gone; the locks now ask for the PIN and keep the uninstall protection
+on. The old checks are kept for the record only, not as a promise:
+
 - With strict mode on, try the Home switch and the Quick Settings tile. ✅ Both must refuse
   without stopping the VPN.
 - Start a focus session with "Strict" unchecked while strict mode is on, then try to end it

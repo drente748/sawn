@@ -536,6 +536,26 @@ guess with a timer, the tile starts the 15-minute lock on a tap, and the duratio
 picker lives in the app where the user can see what they are choosing.
 
 
+## 15. قرارات الأقفال + إلغاء وضع الانضباط
+
+The lock section, decided. **No code was touched.**
+
+| Decision | Consequence |
+|---|---|
+| **Strict mode is cancelled** (with the parental mode) | It was the permanent PIN-gated mode. The locks now ask for the PIN themselves when they are switched on, so the impulsive-disable gap it covered is covered by the locks instead — no permanent mode, no second gate. `StrictPolicy`, the strict-mode settings and the strict-focus variant go with it. |
+| **The locks ask for the PIN** | Switching a lock on requires the PIN when one is set. It is also the answer to the panic lock's "one wrong tap and you are locked for 15 minutes" problem. |
+| **The uninstall protection is switched on with the lock** | Instead of refusing the lock because the device admin was not active, the lock starts and the system asks for the admin. A lock that cannot be written is worse than a prompt. |
+| **The time lock keeps requiring the VPN permission** | The time lock means full protection. A user in the normal mode can still switch the DNS filter on and off whenever they want. |
+| **The panic lock never prompts for the VPN permission** | It switches the advanced mode on automatically when the permission already exists, and the user stays free to switch it off afterwards. The lock itself cannot be stopped. |
+| **No escape in the panic lock** | The three-minute escape belongs to the per-item rule only — an escape would break "every app is blocked". |
+| **Blocking apps is a separate feature** | The per-item rule needs neither the time lock nor the reverse: the user can lock their apps during a time lock or without one. |
+
+Documentation updated: `feature-map.md` (§3 locks and §0 modes), `SECURITY.md`, `spec.md`,
+`privacy.md`, `play-compliance.md`, `device-testing.md`, `install-{ar,en}.md`, `README.md`,
+`dns-engine.md` and `per-app-rule.md`.
+
+---
+
 ## 14. إلغاء وضع وليّ الأمر مؤقتاً
 
 The parental mode is **out of the product for now**: no second parent PIN, no locked
