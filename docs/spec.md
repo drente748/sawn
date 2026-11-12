@@ -45,8 +45,36 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
 │ SawnVpnService│  │ AppBlockA11yService│   │  BootReceiver    │
 │ DNS sinkhole    │  │ foreground-app     │   │  re-arm on boot  │
 │ (websites)      │  │ block (apps)       │   └──────────────────┘
+│ OPTIONAL engine │  │ + browser engine   │
 └─────────────────┘  └────────────────────┘
 ```
+
+### The engines
+
+Blocking is done by **three engines**, and the user chooses which of them run:
+
+| Engine | Mechanism | Covers | Cost |
+|---|---|---|---|
+| `DNS` | `SawnVpnService` — a local DNS sinkhole | Every lookup, in every app | Battery + the VPN permission |
+| `BROWSER` | `AppBlockAccessibilityService` — reads the address bar of a known browser | Browsers only | Accessibility only |
+| `APP` | `AppBlockAccessibilityService` — blocks a foreground package | Native apps | Accessibility only |
+
+`BlockCoordinator` (in `:core:domain`, pure Kotlin) is the single place that answers
+"what is protecting me right now, and is this host blocked?". It exposes:
+
+- `getActiveEngines(): Set<BlockingEngineType>` — the engines that are live.
+- `getProtectionLevel(): ProtectionLevel` — `Full` (DNS live), `BrowserOnly` (accessibility
+  only), `None` (nothing live), `Paused` (protection deliberately off).
+- `evaluateDomain(host)` — the decision for one host, with the engine that owns it.
+- `reportBlock(decision, source)` — the counter for an enforced block.
+
+The rules live in `ProtectionPolicy` and are unit-tested without a device. The Android
+side only supplies facts (`SawnBlockCoordinatorEnv`): which engines are running, and which
+domains the blocklist holds.
+
+**Two named modes, not a toggle.** `ProtectionMode.FULL` (DNS + accessibility) and
+`ProtectionMode.LIGHT` (accessibility only) are the settings the user picks. The light mode
+never starts the VPN, so the connection permission is never requested at all.
 
 ### Key files
 - `vpn/SawnVpnService.kt` — establishes a local TUN, routes only DNS into it, and either
@@ -60,6 +88,15 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
   `feature/SocialContentDetector.kt` checks one bounded node scan for NSFW labels, known adult
   Reddit communities, and explicit search fields. `BrowserUrlMonitor` also scans bounded
   browser nodes for adult hosts that bypassed DNS.
+- `accessibility/BrowserBlockingEngine.kt` — the browser engine: reads the address bar of a
+  known browser and blocks what the blocklist forbids. A **focused** bar means the user is
+  typing, so the reading is deferred 300 ms and re-read; an **unfocused** bar means the
+  browser already navigated there, so the block happens at once.
+- `accessibility/BrowserHostExtractor.kt` (in `:core:domain`) — the bounded tree walk: at most
+  80 nodes, matched by the last segment of the view id, and it never enters a WebView.
+- `accessibility/BlockOverlayController.kt` — shows the block notice over the browser with a
+  `TYPE_ACCESSIBILITY_OVERLAY` window. No `SYSTEM_ALERT_WINDOW` permission is needed, because
+  an overlay drawn by the accessibility service belongs to it.
 - `feature/SocialPlatform.kt` — supported social packages, per-platform coverage copy, and
   built-in filter guidance. Settings persist independently per platform.
 - `block/BlockEngine.kt` + `block/ScheduleEvaluator.kt` — the single source of truth for
@@ -68,15 +105,17 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
   bundled ad/tracker list.
 - `block/DomainMatcher.kt` — exact/parent-domain suffix matching in time proportional to the
   host's label count, not the size of the blocklist, plus hostname validation.
-- `data/` — Room (`BlockedItem`, `Schedule`, `AccessGrant`) + DataStore settings.
+- `data/` — Room (`BlockedItem`, `Schedule`, `AccessGrant`, `ProtectedDayEntity`) + DataStore
+  settings.
 - `security/PinHasher.kt` — PBKDF2-HMAC-SHA256, salted; PIN never stored in plaintext.
 - `security/PinLockoutPolicy.kt` — pure elapsed/wall-clock lockout policy.
 - `security/AdultListFetcher.kt` — validated manual HTTPS refresh that preserves the last
   valid list on failure.
 
 ### Blocking decision
-`isBlockingActiveNow = focusEndsAt > trustedNow || (masterEnabled && (alwaysOn || anyEnabledScheduleActiveNow()))`.
-The VPN calls `blockedDomains()`; the accessibility service calls `decideForPackage(pkg)`.
+`isBlockingActiveNow = focusEndsAt > trustedNow || (masterEnabled && (alwaysOn || anyEnabledScheduleNow()))`.
+The VPN calls `blockedDomains()`; the accessibility service calls `decideForPackage(pkg)`;
+the browser engine calls `coordinator.evaluateDomain(host)`.
 Strict mode and a strict focus session lock the master switch, the Quick Settings tile, early
 focus exit, and in-app device-admin disable; enabling strict mode requires a PIN.
 
@@ -85,9 +124,14 @@ focus exit, and in-app device-admin disable; enabling strict mode requires a PIN
 past midnight when `end <= start`. `ScheduleEvaluator` is pure and unit-testable.
 
 ## Data model migrations
-Room is at `version = 2` with `exportSchema = true`; generated schemas live in `app/schemas`.
+Room is at `version = 5` with `exportSchema = true`; the generated schemas live in
+`core/data/schemas/` and are checked into git, so a migration test can validate against
+the *real* schema rather than a hand-written copy.
 `MIGRATION_1_2` preserves existing blocklists while adding pause/limit fields and access
-grants. Destructive fallback is limited to downgrades in development; real upgrades migrate.
+grants. `MIGRATION_4_5` adds the three per-engine flags to `protected_days`, so a day
+counts as protected when *any* engine was enforcing it; the days recorded before it are
+re-labelled as DNS-protected, because the DNS filter was the only engine back then.
+Destructive fallback is limited to downgrades in development; real upgrades migrate.
 
 ## Roadmap detail (parity + beyond)
 

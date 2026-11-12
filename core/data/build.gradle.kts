@@ -26,6 +26,13 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+
+    // MigrationTestHelper reads the exported schemas from the assets, under the
+    // database's canonical name — which is exactly how the schemas folder is laid out.
+    sourceSets {
+        getByName("test") { assets.srcDir("$projectDir/schemas") }
+        getByName("androidTest") { assets.srcDir("$projectDir/schemas") }
+    }
 }
 
 ksp {
@@ -46,4 +53,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }

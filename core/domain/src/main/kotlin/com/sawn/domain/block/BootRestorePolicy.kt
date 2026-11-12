@@ -8,6 +8,14 @@ data class BootRestoreState(
     val lockdownActive: Boolean,
     /** Blocking is enforced right now (master + always-on/schedule, focus, or the lock). */
     val filterActive: Boolean,
+    /**
+     * Whether the DNS/VPN engine was part of the protection before the reboot.
+     *
+     * In light mode there is no VPN, so there is nothing to restart — the accessibility
+     * engines carry the protection on their own. A live time lock overrides this and
+     * demands the full stack back.
+     */
+    val vpnEnabled: Boolean = true,
 )
 
 /**
@@ -32,7 +40,8 @@ object BootRestorePolicy {
 
     fun decide(state: BootRestoreState): BootRestoreDecision = when {
         // The lock was written by the user's past self. It wins over every other flag and
-        // is restored whole, so a reboot can never quietly weaken it.
+        // is restored whole, so a reboot can never quietly weaken it. That includes the
+        // DNS engine: the lock demands the full stack, not just the light one.
         state.lockdownActive -> BootRestoreDecision(
             reassertCoreFlags = true,
             startFilter = true,
@@ -49,7 +58,9 @@ object BootRestorePolicy {
         // Ordinary protection (master/always-on, schedule window, or focus session).
         state.filterActive -> BootRestoreDecision(
             reassertCoreFlags = false,
-            startFilter = true,
+            // No VPN engine means no VPN to restart; the accessibility engines are
+            // already running and carry the protection.
+            startFilter = state.vpnEnabled,
             recordProtectedDay = true,
             warnMissingAdmin = false,
         )

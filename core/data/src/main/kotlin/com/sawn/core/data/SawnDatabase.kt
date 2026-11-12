@@ -21,7 +21,7 @@ class Converters {
 @Database(
     entities = [BlockedItem::class, Schedule::class, AccessGrant::class, ProtectedDayEntity::class,
         ChallengeRunEntity::class, ChallengeDayEntity::class, TriggerLogEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -33,6 +33,32 @@ abstract class SawnDatabase : RoomDatabase() {
 
     companion object {
         @Volatile private var instance: SawnDatabase? = null
+
+        /**
+         * v4 → v5: which engine protected each day.
+         *
+         * The three flags replace the single "source" label as the source of truth: a day
+         * counts as protected when *any* engine was enforcing it. The new columns start
+         * at 0 so the migration is purely additive, and the days recorded before it are
+         * re-labelled as DNS-protected — that is the engine that was running back then.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE protected_days ADD COLUMN hasDnsProtection INTEGER NOT NULL DEFAULT 0",
+                )
+                db.execSQL(
+                    "ALTER TABLE protected_days ADD COLUMN hasBrowserProtection INTEGER NOT NULL DEFAULT 0",
+                )
+                db.execSQL(
+                    "ALTER TABLE protected_days ADD COLUMN hasAppProtection INTEGER NOT NULL DEFAULT 0",
+                )
+                // Every day recorded before this migration was recorded by the DNS filter.
+                db.execSQL(
+                    "UPDATE protected_days SET hasDnsProtection = 1 WHERE hasDnsProtection = 0",
+                )
+            }
+        }
 
         /**
          * v3 → v4: تحدي 30 يوم + سجلات المحفزات (Plan B).
@@ -103,7 +129,7 @@ abstract class SawnDatabase : RoomDatabase() {
                     SawnDatabase::class.java,
                     "sawn.db",
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     // قاعدة بيانات محلية للتجريب — 2.1 مخصصة للتوزيع الخاص.
                     // أي فشل في الهجرة (أو اختلاف مخطط) لن يوقف التطبيق أبدًا.
                     .fallbackToDestructiveMigration()

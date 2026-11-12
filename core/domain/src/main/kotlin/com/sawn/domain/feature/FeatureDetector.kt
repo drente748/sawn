@@ -24,6 +24,14 @@ interface UiNode {
     /** True for the active tab; selected-only signals (e.g. Instagram's search_tab) use it. */
     val isSelected: Boolean get() = false
 
+    /**
+     * The widget class name, e.g. "android.widget.EditText" or "android.webkit.WebView".
+     *
+     * Used to tell a browser's own chrome from the web content inside it: a page lives
+     * in a WebView, and light mode deliberately never descends into one.
+     */
+    val className: String? get() = null
+
     /** First child matching a fully-qualified resource id, e.g. "com.android.chrome:id/url_bar". */
     fun findByViewId(id: String): UiNode? = null
 

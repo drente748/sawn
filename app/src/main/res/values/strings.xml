@@ -151,6 +151,21 @@
     <!-- المتصفح والخصوصية -->
     <string name="browsers_title">Supported browsers</string>
     <string name="browsers_count">%1$d supported browsers — works automatically, no extra configuration.</string>
+
+    <!-- وضع الحماية (كامل / خفيف) -->
+    <string name="protection_mode_title">Protection mode</string>
+    <string name="protection_mode_full">Full protection</string>
+    <string name="protection_mode_full_desc">Checks every DNS lookup, so blocked sites are stopped everywhere — including inside other apps. Uses more battery and needs the connection permission.</string>
+    <string name="protection_mode_light">Light protection</string>
+    <string name="protection_mode_light_desc">Uses accessibility only: blocked sites are still stopped in the browser, but not inside other apps. No connection permission and far less battery.</string>
+    <string name="protection_mode_locked">A live time lock keeps the full protection on.</string>
+    <string name="browser_blocked_notice">Blocked by Sawn: %1$s</string>
+    <string name="protection_badge_full">Full protection</string>
+    <string name="protection_badge_browser">Browser-only protection</string>
+    <string name="protection_badge_none">Protection is off</string>
+    <string name="protection_badge_paused">Protection is paused</string>
+    <string name="onboarding_mode_title">How should Sawn protect you?</string>
+    <string name="onboarding_mode_body">Full protection checks every DNS lookup, so blocked sites are stopped everywhere — at the cost of battery and the connection permission. Light protection uses accessibility only: it still blocks the browser, but not inside other apps.</string>
     <string name="doh_hint_title">Workaround tips (DoH)</string>
     <string name="doh_hint_body">If your browser uses encrypted DNS (DoH) it will fight the filter — turn on “Encrypted-DNS blocking” on the home screen to block encrypted DNS too.</string>
     <string name="notifications_title">Block notifications</string>

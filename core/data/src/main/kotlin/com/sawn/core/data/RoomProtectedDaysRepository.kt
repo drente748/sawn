@@ -1,5 +1,6 @@
 package com.sawn.core.data
 
+import com.sawn.domain.block.BlockingEngineType
 import com.sawn.domain.DayCell
 import com.sawn.domain.ProtectionDayPolicy
 import com.sawn.domain.repo.ProtectedDaysRepository
@@ -11,7 +12,28 @@ import java.time.LocalDate
 class RoomProtectedDaysRepository(private val dao: ProtectedDaysDao) : ProtectedDaysRepository {
 
     override suspend fun upsert(date: LocalDate, source: String) {
-        dao.upsert(ProtectedDayEntity.of(date, source))
+        // The legacy label carries no engine information. Keep the row's meaning intact by
+        // treating a "VPN" label as the DNS engine and anything else as unknown-but-set.
+        val engines = when (source.uppercase()) {
+            "VPN", "DNS" -> setOf(BlockingEngineType.DNS)
+            else -> setOf(BlockingEngineType.DNS)
+        }
+        upsert(date, engines)
+    }
+
+    override suspend fun upsert(date: LocalDate, engines: Set<BlockingEngineType>) {
+        // The insert and the merge must run together: a day that is already there must
+        // keep the flags of the engines that protected it earlier.
+        dao.record(
+            ProtectedDayEntity(
+                date = date.toString(),
+                source = sourceLabel(engines),
+                recordedAt = System.currentTimeMillis(),
+                hasDnsProtection = BlockingEngineType.DNS in engines,
+                hasBrowserProtection = BlockingEngineType.BROWSER in engines,
+                hasAppProtection = BlockingEngineType.APP in engines,
+            ),
+        )
     }
 
     override fun observeProtectedDays(): Flow<Set<LocalDate>> =
@@ -23,6 +45,14 @@ class RoomProtectedDaysRepository(private val dao: ProtectedDaysDao) : Protected
 
     override suspend fun allDays(): List<LocalDate> =
         dao.all().mapNotNull { row -> runCatching { LocalDate.parse(row) }.getOrNull() }.sorted()
+
+    /** The label of the engines that protected the day — for display and for backups. */
+    private fun sourceLabel(engines: Set<BlockingEngineType>): String = when {
+        BlockingEngineType.DNS in engines -> "VPN"
+        BlockingEngineType.BROWSER in engines -> "BROWSER"
+        BlockingEngineType.APP in engines -> "APP"
+        else -> "NONE"
+    }
 }
 
 /**

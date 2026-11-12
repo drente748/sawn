@@ -45,6 +45,12 @@ class SawnTile : TileService() {
     }
 
     private suspend fun turnOn() {
+        // In the light mode there is no DNS filter to start: the accessibility engines
+        // carry the protection, so the tile never demands the VPN permission.
+        if (!VpnController.refreshEngineEnabled(this)) {
+            applicationContext.sawnContainer.settings.setMasterEnabled(true)
+            return
+        }
         if (VpnController.consentIntent(this) != null) {
             openApp() // consent not granted yet; enable once from the app
             return

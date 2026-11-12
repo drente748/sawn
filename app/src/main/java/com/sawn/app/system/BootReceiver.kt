@@ -47,6 +47,8 @@ class BootReceiver : BroadcastReceiver() {
                         userDisabledProtection = settings.userDisabledProtection.first(),
                         lockdownActive = lockdownActive,
                         filterActive = filterActive,
+                        // In the light mode there is no DNS filter to restart.
+                        vpnEnabled = settings.protectionSnapshot().vpnEnabled,
                     ),
                 )
 

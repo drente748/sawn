@@ -116,22 +116,34 @@ class MainActivity : AppCompatActivity() {
 
                 fun toggleBlocking(enabled: Boolean, onSettled: (Boolean) -> Unit = {}) {
                     if (enabled) {
-                        requestNotificationThen {
-                            withVpn {
-                                this@MainActivity.lifecycleScope.launch {
-                                    val started = VpnController.startAndAwait(this@MainActivity)
-                                    if (started) {
-                                        vm.setMasterEnabled(true)
-                                        // سجّل اليوم فوراً: لا ننتظر إعادة فتح التطبيق كي
-                                        // يتحرك عدّاد الأيام.
-                                        vm.recordProtectedDayNow()
-                                    } else Toast.makeText(
-                                        this@MainActivity,
-                                        R.string.protection_start_failed,
-                                        Toast.LENGTH_LONG,
-                                    ).show()
-                                    SawnWidgetProvider.requestUpdate(this@MainActivity)
-                                    onSettled(started)
+                        this@MainActivity.lifecycleScope.launch {
+                            // In the light mode there is no DNS filter to start, so the app
+                            // must not ask for the VPN permission: the accessibility engines
+                            // carry the protection on their own.
+                            if (!VpnController.refreshEngineEnabled(this@MainActivity)) {
+                                vm.setMasterEnabled(true)
+                                vm.recordProtectedDayNow()
+                                SawnWidgetProvider.requestUpdate(this@MainActivity)
+                                onSettled(true)
+                                return@launch
+                            }
+                            requestNotificationThen {
+                                withVpn {
+                                    this@MainActivity.lifecycleScope.launch {
+                                        val started = VpnController.startAndAwait(this@MainActivity)
+                                        if (started) {
+                                            vm.setMasterEnabled(true)
+                                            // سجّل اليوم فوراً: لا ننتظر إعادة فتح التطبيق كي
+                                            // يتحرك عدّاد الأيام.
+                                            vm.recordProtectedDayNow()
+                                        } else Toast.makeText(
+                                            this@MainActivity,
+                                            R.string.protection_start_failed,
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                        SawnWidgetProvider.requestUpdate(this@MainActivity)
+                                        onSettled(started)
+                                    }
                                 }
                             }
                         }
@@ -156,6 +168,14 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 fun startFocus(minutes: Int, strict: Boolean) {
+                    // The light mode has no DNS filter, so a focus session there relies on
+                    // the accessibility engines — no VPN permission is requested.
+                    if (!VpnController.isEngineEnabled()) {
+                        this@MainActivity.lifecycleScope.launch {
+                            vm.startFocus(minutes, strict)
+                        }
+                        return
+                    }
                     requestNotificationThen {
                         withVpn {
                             this@MainActivity.lifecycleScope.launch {

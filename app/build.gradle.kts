@@ -130,7 +130,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.androidx.biometric)
 
     // On-device NSFW image screening: official TF Lite Task Vision runtime. The model
     // file (MobileNet AutoML, ~5.8MB) ships in assets/nsfw/ so nothing is fetched at

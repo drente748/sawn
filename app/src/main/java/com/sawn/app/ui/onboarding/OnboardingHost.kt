@@ -22,8 +22,10 @@ import com.sawn.app.ui.onboarding.steps.QuestionTwoStep
 import com.sawn.app.ui.onboarding.steps.QuestionThreeStep
 import com.sawn.app.ui.onboarding.steps.QuestionFourStep
 import com.sawn.app.ui.onboarding.steps.PlanRevealStep
+import com.sawn.app.ui.onboarding.steps.ProtectionModeStep
+import com.sawn.domain.block.ProtectionMode
 
-private enum class OnboardStep { WELCOME, PROFILE, Q1, Q2, Q3, Q4, PLAN }
+private enum class OnboardStep { WELCOME, PROFILE, Q1, Q2, Q3, Q4, MODE, PLAN }
 
 /**
  * الترحيب «فجر الأمل» — تدفق كامل: ترحيب ← ملف محلي ← 4 أسئلة ← خطتك الشخصية.
@@ -38,10 +40,14 @@ fun OnboardingHost(
     var step by remember { mutableStateOf(OnboardStep.WELCOME) }
     var answers by remember { mutableStateOf(initialAnswers ?: OnboardingAnswers()) }
     val reduceMotion by vm.reduceMotion.collectAsStateWithLifecycle()
+    // The mode is asked for before the permissions: the user knows what they are agreeing
+    // to. It defaults to the light mode, so no VPN permission is demanded unasked.
+    var mode by remember { mutableStateOf(ProtectionMode.LIGHT) }
 
     BackHandler(enabled = step != OnboardStep.WELCOME) {
         step = when (step) {
-            OnboardStep.PLAN -> OnboardStep.Q4
+            OnboardStep.PLAN -> OnboardStep.MODE
+            OnboardStep.MODE -> OnboardStep.Q4
             OnboardStep.Q4 -> OnboardStep.Q3
             OnboardStep.Q3 -> OnboardStep.Q2
             OnboardStep.Q2 -> OnboardStep.Q1
@@ -86,7 +92,15 @@ fun OnboardingHost(
                     selected = answers.content,
                     onChange = { answers = answers.copy(content = it) },
                     onBack = { step = OnboardStep.Q3 },
-                    onBuildPlan = { step = OnboardStep.PLAN },
+                    onBuildPlan = { step = OnboardStep.MODE },
+                )
+                OnboardStep.MODE -> ProtectionModeStep(
+                    selected = mode,
+                    onSelect = { mode = it },
+                    onContinue = {
+                        vm.setProtectionMode(mode)
+                        step = OnboardStep.PLAN
+                    },
                 )
                 OnboardStep.PLAN -> PlanRevealStep(
                     answers = answers,

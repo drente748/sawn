@@ -7,7 +7,10 @@ import com.sawn.core.data.RoomStatsRepository
 import com.sawn.core.data.SawnDatabase
 import com.sawn.core.data.SettingsStore
 import com.sawn.domain.block.AccessController
+import com.sawn.domain.block.BlockCoordinator
 import com.sawn.domain.block.BlockEngine
+import com.sawn.app.block.SawnBlockCoordinatorEnv
+import com.sawn.app.util.PermissionsHelper
 import com.sawn.domain.repo.ProtectedDaysRepository
 import com.sawn.domain.repo.StatsRepository
 import com.sawn.app.usage.UsageStatsHelper
@@ -68,6 +71,26 @@ object AppModule {
             pauseDefeatsToday = { settings.pauseDefeatsToday(settings.trustedNow()) },
             deepFocusState = { settings.deepFocusState() },
         )
+
+    /**
+     * The one place that answers "what is protecting me, and is this host blocked?".
+     *
+     * The engine set is read live: the DNS engine counts only while the tunnel is up, the
+     * accessibility engines only while the service is enabled in the system settings.
+     */
+    @Provides
+    @Singleton
+    fun blockCoordinator(
+        settings: SettingsStore,
+        repo: BlockRepository,
+        @ApplicationContext ctx: Context,
+    ): BlockCoordinator = SawnBlockCoordinatorEnv.create(
+        settings = settings,
+        repo = repo,
+        accessibilityEnabled = { PermissionsHelper.isAccessibilityEnabled(ctx) },
+        // The app-level engine is the accessibility service too: it blocks whole apps.
+        appBlockingEnabled = { PermissionsHelper.isAccessibilityEnabled(ctx) },
+    )
 
     @Provides
     @Singleton

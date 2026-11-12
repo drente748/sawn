@@ -5,9 +5,14 @@ import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sawn.domain.block.BlockingPolicy
+import com.sawn.domain.block.BlockingEngineType
+import com.sawn.domain.block.ProtectionLevel
+import com.sawn.domain.block.ProtectionMode
+import com.sawn.domain.block.ProtectionPolicy
 import com.sawn.app.R
 import com.sawn.domain.block.ScheduleEvaluator
 import com.sawn.domain.block.StrictPolicy
+import com.sawn.app.vpn.SawnVpnService
 import com.sawn.domain.model.BlockType
 import com.sawn.core.data.SawnDatabase
 import com.sawn.core.data.BlockedItem
@@ -161,6 +166,22 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     fun setAlwaysOn(value: Boolean) = viewModelScope.launch { container.settings.setAlwaysOn(value) }
 
+    // --- محرّكات الحجب (الوضع الكامل / الخفيف) ---------------------------------
+    /** The mode the user picked: full (VPN + accessibility) or light (accessibility only). */
+    val protectionMode: StateFlow<ProtectionMode> =
+        container.settings.protectionMode
+            .catch { emit(ProtectionMode.FULL) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProtectionMode.FULL)
+
+    /** Switches between the two modes. A live time lock refuses to weaken the filter. */
+    fun setProtectionMode(mode: ProtectionMode) =
+        viewModelScope.launch {
+            container.settings.setProtectionMode(mode)
+            // The VPN engine's own gate must follow the mode, or a stale value could
+            // start a tunnel the user just switched off.
+            VpnController.refreshEngineEnabled(getApplication())
+        }
+
     val blockDoh: StateFlow<Boolean> =
         container.settings.blockDoh
         .catch { emit(false) }
@@ -301,6 +322,33 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
     }
         .catch { emit(false) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /**
+     * What is protecting the user right now, as the badge shows it.
+     *
+     * It is read live: the DNS engine counts only while the tunnel is up and the
+     * accessibility engines only while the service is enabled, so the badge never
+     * promises more than is actually running.
+     */
+    val protectionLevel: StateFlow<ProtectionLevel> =
+        combine(
+            container.settings.protectionMode,
+            container.settings.masterEnabled,
+            enforcementActive,
+            SawnVpnService.runningFlow,
+        ) { mode, masterEnabled, enforced, vpnRunning ->
+            val engines = buildSet {
+                if (mode.usesDnsEngine && vpnRunning) add(BlockingEngineType.DNS)
+                if (mode.usesAccessibilityEngines) {
+                    add(BlockingEngineType.BROWSER)
+                    add(BlockingEngineType.APP)
+                }
+            }
+            ProtectionPolicy.level(engines, paused = !masterEnabled && !enforced)
+        }
+            .catch { emit(ProtectionLevel.None) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProtectionLevel.None)
+
     /** المدة المنتظرة — لا تُكتب أي قيمة قبل موافقة Device Admin. */
     private var pendingLockdownDurationMs: Long? = null
 

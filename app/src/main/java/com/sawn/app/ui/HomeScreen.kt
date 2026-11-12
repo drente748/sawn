@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -63,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.R
+import com.sawn.app.ui.status.ProtectionBadge
 import com.sawn.app.ui.theme.SawnPalette
 import com.sawn.app.vpn.SawnVpnService
 import com.sawn.domain.DayCell
@@ -130,6 +132,7 @@ fun HomeScreen(
     val alwaysOn by vm.alwaysOn.collectAsStateWithLifecycle()
     val reduceMotion by vm.reduceMotion.collectAsStateWithLifecycle()
     val enforcementActive by vm.enforcementActive.collectAsStateWithLifecycle()
+    val protectionLevel by vm.protectionLevel.collectAsStateWithLifecycle()
     val vpnRunning by SawnVpnService.runningFlow.collectAsStateWithLifecycle()
     val journal by vm.blockJournal.collectAsStateWithLifecycle()
     val items by vm.items.collectAsStateWithLifecycle()
@@ -264,6 +267,9 @@ fun HomeScreen(
                             color = SawnPalette.InkSoft,
                         )
                     }
+                    // شارة صريحة: ما الذي يحمي المستخدم فعلاً الآن؟
+                    Spacer(Modifier.height(4.dp))
+                    ProtectionBadge(level = protectionLevel)
                 }
             }
             // حالة التشغيل + زر الإجراء

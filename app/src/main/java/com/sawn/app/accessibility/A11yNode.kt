@@ -20,6 +20,8 @@ class A11yNode(private val info: AccessibilityNodeInfo?) : UiNode {
         get() = runCatching { info?.isVisibleToUser ?: false }.getOrDefault(false)
     override val isSelected: Boolean
         get() = runCatching { info?.isSelected ?: false }.getOrDefault(false)
+    override val className: String?
+        get() = runCatching { info?.className?.toString() }.getOrNull()
     override fun child(index: Int): UiNode? =
         runCatching { info?.getChild(index)?.let { A11yNode(it) } }.getOrNull()
 

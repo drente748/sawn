@@ -24,6 +24,28 @@ resolver (with a fallback only when Android exposes none), and no query is logge
 traffic is not proxied. Sawn excludes itself so it never filters its own traffic.
 Full architecture and privacy model: [`docs/spec.md`](docs/spec.md).
 
+### Protection modes
+
+The DNS filter is **optional**. The settings screen offers two named modes — not a
+switch — because they are two different promises:
+
+| Mode | What runs | What it covers | Cost |
+|------|-----------|----------------|------|
+| **Full protection** | DNS filter + accessibility (browsers and apps) | Blocked sites are stopped **everywhere**, including inside other apps | More battery; needs the VPN connection permission |
+| **Light protection** | Accessibility only | Blocked sites are still stopped **in the browser** | No VPN permission; far less battery |
+
+A badge on the home screen always says which one is actually running right now, so the
+app never claims more protection than it delivers.
+
+**What light mode cannot do:** it reads the browser's own address bar, so it cannot see a
+page opened *inside* another app (a WebView), and it cannot stop a lookup that never
+reaches an address bar. It also cannot enforce SafeSearch or DoH blocking, which are DNS
+features. The full mode has no such gap.
+
+The badge, the modes, and the fact that a **live time lock forces the full stack back**
+are all covered by unit tests — see [`docs/SECURITY.md`](docs/SECURITY.md) for the full
+list of limits.
+
 ### Time lock
 
 A lock written from the home screen freezes protection: it cannot be turned off, its core
@@ -52,7 +74,8 @@ warden/
 ## Modules
 
 - `:core:domain` — pure Kotlin, no Android: day/streak policy, schedules, lock policy, backup
-  codec, feature detectors. Fully unit-tested.
+  codec, feature detectors, and the `BlockCoordinator` that decides what is protecting the
+  user right now. Fully unit-tested (JUnit 4 + Kotest).
 - `:core:data` — Room (`protected_days` is the streak source of truth) + DataStore repositories
   behind domain interfaces.
 - `:app` — Compose UI, services (VPN / Accessibility / DeviceAdmin / QS tile / boot / workers),
@@ -80,9 +103,6 @@ warden/
       accountability partner, encrypted `.sawnbak` backup (AES-256-GCM, real export/import),
       parent mode with a separate parent PIN that locks management
 - [ ] Year heatmap, biometric unlock
-
-  The biometric helper (`BiometricHelper`) is in place but not wired to any
-  screen yet — every path is still PIN-gated.
 - [x] Home-screen widget (2×2): protected-day streak + protection state, refreshed
   whenever protection state changes
 

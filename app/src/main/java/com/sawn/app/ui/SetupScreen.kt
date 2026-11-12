@@ -131,7 +131,16 @@ fun SetupScreen(onBack: () -> Unit = {}) {
     )
 
     val openSettings = stringResource(R.string.open_settings)
-    val essential = listOf(state.accessibility, state.vpnConsent, state.filter)
+    // In the light mode there is no DNS filter, so the connection permission is not
+    // part of the essentials — it is not even asked for.
+    val dnsEngineWanted = VpnController.isEngineEnabled()
+    val essential = buildList {
+        add(state.accessibility)
+        if (dnsEngineWanted) {
+            add(state.vpnConsent)
+            add(state.filter)
+        }
+    }
     val extras = buildList {
         add(state.notifications)
         add(state.notificationListener)
@@ -180,25 +189,29 @@ fun SetupScreen(onBack: () -> Unit = {}) {
 
         // إذن الاتصال: كان غائباً من شاشة الإعداد تماماً، فلا يعرف المستخدم لماذا
         // لا يبدأ الفلتر. الآن يُطلب من هنا مباشرة، ويُختبر بعد العودة.
-        SetupRow(
-            title = stringResource(R.string.checkup_consent_title),
-            subtitle = stringResource(R.string.checkup_consent_sub),
-            granted = state.vpnConsent,
-            actionLabel = stringResource(R.string.checkup_consent_action),
-        ) {
-            val consent = VpnController.consentIntent(context)
-            if (consent != null) consentLauncher.launch(consent)
-            else VpnController.start(context)
-        }
+        // The DNS rows only exist in the full mode: in the light mode there is no
+        // connection permission to grant and no filter to start.
+        if (dnsEngineWanted) {
+            SetupRow(
+                title = stringResource(R.string.checkup_consent_title),
+                subtitle = stringResource(R.string.checkup_consent_sub),
+                granted = state.vpnConsent,
+                actionLabel = stringResource(R.string.checkup_consent_action),
+            ) {
+                val consent = VpnController.consentIntent(context)
+                if (consent != null) consentLauncher.launch(consent)
+                else VpnController.start(context)
+            }
 
-        SetupRow(
-            title = stringResource(R.string.checkup_filter_title),
-            subtitle = stringResource(R.string.checkup_filter_sub),
-            granted = state.filter,
-            actionLabel = stringResource(R.string.checkup_filter_action),
-        ) {
-            val consent = VpnController.consentIntent(context)
-            if (consent != null) consentLauncher.launch(consent) else VpnController.start(context)
+            SetupRow(
+                title = stringResource(R.string.checkup_filter_title),
+                subtitle = stringResource(R.string.checkup_filter_sub),
+                granted = state.filter,
+                actionLabel = stringResource(R.string.checkup_filter_action),
+            ) {
+                val consent = VpnController.consentIntent(context)
+                if (consent != null) consentLauncher.launch(consent) else VpnController.start(context)
+            }
         }
 
         SectionLabel(

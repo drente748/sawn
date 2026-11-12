@@ -1,0 +1,260 @@
+# CHANGES — `feat/optional-vpn`
+
+Branch: `feat/optional-vpn` (base: `sawn-rebuild` / `origin/main` @ `c14bc46`)
+Status: **preparation branch — no APK/AAB was produced, signed, or published.**
+
+This branch makes the DNS/VPN filter **optional**. Sawn gains a second protection mode
+that needs no connection permission at all, and every layer of the app now asks one
+single question — *"what is protecting me right now?"* — through one coordinator instead
+of each engine deciding on its own.
+
+---
+
+## 1. What changed
+
+### 1.1 A single coordinator (`:core:domain`, pure Kotlin)
+
+New `BlockCoordinator` interface and its production implementation
+`DefaultBlockCoordinator`:
+
+| Member | Meaning |
+|---|---|
+| `getActiveEngines(): Set<BlockingEngineType>` | `DNS`, `BROWSER`, `APP` — the engines live right now |
+| `getProtectionLevel(): ProtectionLevel` | `Full` / `BrowserOnly` / `None` / `Paused` |
+| `evaluateDomain(host): BlockDecision` | The decision for one host, and which engine owns it |
+| `reportBlock(decision, source)` | The counter for an enforced block |
+
+The rules live in a separate pure object, `ProtectionPolicy`, so the mapping from engine
+state to the badge is unit-tested on its own and cannot drift from the coordinator.
+
+`BlockingEngineType`, `ProtectionLevel`, `BlockSource`, `BlockDecision`,
+`ProtectionMode` are all in `:core:domain` — no Android types.
+
+The Android side is `SawnBlockCoordinatorEnv` (`:app`): it supplies the facts (is the
+tunnel up? is accessibility enabled? what is on the blocklist?) and nothing else.
+
+### 1.2 The two modes
+
+`ProtectionMode` is `FULL` (DNS + accessibility) or `LIGHT` (accessibility only).
+
+`SettingsStore` gained two switches, exposed as `vpnEnabled` and
+`browserBlockingEnabled`, with `protectionMode` derived from them. The light mode never
+starts the VPN: `VpnController.start()` refuses **before** asking the system for
+anything, so the connection permission is never requested in that mode.
+
+`SettingsStore.initializeEngineMode()` runs once on the first launch of this version and
+decides the initial mode:
+
+- a **fresh install** starts in the **light** mode — no VPN permission is demanded
+  unasked;
+- an **upgraded install keeps the filter it already had** — the `onboarding_done` flag is
+  the witness that the app already ran, so the DNS engine stays on. Silently dropping a
+  running protection on upgrade would be the worst possible surprise.
+
+A live time lock overrides both: it demands the full stack back.
+
+### 1.3 The browser engine (`:app`)
+
+`BrowserBlockingEngine` reads the address bar of a known browser and blocks what the
+blocklist forbids. It is the engine that makes the light mode useful.
+
+The tree walk (`BrowserHostExtractor`, in `:core:domain` so it is unit-tested without a
+device):
+
+- **at most 80 nodes** — a heavy page can never freeze the accessibility service;
+- **never enters a WebView** — the engine reads the browser's own chrome, never page
+  content, so it cannot read what the user sees on a page;
+- nodes are matched by the **last segment of the view id** (`com.android.chrome:id/url_bar`
+  → `url_bar`), so one list of ids covers every browser that uses the same widget, and an
+  OEM rebuild that renames the package still matches.
+
+`BrowserRegistry` names the browsers Sawn advertises and tests against — Chrome, Firefox,
+Samsung Internet, Edge, Brave, DuckDuckGo, Opera — and keeps the whole existing table
+(116 browsers) reachable.
+
+`HostNormalizer` turns whatever the bar shows into a bare host: a full URL, a breadcrumb
+(`example.com › page`), a bare title in mixed case. A search query is not a host and is
+rejected.
+
+**Typing vs. visiting.** A *focused* bar means the user is still typing: the reading is
+deferred 300 ms and then re-read, so a half-typed domain is never blocked. An *unfocused*
+bar means the browser already navigated there: the block happens at once.
+
+### 1.4 The block notice
+
+`BlockOverlayController` draws the notice with a
+`WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY` window — **not**
+`SYSTEM_ALERT_WINDOW`. An overlay drawn by the accessibility service belongs to it, so
+the user is never asked for the "draw over other apps" permission. The window is
+transparent, non-focusable and non-touchable: it must not steal the keyboard and must not
+trap the user.
+
+A notice alone would leave the blocked page on screen behind it, so the block also sends
+the browser **back** — the block has to *leave* the page, not merely cover it. The notice
+removes itself after four seconds: it is a message, not a wall.
+
+The adult-content list is left to the existing monitor, which already shows a full
+intercept screen for it; two screens for one page would be a mess.
+
+### 1.5 The badge
+
+`ProtectionBadge` on the home screen says what is actually running: full protection,
+browser-only, off, or paused. It is read from the live runtime (the tunnel's state and the
+accessibility service's state), not from the settings, so it never promises more than is
+running.
+
+### 1.6 The streak follows the engines
+
+`protected_days` gained three flags — `hasDnsProtection`, `hasBrowserProtection`,
+`hasAppProtection` — and a day counts as protected when **any** engine was enforcing it.
+The flags are merged, so a day protected first by the DNS filter and later by the browser
+engine keeps both. `MIGRATION_4_5` adds the columns and re-labels the days recorded
+before it as DNS-protected, because the DNS filter was the only engine back then — the
+streak of an existing user is not reset by the upgrade.
+
+### 1.7 Boot restore respects the mode
+
+`BootRestorePolicy` now takes `vpnEnabled`. With the light mode there is no VPN to
+restart, so the boot does not start one — asking for the connection permission after a
+reboot would be the app demanding a permission the user deliberately refused. A live time
+lock still forces the full stack back.
+
+`VpnController` holds the gate: `start()` refuses before anything is asked of the system,
+so the connection permission is never requested in the light mode. `SawnVpnService` checks
+it too (defense in depth, against a stale intent or a race with a mode switch), and the
+Quick Settings tile, the setup screen, and the focus-session flow all go through the same
+gate.
+
+### 1.8 The settings screen offers two named options
+
+Not a switch: a switch hides what the other side of it means. The two options state the
+promise each one makes, and the description of the light one says plainly what it does
+**not** cover.
+
+The onboarding asks the same question before the permissions, so the later permission
+prompt is never a surprise.
+
+### 1.9 The health check follows the mode
+
+`GuardHealthWorker` only watches the DNS filter when it is *expected* — in the light mode
+its absence is not a failure and must not raise a notification the user cannot act on.
+It runs at the 15-minute floor WorkManager allows, and a **strict-mode** check every
+3 minutes on top (a self-rescheduling one-time request, because WorkManager refuses a
+periodic interval below 15 minutes).
+
+---
+
+## 2. Decisions
+
+| Decision | Why |
+|---|---|
+| `BlockCoordinator` in `:core:domain`, its Android side in `:app` | The rules must be testable without a phone. The container only supplies facts. |
+| `ProtectionPolicy` split out of the coordinator | The engine→badge mapping is the rule most likely to be edited later; keeping it separate keeps it honest. |
+| The light mode uses `TYPE_ACCESSIBILITY_OVERLAY`, not `SYSTEM_ALERT_WINDOW` | "Draw over other apps" is one of the scariest permissions an app can ask for, and a real barrier to distribution. An accessibility overlay needs no extra permission. |
+| The tree walk is capped at 80 nodes and skips WebViews | A page can hold thousands of nodes; the service must never stall. Skipping WebViews is also the *honest* limit of the light mode: it cannot see inside a page. |
+| The bar is read by the last segment of the view id | One id list then covers every browser using that widget, and survives a package rename by an OEM. |
+| A focused bar waits 300 ms; an unfocused bar blocks at once | A half-typed domain must never be blocked, but a page that has already loaded must be stopped without giving the user a window to click past. |
+| A fresh install starts light, an upgraded install keeps its DNS filter | The whole point is to stop demanding the scary permission unasked — but never to take away a protection a user already has. |
+| The light mode is a *named* mode, not a toggle | It is a promise about coverage, not a preference. A switch would hide the difference; two named options state it. |
+| The streak counts a day when *any* engine was active | The streak should follow the protection that actually happened, not the engine it happened to use. |
+| `BiometricHelper` deleted | Dead code: nothing referenced it, and it was never wired to a screen. |
+
+---
+
+## 3. Testing
+
+| Suite | What it covers |
+|---|---|
+| `BlockCoordinatorTest` (Kotest) | The coordinator's decisions and the four protection levels |
+| `HostNormalizerTest` (Kotest) | Full URL, breadcrumb, plain text, upper case, search query |
+| `BrowserHostExtractorTest` (Kotest) | The bounded walk, the WebView skip, the id matching, the typing signal |
+| `LockdownPolicyPropertyTest` (Kotest) | The lock can only be extended, never shortened |
+| `ScheduleEvaluatorMidnightTest` (Kotest) | Windows that wrap past midnight |
+| `DomainMatcherBoundaryTest` (Kotest) | The subdomain boundary |
+| `BootRestorePolicyTest` | The mode-aware boot restore |
+| `SettingsStoreEngineModeTest` | The engine switches, the mode, and the fresh-vs-upgraded rule |
+| `SawnDatabaseMigrationSqlTest` (JVM) | The 4→5 migration, driven over real SQLite |
+| `SawnDatabaseMigrationTest` (instrumented) | The same migration, validated against the **real** exported Room schema |
+
+`Kotest` was added to `:core:domain` (JUnit Platform + the vintage engine, so the
+existing JUnit 4 suites keep running alongside it).
+
+The migration is checked twice, on purpose:
+
+- `SawnDatabaseMigrationSqlTest` (JVM) drives the **same** `MIGRATION_4_5` object over a
+  real SQLite database that starts at the previous schema. It runs on every
+  `./gradlew test`, so a broken migration is caught before it reaches a phone.
+- `SawnDatabaseMigrationTest` (instrumented) is the official check: it uses Room's
+  `MigrationTestHelper` to validate the migrated schema against the **real** exported
+  schema JSON — the same file the shipped build uses, not a hand-written copy that could
+  drift away from it. It needs a device, so it is the developer's run
+  (`./gradlew connectedAndroidTest`).
+
+Room's `MigrationTestHelper` reads the exported schemas from the assets, so the build
+copies `core/data/schemas` into the test assets of both source sets.
+
+---
+
+## 4. Honest limits
+
+The light mode is **not** the full mode, and the app says so everywhere it matters
+(`README.md`, `SECURITY.md`, `privacy.md`, the settings screen, the onboarding, and the
+home-screen badge):
+
+- A page opened **inside another app** (a WebView) is **not** blocked.
+- **SafeSearch** and **DoH blocking** do not work — they are DNS features.
+- A browser that does not expose its address bar is not covered until it is added.
+- The browser engine is a race the user can lose: it reacts to an event and reads the bar
+  a moment later. The DNS filter acts before any page is drawn, and has no such gap.
+
+---
+
+## 5. Not done here (deliberately)
+
+- **No APK, AAB, signing, or publishing.** The task forbids it, and none was produced.
+- **No `versionCode` / `versionName` change.** The Room schema moved to version 5; the
+  app version stays at 2.2.0 / 31 as required.
+- **No push, no PR, no tag.** The branch is local, for human review.
+- `connectedAndroidTest` was not run (it needs a device); the migration test therefore
+  runs as a JVM/Robolectric test in `:core:data`, which `./gradlew test` does execute.
+- **Lint**: `./gradlew :app:lintDebug` reports the same findings as before this branch —
+  one pre-existing error (`ImageScreeningOrchestrator.kt`, `capture()` needs API 30) and
+  the pre-existing warnings (SDK_INT checks, `toUri`, dependency versions). **No new
+  finding comes from the files added or changed here.** The pre-existing error is not
+  fixed here: it is outside this branch's scope and fixing it would touch the
+  on-device screenshot path.
+
+---
+
+## 6. Files
+
+**New (`:core:domain`)**
+`block/BlockCoordinator.kt`, `block/DefaultBlockCoordinator.kt`, `block/ProtectionMode.kt`,
+`block/web/BrowserSpec.kt`, `block/web/BrowserRegistry.kt`,
+`block/web/HostNormalizer.kt`, `block/web/BrowserHostExtractor.kt`
+
+**New (`:core:data`)** — `test/kotlin/com/sawn/core/data/SawnDatabaseMigrationSqlTest.kt`,
+`test/kotlin/com/sawn/core/data/SettingsStoreEngineModeTest.kt`,
+`androidTest/kotlin/com/sawn/core/data/SawnDatabaseMigrationTest.kt`
+
+**New (`:app`)** — `accessibility/BrowserBlockingEngine.kt`,
+`accessibility/BlockOverlayController.kt`, `block/SawnBlockCoordinatorEnv.kt`,
+`block/SawnEngines.kt`, `ui/status/ProtectionBadge.kt`,
+`ui/onboarding/steps/ProtectionModeStep.kt`
+
+**New (tests, `:core:domain`)** — `BlockCoordinatorTest`, `HostNormalizerTest`,
+`BrowserHostExtractorTest`, `LockdownPolicyPropertyTest`, `ScheduleEvaluatorMidnightTest`,
+`DomainMatcherBoundaryTest`
+
+**Deleted** — `app/src/main/java/com/sawn/app/system/BiometricHelper.kt` (dead code) and
+the `androidx.biometric` dependency that only it used.
+
+**Changed** — `SettingsStore`, `SawnDatabase` (+`MIGRATION_4_5`), `ProtectedDayEntity`,
+`ProtectedDaysDao`, `RoomProtectedDaysRepository`, `ProtectedDaysRepository`,
+`BootRestorePolicy`, `SawnViewModel`, `HomeScreen`, `SettingsSections`,
+`AppBlockAccessibilityService`, `VpnController`, `BootReceiver`, `GuardHealthWorker`,
+`KeepAliveWorker`, `SawnApp`, `AppModule`, `OnboardingHost`, `FeatureDetector`
+(`UiNode.className`), `A11yNode`, `BackupRepository`, the version catalog, and the
+`:core:domain` / `:core:data` build files.
+
+**Docs** — `README.md`, `docs/spec.md`, `docs/SECURITY.md`, `docs/privacy.md`.

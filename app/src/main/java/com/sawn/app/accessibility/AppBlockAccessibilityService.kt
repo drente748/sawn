@@ -63,6 +63,32 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private val imageScreening = ImageScreeningOrchestrator(this)
     private val scanInFlight = AtomicBoolean(false)
 
+    /**
+     * The browser engine: reads the address bar of a known browser and blocks what the
+     * blocklist forbids. This is the engine that carries the protection in the light mode
+     * (no VPN). It shows its notice over the browser through an accessibility overlay,
+     * which needs no extra permission.
+     */
+    private val browserEngine by lazy {
+        BrowserBlockingEngine(
+            service = this,
+            coordinator = sawnContainer.blockCoordinator,
+            onBlocked = { host ->
+                overlayController.show(host)
+                // The notice alone would leave the blocked page on screen behind it, so
+                // the browser is sent back to where it was: the block has to *leave* the
+                // page, not just cover it.
+                performGlobalAction(GLOBAL_ACTION_BACK)
+            },
+            // The tree may only be read on the main thread; the engine takes the snapshot
+            // there and walks it off it.
+            rootProvider = { A11yNode(rootInActiveWindow) },
+        )
+    }
+
+    /** The notice drawn over the browser when a site is blocked. */
+    private val overlayController by lazy { BlockOverlayController(this) }
+
     // Written from onAccessibilityEvent (main thread) and from scan coroutines on
     // Dispatchers.Default — plain fields would let one side see a stale value.
     @Volatile private var lastFeatureScan = 0L
@@ -102,6 +128,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
             }
             if (isWindowEvent) {
                 urlMonitor.onWindowChanged(pkg) { A11yNode(rootInActiveWindow) }
+                // The browser engine reads the same tree, but only for known browsers.
+                browserEngine.onWindowChanged(pkg)
             }
         } catch (e: Exception) {
             // This is a system callback; throwing out of it would take down the process.
@@ -402,6 +430,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         scope.cancel()
         urlMonitor.destroy()
+        browserEngine.destroy()
+        overlayController.hide()
         imageScreening.cancelPendingTasks()
         if (isServiceCrashing) runCatching { GuardHealthNotifier.notifyAccessibilityDown(this) }
         super.onDestroy()

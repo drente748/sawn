@@ -6,6 +6,8 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.sawn.app.block.SawnEngines
+import com.sawn.app.util.PermissionsHelper
 import com.sawn.app.vpn.VpnController
 import com.sawn.app.vpn.SawnVpnService
 import com.sawn.app.sawnContainer
@@ -38,7 +40,13 @@ class KeepAliveWorker(context: Context, params: WorkerParameters) : CoroutineWor
             return Result.success()
         }
 
-        container.settings.recordActiveDay()
+        container.settings.recordActiveDay(
+            SawnEngines.active(
+                settings = container.settings,
+                vpnRunning = SawnVpnService.running,
+                accessibilityEnabled = PermissionsHelper.isAccessibilityEnabled(applicationContext),
+            ),
+        )
         if (!SawnVpnService.running && VpnController.consentIntent(applicationContext) == null) {
             VpnController.start(applicationContext)
             // امنح الخدمة لحظةً لتثبيت الترنل قبل الحكم عليها.

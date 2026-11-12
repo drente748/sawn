@@ -11,8 +11,10 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.sawn.domain.block.BlockingEngineType
 import com.sawn.domain.block.LockdownPolicy
 import com.sawn.domain.block.LockdownWindow
+import com.sawn.domain.block.ProtectionMode
 import com.sawn.domain.block.StrictPolicy
 import com.sawn.domain.feature.BlockJournal
 import com.sawn.domain.feature.DeepFocusState
@@ -22,6 +24,7 @@ import com.sawn.domain.repo.ProtectedDaysRepository
 import com.sawn.domain.security.PinLockoutPolicy
 import com.sawn.domain.update.PendingUpdate
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -45,6 +48,10 @@ data class ProtectionSnapshot(
     val lockdownUntil: Long,
     val lockdownElapsedEnd: Long,
     val lockdownBootAtStart: Int,
+    /** Whether the DNS/VPN filter is part of the protection. */
+    val vpnEnabled: Boolean = true,
+    /** Whether the accessibility browser engine is part of the protection. */
+    val browserBlockingEnabled: Boolean = true,
 )
 
 /** Result of an atomic "turn protection off" request. */
@@ -134,6 +141,15 @@ class SettingsStore(
         val AUTO_UPDATE_ENABLED = booleanPreferencesKey("auto_update_enabled")
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
         val AUTO_NOTIFY_ENABLED = booleanPreferencesKey("auto_notify_enabled")
+        // --- اختيار محرّكات الحجب (3.0.0) ------------------------------------------
+        // هل يعمل مرشّح DNS (الـ VPN)؟ false = «الوضع الخفيف»: بلا VPN، والبلوك
+        // يتم عبر إمكانية الوصول وحدها. الافتراضي في التخزين هو true حفاظاً على سلوك
+        // التثبيتات القائمة؛ أما التثبيت الجديد فيبدأ في الوضع الخفيف عبر
+        // [initializeEngineMode]، فالأمر ينتقل بين الوضعين بالاختيار الصريح.
+        val VPN_ENABLED = booleanPreferencesKey("vpn_enabled")
+        val BROWSER_BLOCKING_ENABLED = booleanPreferencesKey("browser_blocking_enabled")
+        // يُكتب مرة واحدة بعد تهيئة محرّكات الحجب، ليُعرف التثبيت الجديد من القائم.
+        val ENGINE_MODE_INITIALIZED = booleanPreferencesKey("engine_mode_initialized")
         // التحديث الذي نُزِّل وتحقّقنا منه، بانتظار موافقة المستخدم.
         val PENDING_UPDATE_VERSION = intPreferencesKey("pending_update_version")
         val PENDING_UPDATE_NAME = stringPreferencesKey("pending_update_name")
@@ -168,6 +184,10 @@ class SettingsStore(
         p[Keys.PORN_GUARD] = true
         p[Keys.SAFE_SEARCH_FORCE] = true
         p[Keys.BLOCK_DOH] = true
+        // A lock demands the *full* stack: the DNS filter is part of it, so the light
+        // mode may not survive a live lock.
+        p[Keys.VPN_ENABLED] = true
+        p[Keys.ENGINE_MODE_INITIALIZED] = true
     }
 
     val masterEnabled: Flow<Boolean> =
@@ -263,6 +283,88 @@ class SettingsStore(
 
     val alwaysOn: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.ALWAYS_ON] ?: true }.distinctUntilChanged()
+
+    // --- محرّكات الحجب ----------------------------------------------------------
+    /**
+     * Whether the DNS/VPN filter takes part in the protection.
+     *
+     * True = «الوضع الكامل» (VPN + المتصفحات + التطبيقات). False = «الوضع الخفيف»:
+     * إمكانية الوصول وحدها، بلا استنزاف بطارية ولا إذن VPN مخيف.
+     *
+     * The stored default is true so an upgrade never silently drops a running filter;
+     * [initializeEngineMode] is what moves a *fresh* install into the light mode.
+     */
+    val vpnEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.VPN_ENABLED] ?: true }.distinctUntilChanged()
+
+    /**
+     * Whether the accessibility browser engine takes part in the protection. It is the
+     * base layer of both modes, so it defaults to on.
+     */
+    val browserBlockingEnabled: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.BROWSER_BLOCKING_ENABLED] ?: true }.distinctUntilChanged()
+
+    /** The mode the user picked, derived from the two engine switches. */
+    val protectionMode: Flow<ProtectionMode> =
+        combine(vpnEnabled, browserBlockingEnabled) { vpn, browser ->
+            if (vpn) ProtectionMode.FULL else ProtectionMode.LIGHT
+        }.distinctUntilChanged()
+
+    /**
+     * Writes the engine switches for [mode].
+     *
+     * The light mode never turns the accessibility engines off: they are the protection
+     * that remains. Only the DNS filter is dropped.
+     */
+    suspend fun setProtectionMode(mode: ProtectionMode) {
+        context.dataStore.edit { p ->
+            if (mode == ProtectionMode.LIGHT && lockdownWindow(p).isActive) return@edit
+            p[Keys.VPN_ENABLED] = mode.usesDnsEngine
+            p[Keys.BROWSER_BLOCKING_ENABLED] = mode.usesAccessibilityEngines
+            p[Keys.ENGINE_MODE_INITIALIZED] = true
+        }.let { }
+    }
+
+    /** Turns the DNS/VPN filter on or off, leaving the other engines alone. */
+    suspend fun setVpnEnabled(value: Boolean) {
+        context.dataStore.edit { p ->
+            // A live time lock demands the full stack; it may not be weakened here.
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.VPN_ENABLED] = value
+            p[Keys.ENGINE_MODE_INITIALIZED] = true
+        }.let { }
+    }
+
+    /** Turns the accessibility browser engine on or off. */
+    suspend fun setBrowserBlockingEnabled(value: Boolean) {
+        context.dataStore.edit { p ->
+            if (!value && lockdownWindow(p).isActive) return@edit
+            p[Keys.BROWSER_BLOCKING_ENABLED] = value
+            p[Keys.ENGINE_MODE_INITIALIZED] = true
+        }.let { }
+    }
+
+    /**
+     * Chooses the engine set for a **fresh** install: the light mode, so the app never
+     * demands the VPN permission before the user asked for it.
+     *
+     * An install that is being *upgraded* keeps the DNS filter it already had — dropping
+     * a running protection on upgrade would be the worst possible surprise. The two cases
+     * are told apart by the onboarding flag, which only an install that already ran the
+     * app has set.
+     *
+     * Idempotent: the first call decides, and later calls do nothing.
+     */
+    suspend fun initializeEngineMode() {
+        context.dataStore.edit { p ->
+            if (p[Keys.ENGINE_MODE_INITIALIZED] == true) return@edit
+            val upgraded = p[Keys.ONBOARDING_DONE] == true
+            p[Keys.VPN_ENABLED] = upgraded
+            p[Keys.BROWSER_BLOCKING_ENABLED] = true
+            p[Keys.ENGINE_MODE_INITIALIZED] = true
+        }.let { }
+    }
+
     val strictMode: Flow<Boolean> = context.dataStore.data
         .map { StrictPolicy.isEffectiveStrictMode(it[Keys.STRICT_MODE] ?: false, pinPresent(it)) }
         .distinctUntilChanged()
@@ -432,9 +534,24 @@ class SettingsStore(
      * Mark today as a protected day — مصدر الحقيقة هو جدول protected_days في Room.
      * إذا وُفِّر [protectedDays] (إنتاج) يُسجَّل اليوم هناك (idempotent)؛ وإلا لا شيء
      * يُخزَّن محليًا. آمنة للتكرار في اليوم الواحد.
+     *
+     * The engines that were enforcing the protection are recorded with the day: a day
+     * counts as protected when at least one of them was live.
      */
-    suspend fun recordActiveDay() {
-        protectedDays?.upsert(LocalDate.now(), "VPN")
+    suspend fun recordActiveDay(engines: Set<BlockingEngineType>? = null) {
+        protectedDays?.upsert(LocalDate.now(), engines ?: enginesFromSettings())
+    }
+
+    /** The engines the current settings say should be enforcing the protection. */
+    private suspend fun enginesFromSettings(): Set<BlockingEngineType> {
+        val snapshot = protectionSnapshot()
+        return buildSet {
+            if (snapshot.vpnEnabled) add(BlockingEngineType.DNS)
+            if (snapshot.browserBlockingEnabled) {
+                add(BlockingEngineType.BROWSER)
+                add(BlockingEngineType.APP)
+            }
+        }
     }
 
     /**
@@ -587,6 +704,7 @@ class SettingsStore(
                 focusEndsAt = 0L, focusStrict = false, blockDoh = false, blockAds = true,
                 hasPin = false, pornGuard = true, safeSearchForce = true,
                 lockdownUntil = 0L, lockdownElapsedEnd = 0L, lockdownBootAtStart = -1,
+                vpnEnabled = true, browserBlockingEnabled = true,
             )
         val pin = pinPresent(p)
         return ProtectionSnapshot(
@@ -603,6 +721,8 @@ class SettingsStore(
             lockdownUntil = p[Keys.LOCKDOWN_UNTIL] ?: 0L,
             lockdownElapsedEnd = p[Keys.LOCKDOWN_ELAPSED_END] ?: 0L,
             lockdownBootAtStart = p[Keys.LOCKDOWN_BOOT_AT_START] ?: -1,
+            vpnEnabled = p[Keys.VPN_ENABLED] ?: true,
+            browserBlockingEnabled = p[Keys.BROWSER_BLOCKING_ENABLED] ?: true,
         )
     }
 

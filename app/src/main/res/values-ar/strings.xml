@@ -151,6 +151,21 @@
     <!-- المتصفح والخصوصية -->
     <string name="browsers_title">المتصفحات المدعومة</string>
     <string name="browsers_count">%1$d متصفحاً مدعوماً — يعمل تلقائياً بدون ضبط إضافي.</string>
+
+    <!-- وضع الحماية (كامل / خفيف) -->
+    <string name="protection_mode_title">وضع الحماية</string>
+    <string name="protection_mode_full">الوضع الكامل</string>
+    <string name="protection_mode_full_desc">يفحص كل طلب DNS، فتُحجب المواقع في كل مكان — حتى داخل التطبيقات الأخرى. يستهلك بطارية أكثر ويحتاج إذن الاتصال.</string>
+    <string name="protection_mode_light">الوضع الخفيف</string>
+    <string name="protection_mode_light_desc">يعتمد على إمكانية الوصول فقط: تُحجب المواقع في المتصفح، لكن لا داخل التطبيقات الأخرى. بلا إذن الاتصال وبطارية أقل بكثير.</string>
+    <string name="protection_mode_locked">القفل الزمني النشط يُبقي الوضع الكامل مفعّلاً.</string>
+    <string name="browser_blocked_notice">محجوب بواسطة صَوْن: %1$s</string>
+    <string name="protection_badge_full">حماية كاملة</string>
+    <string name="protection_badge_browser">حماية المتصفح فقط</string>
+    <string name="protection_badge_none">الحماية متوقفة</string>
+    <string name="protection_badge_paused">الحماية متوقفة مؤقتاً</string>
+    <string name="onboarding_mode_title">كيف يحميك صَوْن؟</string>
+    <string name="onboarding_mode_body">الوضع الكامل يفحص كل طلب DNS، فتُحجب المواقع في كل مكان — مقابل بطارية أعلى وإذن الاتصال. الوضع الخفيف يعتمد على إمكانية الوصول فقط: يحجب المتصفح، لكن لا داخل التطبيقات الأخرى.</string>
     <string name="doh_hint_title">تلميحات التلافي (DoH)</string>
     <string name="doh_hint_body">إن استخدم متصفحك DNS المشفّر (DoH) فسوف يقاوم الفلتر — فعّل «حجب DNS المشفّر» من الصفحة الرئيسية ليُحجب المشفّر أيضاً.</string>
     <string name="notifications_title">حجب الإشعارات</string>

@@ -10,6 +10,7 @@ import com.sawn.app.util.LocaleUtils
 import com.sawn.core.data.BlockRepository
 import com.sawn.core.data.SettingsStore
 import com.sawn.domain.block.AccessController
+import com.sawn.domain.block.BlockCoordinator
 import com.sawn.domain.block.BlockEngine
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -67,6 +68,17 @@ class SawnApp : Application() {
         // التحديث الذاتي: فحص دوري كل ست ساعات. العامل نفسه يحترم مفتاح
         // «التحديث التلقائي» — إن أوقفه المستخدم لا يفعل شيئاً ولا يفتح شبكة.
         runCatching { com.sawn.app.system.UpdateCheckWorker.schedule(this) }
+        // Which blocking engines are in use is decided once, on the first run of this
+        // version: a fresh install starts in the light mode (no VPN permission asked for),
+        // an upgraded install keeps the filter it already had.
+        runCatching {
+            kotlinx.coroutines.runBlocking {
+                sawnContainer.settings.initializeEngineMode()
+                // The DNS engine's gate must match the stored mode from the very first
+                // moment, or a light-mode install could still start a tunnel.
+                com.sawn.app.vpn.VpnController.refreshEngineEnabled(this@SawnApp)
+            }
+        }
         restoreActiveLockdown()
     }
 
@@ -126,6 +138,7 @@ interface LegacyContainer {
     val repository: BlockRepository
     val blockEngine: BlockEngine
     val accessController: AccessController
+    val blockCoordinator: BlockCoordinator
     val stats: com.sawn.domain.repo.StatsRepository
     val database: com.sawn.core.data.SawnDatabase
     val updateChecker: com.sawn.app.update.UpdateChecker

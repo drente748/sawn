@@ -149,6 +149,13 @@ class SawnVpnService : VpnService() {
 
     private fun startTunnel() {
         if (tunnel != null) { scope.launch { safeRefreshBlocklist() }; return }
+        // Defense in depth: the light mode has no DNS filter. If a start arrives anyway
+        // (a stale intent, a race with a mode switch), the tunnel is not established.
+        if (!VpnController.isEngineEnabled()) {
+            _running.value = false
+            stopSelf()
+            return
+        }
         // Android 14+ يتطلب تحديد نوع الخدمة الأمامية صراحةً مع الاستدعاء —
         // ServiceCompat يعالج الإصدارات تحت ذلك تلقائياً.
         ServiceCompat.startForeground(

@@ -166,8 +166,14 @@ class BackupRepository(
 
                 doc.protectedDays.forEach { date ->
                     runCatching { java.time.LocalDate.parse(date) }.getOrNull()?.let { valid ->
-                        database.protectedDaysDao().upsert(
-                            ProtectedDayEntity(date = valid.toString(), source = "backup", recordedAt = System.currentTimeMillis()),
+                        // A restored day was protected by the DNS filter back then.
+                        database.protectedDaysDao().record(
+                            ProtectedDayEntity(
+                                date = valid.toString(),
+                                source = "backup",
+                                recordedAt = System.currentTimeMillis(),
+                                hasDnsProtection = true,
+                            ),
                         )
                     }
                 }
@@ -257,8 +263,13 @@ class BackupRepository(
             database.blockDao().deleteAllSchedules()
             snapshot.schedules.forEach { database.blockDao().upsertSchedule(it) }
             snapshot.protectedDays.forEach { date ->
-                database.protectedDaysDao().upsert(
-                    ProtectedDayEntity(date = date, source = "rollback", recordedAt = System.currentTimeMillis()),
+                database.protectedDaysDao().record(
+                    ProtectedDayEntity(
+                        date = date,
+                        source = "rollback",
+                        recordedAt = System.currentTimeMillis(),
+                        hasDnsProtection = true,
+                    ),
                 )
             }
         }

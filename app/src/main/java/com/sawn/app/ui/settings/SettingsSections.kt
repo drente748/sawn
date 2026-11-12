@@ -3,15 +3,19 @@ package com.sawn.app.ui.settings
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -41,6 +45,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sawn.app.BuildConfig
 import com.sawn.app.R
 import com.sawn.domain.block.web.BrowserConfig
+import com.sawn.domain.block.web.BrowserRegistry
+import com.sawn.domain.block.ProtectionMode
 import com.sawn.app.ui.SettingsSectionScreen
 import com.sawn.app.ui.SawnViewModel
 import com.sawn.app.ui.rememberResumeTick
@@ -73,6 +79,7 @@ private const val HELPLINE_URL = "https://findahelpline.com/ar"
 @Composable
 fun ProtectionSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
     val lockdownActive by vm.lockdownActive.collectAsStateWithLifecycle()
+    val protectionMode by vm.protectionMode.collectAsStateWithLifecycle()
 
     SettingsSectionScreen(stringResource(R.string.settings_protection), onBack) {
         if (lockdownActive) {
@@ -83,6 +90,12 @@ fun ProtectionSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
             )
         }
 
+        ProtectionModeCard(
+            mode = protectionMode,
+            locked = lockdownActive,
+            onSelect = vm::setProtectionMode,
+        )
+
         InfoCard(
             title = stringResource(R.string.settings_protection_home_title),
             body = stringResource(R.string.settings_protection_home_body),
@@ -92,12 +105,103 @@ fun ProtectionSettingsScreen(vm: SawnViewModel, onBack: () -> Unit) {
 
         InfoCard(
             title = stringResource(R.string.browsers_title),
-            body = stringResource(R.string.browsers_count, BrowserConfig.ALL.size),
+            body = stringResource(R.string.browsers_count, BrowserRegistry.size),
         )
         InfoCard(
             title = stringResource(R.string.doh_hint_title),
             body = stringResource(R.string.doh_hint_body),
         )
+    }
+}
+
+/**
+ * The mode choice — two named options, not a switch.
+ *
+ * A switch would hide what the other side of it means; naming the two modes states the
+ * promise each one makes, and the description says plainly what is *not* covered by the
+ * light one.
+ */
+@Composable
+private fun ProtectionModeCard(
+    mode: ProtectionMode,
+    locked: Boolean,
+    onSelect: (ProtectionMode) -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                stringResource(R.string.protection_mode_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            ModeOption(
+                title = stringResource(R.string.protection_mode_full),
+                description = stringResource(R.string.protection_mode_full_desc),
+                selected = mode == ProtectionMode.FULL,
+                enabled = !locked,
+                onClick = { onSelect(ProtectionMode.FULL) },
+            )
+            ModeOption(
+                title = stringResource(R.string.protection_mode_light),
+                description = stringResource(R.string.protection_mode_light_desc),
+                selected = mode == ProtectionMode.LIGHT,
+                enabled = !locked,
+                onClick = { onSelect(ProtectionMode.LIGHT) },
+            )
+            if (locked) {
+                Text(
+                    stringResource(R.string.protection_mode_locked),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModeOption(
+    title: String,
+    description: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                if (selected) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
