@@ -536,6 +536,30 @@ guess with a timer, the tile starts the 15-minute lock on a tap, and the duratio
 picker lives in the app where the user can see what they are choosing.
 
 
+## 12. مواصفة محرك المتصفحات في الوضع الخفيف + فلترة DNS
+
+Two more behaviour specs, written but not implemented.
+
+**`docs/browser-engine.md`** — the light mode's browser engine, with the decisions taken
+for the strongest protection the privacy promise allows: no "continue anyway" button
+at all, the notice says once per host that network-level filtering is not running in
+this mode, no browser counts in the interface, the coverage is the whole
+`BrowserConfig` table rather than the seven advertised browsers, an unknown browser is
+named in the protection checkup instead of being a silent hole, and no blocking by
+title or page content. The one hole — a page opened inside another app — is closed by
+the per-item rule instead, which blocks the containing app and keeps the privacy
+promise.
+
+**`docs/dns-engine.md`** — the VPN/DNS engine, the strongest one: only the resolver
+space is routed (no other traffic), the blocked name is answered `0.0.0.0` rather than
+dropped silently, AAAA never gets a real address, SafeSearch is a rewrite that the
+user's own block overrides, and **no site name is ever logged** — so there is no
+website history at all. The absolute protection lives in the accessibility layer, not
+here: only that layer knows which app is in the foreground, and blocking every name
+would break the phone.
+
+---
+
 ## 11. مواصفة «قاعدة الحجب الخاصة بالعنصر»
 
 `docs/per-app-rule.md` — the behaviour spec for a per-item rule, **written but not
