@@ -74,6 +74,13 @@ class ImageScreeningOrchestrator(private val service: AccessibilityService) {
     @Volatile private var classifierReady = false
 
     private fun maybeScreenRetry(onResult: (Boolean) -> Unit) {
+        // The gate in maybeScreen() already keeps this path off Android 8-10, but the
+        // check is repeated here on purpose: the screenshot API is API 30+, and a
+        // missing guard would be a crash on those versions — not a lint warning.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            captureInFlight.set(false)
+            onResult(false); return
+        }
         val classifier = NsfwClassifier.get(service)
         if (classifier == null) {
             captureInFlight.set(false)

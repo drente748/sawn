@@ -457,6 +457,18 @@ build that points at an earlier host.
 No policy, privacy, about, description, or licence text was written. The files that
 were **not** touched are listed in `PROGRESS.md` §6, with the reason for each.
 
+## 8.10 إغلاق الديون المعلّقة
+
+Five debts carried over from the earlier rounds, closed on the same branch.
+
+| # | The debt | How it was closed |
+|---|---|---|
+| 1 | `ImageScreeningOrchestrator.kt:84` — `capture()` is API 30 on a `minSdk 26` app | The `SDK_INT < R` guard moved **into `maybeScreenRetry()`**, the method that calls the API-30 code. It was already unreachable below API 30 (the guard was two frames up in `maybeScreen()`), so this is not a behaviour change — it puts the protection next to the call and lets lint prove it. **The lint gate is now error-free.** |
+| 2 | The property generators could produce a window with `start == end` | The generators moved into a shared `ScheduleWindows` object, and a new property asserts their own contract (`start < end` for a day window, `start > end` for a night window) over every sample. A generator that breaks its contract now fails in a test that names the cause, instead of failing a property that looks like an evaluator bug. |
+| 3 | `LICENSE` was removed with the identity purge | Restored as a two-line proprietary notice. |
+| 4 | The project policy lived outside the repository | `AGENTS.md` now sits in the repository root: the project's identity, the module boundaries, the clean-state policy, the verification commands, and what this workflow may not do. |
+| 5 | The `v2.2.0` tag pointed one commit behind the released `main` | The tag moved from `2ae3d41` to `c14bc46` — the state `main` was in when the release went out. The difference between the two is a single documentation file, so the published APK stays reproducible from the tag; the GitHub release stays attached, and the `sha256` in the published manifest still matches the APK asset. |
+
 
 ## 8.8 مراجعة بعد المراجعة الأولى
 

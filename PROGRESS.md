@@ -28,6 +28,7 @@
 ## 3. قيد العمل / التالي
 
 - [x] **تطهير الهوية** منجزة (`bbe1d89`) — ما عدا البنود التي تحتاج قراراً بشرياً في §6
+- [x] **إغلاق الديون المعلّقة الخمسة** منجزة — انظر §9
 - [ ] Decision مطلوب: هل تُحذف روابط `github.io` (قناة التحديث) من التوثيق؟ (§6)
 - [ ] Decision مطلوب: هل تُحذف عبارات «مجاني» عن المنتج من `privacy.md` / `play-compliance.md`؟ (§6)
 - [ ] Decision مطلوب: تغيير اسم مفتاح التوقيع (`local.properties`) — يحتاج إعادة توليد الـ keystore
@@ -42,14 +43,15 @@
 | 4 | الأمان والموثوقية: توقيع APK + مراقب الوصول + ثوابت Properties | `feat/optional-vpn` (`27a787a`) | مكتملة |
 | 5 | مراجعة: قارئ شهادات واحد + `verifyApkSignature` لا يرمي | `feat/optional-vpn` (`c2d16d0`) | مكتملة |
 | 6 | **تطهير الهوية + سياسة النظافة** | `feat/identity-purge` (`bbe1d89`) | **مكتملة** |
+| 7 | **إغلاق الديون المعلّقة** (حارس API، ثوابت المولّد، LICENSE، AGENTS.md، الوسم) | `feat/identity-purge` | **مكتملة** |
 
 ## 5. الديون التقنية
 
 | # | الدين | الأثر | ملاحظة |
 |---|---|---|---|
-| 1 | مسار توقيع API 28+ غير مُختبَر على جهاز | متوسط | صورة Robolectric المتاحة بلا اتصال هي API 26 فقط؛ القاعدة مغطّاة في `:core:domain` |
-| 2 | `GuardHealthWorker.doWork()` غير مُختبَر end-to-end | منخفض | `androidx.work:work-testing` غير متاح بلا اتصال؛ القرار مُغطّى بـ`GuardHealthPolicy` |
-| 3 | خطأ lint سابق: `ImageScreeningOrchestrator.kt` (`capture()` تتطلب API 30) | منخفض | خارج نطاق هذا العمل |
+| 1 | ~~خطأ lint: `ImageScreeningOrchestrator.kt` (`capture()` تتطلب API 30)~~ | ~~منخفض~~ | **مغلق**: الحارس `SDK_INT < R` نُقل إلى `maybeScreenRetry()` نفسها — الحماية قريبة من الاستدعاء، وبوابة lint تمرّ بلا أخطاء |
+| 2 | مسار توقيع API 28+ غير مُختبَر على جهاز | متوسط | صورة Robolectric المتاحة بلا اتصال هي API 26 فقط؛ القاعدة مغطّاة في `:core:domain` |
+| 3 | `GuardHealthWorker.doWork()` غير مُختبَر end-to-end | منخفض | `androidx.work:work-testing` غير متاح بلا اتصال؛ القرار مُغطّى بـ`GuardHealthPolicy` |
 | 4 | `release/Sawn-2.2.0.apk` (artifact مُتجاهَل) يحوي الاسم القديم داخل الـ dex | منخفض | يُعاد بناؤه عند الإصدار؛ ليس ملفاً متتبَّعاً |
 
 ## 6. المهام المعلّقة (تحتاج قراراً بشرياً)
@@ -69,7 +71,7 @@
 |---|---|---|
 | 2026-11-12 | `./gradlew test` | BUILD SUCCESSFUL — 320 + 34 + 92، صفر فشل |
 | 2026-11-12 | `./gradlew :app:compileDebugKotlin` | BUILD SUCCESSFUL |
-| 2026-11-12 | `./gradlew :app:lintDebug` | خطأ واحد سابق فقط (`ImageScreeningOrchestrator`)، لا نتيجة جديدة |
+| 2026-11-12 | `./gradlew :app:lintDebug` | **0 أخطاء** (كان خطأ واحداً سابقاً) — `ImageScreeningOrchestrator` مُغلق |
 | 2026-11-12 | `git grep -in <الاسم القديم>` | لا نتيجة في الملفات المتتبَّعة |
 | 2026-11-12 | `git grep -inE <أسماء المستودعات الخارجية>` | لا نتيجة |
 | 2026-11-12 | `git grep -n "github.com" -- docs README.md` | لا نتيجة |
@@ -96,6 +98,16 @@
 `docs/install-ar.md`، `docs/install-en.md`، `docs/site-activation-ar.md`، `docs/site-activation-en.md`،
 `docs/CHANGELOG.md`، `docs/update-hosting.md`، `scripts/verify-release.ps1`،
 `core/domain/.../ApkSignaturePolicy.kt`.
+
+## 9.1 الديون المُغلقة (2026-11-12)
+
+| # | البند | ما قُفل | التحقق |
+|---|---|---|---|
+| 1 | `ImageScreeningOrchestrator.kt:84` — `capture()` تتطلب API 30 على minSdk 26 | حارس `SDK_INT < R` **نُقل إلى `maybeScreenRetry()`** — كان محمياً في `maybeScreen()` قبل إطارين، فكان lint لا يستطيع إثباته. الآن الحماية قريبة من الاستدعاء | `lintDebug` → **0 أخطاء** (كان 1) |
+| 2 | ثوابت مولّدات النوافذ | `ScheduleWindows` صار كائناً مشتركاً، وثابت جديد **«the generated windows always satisfy their contract»** يفرض `start < end` و`start > end` على كل عيّنة | `./gradlew test` |
+| 3 | `LICENSE` | أُعيد بسطرين: `Proprietary — All rights reserved.` | `git ls-files` |
+| 4 | `AGENTS.md` في جذر المستودع | أُضيف — سياسة المشروع + Clean State Policy تسير مع المستودع | `git ls-files` |
+| 5 | وسم `v2.2.0` | نُقل من `2ae3d41` إلى `c14bc46` (الحالة التي كان عليها `main` وقت النشر). الفرق بينهما **وثائقي فقط** (`docs/update-hosting.md`)، فالمُ artifact المنشور يبقى قابلاً لإعادة البناء. الـ Release ما زال مربوطاً بالوسم، و`sha256` في البيان المنشور يطابق بصمة الـ APK | `git ls-remote` + `gh release view` |
 
 ## 10. قواعد التحديث
 

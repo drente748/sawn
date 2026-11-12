@@ -19,27 +19,6 @@ import java.util.Calendar
  */
 class ScheduleEvaluatorPropertyTest : StringSpec({
 
-    /**
-     * A window that does not cross midnight: the start is always strictly before the
-     * end, and both are inside a day (0 .. 1439 minutes).
-     */
-    val arbDayWindow = Arb.zip(Arb.int(0, 1438), Arb.int(0, 1438)) { a, b ->
-        val earlier = minOf(a, b)
-        val later = maxOf(a, b)
-        if (earlier == later) earlier to (earlier + 1) else earlier to later
-    }
-
-    /**
-     * A window that crosses midnight: the start is always strictly after the end.
-     *
-     * The same two ends, sorted and swapped — that is what makes the window wrap.
-     */
-    val arbNightWindow = Arb.zip(Arb.int(0, 1438), Arb.int(0, 1438)) { a, b ->
-        val earlier = minOf(a, b)
-        val later = maxOf(a, b)
-        if (earlier == later) (earlier + 1) to earlier else later to earlier
-    }
-
     /** A schedule that runs on one day only, between two minutes of the day. */
     fun scheduleOf(day: Int, startMinute: Int, endMinute: Int): Schedule =
         Schedule(
@@ -74,7 +53,7 @@ class ScheduleEvaluatorPropertyTest : StringSpec({
      * protection and quietly withdraw it.
      */
     "every minute inside a window that does not cross midnight is active" {
-        checkAll(100, arbDayWindow, Arb.int(0, 6)) { (start, end), day ->
+        checkAll(100, ScheduleWindows.dayWindow, Arb.int(0, 6)) { (start, end), day ->
             val schedule = scheduleOf(day, start, end)
             for (minute in start until end) {
                 ScheduleEvaluator.isActive(schedule, calendar(day, minute)) shouldBe true
@@ -84,7 +63,7 @@ class ScheduleEvaluatorPropertyTest : StringSpec({
 
     /** The minute the window ends is the first one outside it. */
     "the minute the window ends is not active" {
-        checkAll(arbDayWindow, Arb.int(0, 6)) { (start, end), day ->
+        checkAll(ScheduleWindows.dayWindow, Arb.int(0, 6)) { (start, end), day ->
             val schedule = scheduleOf(day, start, end)
             if (end < 1439) {
                 ScheduleEvaluator.isActive(schedule, calendar(day, end)) shouldBe false
@@ -101,7 +80,7 @@ class ScheduleEvaluatorPropertyTest : StringSpec({
      * window's own day is the one that has to see it.
      */
     "the early hours after a window that crosses midnight are active" {
-        checkAll(100, arbNightWindow, Arb.int(0, 6)) { (start, end), day ->
+        checkAll(100, ScheduleWindows.nightWindow, Arb.int(0, 6)) { (start, end), day ->
             val schedule = scheduleOf(day, start, end)
             val nextDay = (day + 1) % 7
             for (minute in 0 until end) {
@@ -114,7 +93,7 @@ class ScheduleEvaluatorPropertyTest : StringSpec({
 
     /** Before it starts, the window has not begun — not even on the next day. */
     "the hours before a window that crosses midnight are not active" {
-        checkAll(100, arbNightWindow, Arb.int(0, 6)) { (start, end), day ->
+        checkAll(100, ScheduleWindows.nightWindow, Arb.int(0, 6)) { (start, end), day ->
             val schedule = scheduleOf(day, start, end)
             for (minute in 0 until start) {
                 ScheduleEvaluator.isActive(schedule, calendar(day, minute)) shouldBe false
@@ -124,11 +103,55 @@ class ScheduleEvaluatorPropertyTest : StringSpec({
 
     /** A schedule whose day is not today never fires today. */
     "a schedule fires only on the days it names" {
-        checkAll(arbDayWindow, Arb.int(0, 6), Arb.int(0, 6)) { (start, end), day, other ->
+        checkAll(ScheduleWindows.dayWindow, Arb.int(0, 6), Arb.int(0, 6)) { (start, end), day, other ->
             val schedule = scheduleOf(day, start, end)
             if (other != day) {
                 ScheduleEvaluator.isActive(schedule, calendar(other, start)) shouldBe false
             }
         }
     }
+
+    /**
+     * The generators' own invariants.
+     *
+     * A generator that can produce a window with `start == end` makes every property
+     * above meaningless for that case — the window is a different animal there (it
+     * wraps), so the properties would be testing the wrong thing and would fail in a
+     * way that looks like a bug in the evaluator. Asserting the generators' contract
+     * turns that into a failure that names the real cause.
+     */
+    "the generated windows always satisfy their contract" {
+        checkAll(ScheduleWindows.dayWindow) { (start, end) ->
+            (start < end) shouldBe true
+            (end <= 1439) shouldBe true
+        }
+        checkAll(ScheduleWindows.nightWindow) { (start, end) ->
+            (start > end) shouldBe true
+            (end <= 1439) shouldBe true
+        }
+    }
 })
+
+/**
+ * The windows the properties are drawn from.
+ *
+ * Both generators sort their two ends and then either keep or swap them, so the
+ * contract holds for every sample: a day window always starts before it ends, a night
+ * window always starts after it ends.
+ */
+private object ScheduleWindows {
+
+    /** A window that does not cross midnight: the start is strictly before the end. */
+    val dayWindow: Arb<Pair<Int, Int>> = Arb.zip(Arb.int(0, 1438), Arb.int(0, 1438)) { a, b ->
+        val earlier = minOf(a, b)
+        val later = maxOf(a, b)
+        if (earlier == later) earlier to (earlier + 1) else earlier to later
+    }
+
+    /** A window that crosses midnight: the start is strictly after the end. */
+    val nightWindow: Arb<Pair<Int, Int>> = Arb.zip(Arb.int(0, 1438), Arb.int(0, 1438)) { a, b ->
+        val earlier = minOf(a, b)
+        val later = maxOf(a, b)
+        if (earlier == later) (earlier + 1) to earlier else later to earlier
+    }
+}
