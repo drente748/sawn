@@ -70,8 +70,8 @@
 | 2026-11-12 | `./gradlew test` | BUILD SUCCESSFUL — 320 + 34 + 92، صفر فشل |
 | 2026-11-12 | `./gradlew :app:compileDebugKotlin` | BUILD SUCCESSFUL |
 | 2026-11-12 | `./gradlew :app:lintDebug` | خطأ واحد سابق فقط (`ImageScreeningOrchestrator`)، لا نتيجة جديدة |
-| 2026-11-12 | `git grep -in warden` | لا نتيجة في الملفات المتتبَّعة |
-| 2026-11-12 | `git grep -inE "SuvMusic\|split-sideloader\|S22-Updater\|…"` | لا نتيجة |
+| 2026-11-12 | `git grep -in <الاسم القديم>` | لا نتيجة في الملفات المتتبَّعة |
+| 2026-11-12 | `git grep -inE <أسماء المستودعات الخارجية>` | لا نتيجة |
 | 2026-11-12 | `git grep -n "github.com" -- docs README.md` | لا نتيجة |
 
 ## 8. القيود المعمارية
