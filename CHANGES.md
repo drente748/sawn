@@ -209,24 +209,38 @@ home-screen badge):
 
 ---
 
-## 5. Not done here (deliberately)
+## 5. Verification
+
+Run on this branch (Gradle 8.13, JDK 21, Windows):
+
+| Command | Result |
+|---|---|
+| `./gradlew test` | **BUILD SUCCESSFUL** — 291 tests in `:core:domain`, 17 in `:core:data`, 34 in `:app`; 0 failures |
+| `./gradlew :app:compileDebugKotlin` | **BUILD SUCCESSFUL** |
+| `./gradlew :app:compileReleaseKotlin` | **BUILD SUCCESSFUL** |
+| `./gradlew :app:lintDebug` | The **same** findings as before this branch — no new one from the files added or changed here |
+
+Not run, and why: `assembleRelease` / `bundleRelease` (forbidden by the task — no APK or AAB
+was produced, and no signing happened), `connectedAndroidTest` (needs a device; the
+developer's job).
+
+---
+
+## 6. Not done here (deliberately)
 
 - **No APK, AAB, signing, or publishing.** The task forbids it, and none was produced.
 - **No `versionCode` / `versionName` change.** The Room schema moved to version 5; the
   app version stays at 2.2.0 / 31 as required.
 - **No push, no PR, no tag.** The branch is local, for human review.
 - `connectedAndroidTest` was not run (it needs a device); the migration test therefore
-  runs as a JVM/Robolectric test in `:core:data`, which `./gradlew test` does execute.
-- **Lint**: `./gradlew :app:lintDebug` reports the same findings as before this branch —
-  one pre-existing error (`ImageScreeningOrchestrator.kt`, `capture()` needs API 30) and
-  the pre-existing warnings (SDK_INT checks, `toUri`, dependency versions). **No new
-  finding comes from the files added or changed here.** The pre-existing error is not
-  fixed here: it is outside this branch's scope and fixing it would touch the
-  on-device screenshot path.
+  also runs as a JVM/Robolectric test in `:core:data`, which `./gradlew test` does execute.
+- **Lint**: the pre-existing error (`ImageScreeningOrchestrator.kt`, `capture()` needs
+  API 30) is **not** fixed here — it is outside this branch's scope, and fixing it would
+  touch the on-device screenshot path.
 
 ---
 
-## 6. Files
+## 7. Files
 
 **New (`:core:domain`)**
 `block/BlockCoordinator.kt`, `block/DefaultBlockCoordinator.kt`, `block/ProtectionMode.kt`,
@@ -243,8 +257,8 @@ home-screen badge):
 `ui/onboarding/steps/ProtectionModeStep.kt`
 
 **New (tests, `:core:domain`)** — `BlockCoordinatorTest`, `HostNormalizerTest`,
-`BrowserHostExtractorTest`, `LockdownPolicyPropertyTest`, `ScheduleEvaluatorMidnightTest`,
-`DomainMatcherBoundaryTest`
+`BrowserHostExtractorTest`, `BrowserRegistryTest`, `LockdownPolicyPropertyTest`,
+`ScheduleEvaluatorMidnightTest`, `DomainMatcherBoundaryTest`
 
 **Deleted** — `app/src/main/java/com/sawn/app/system/BiometricHelper.kt` (dead code) and
 the `androidx.biometric` dependency that only it used.
