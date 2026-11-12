@@ -50,6 +50,7 @@
 | 7 | **إغلاق الديون المعلّقة** (حارس API، ثوابت المولّد، LICENSE، AGENTS.md، الوسم) | `feat/identity-purge` | **مكتملة** |
 | 8 | **القفل الفوري (Panic Button) + Emergency Lockdown** | `feat/optional-vpn` | **مكتملة** |
 | 9 | **خريطة الميزات** (جرد Features بالمقدار، مرجع التصميم والثيم) | `feat/identity-purge` | **مكتملة** |
+| 10 | **مواصفة «قاعدة الحجب الخاصة بالعنصر»** (نافذة متكرّرة / رصيد مسموح) — سلوك فقط، بلا تنفيذ | `feat/identity-purge` | **مكتملة** |
 
 ## 5. الديون التقنية
 
@@ -107,6 +108,7 @@
 | 2026-11-12 | `core/data/.../LockdownSessionCodec.kt` | ترميز الجلسة كـ JSON | اختبار المتجر |
 | 2026-11-12 | `app/src/main/res/drawable/ic_lockdown.xml` | أيقونة البلاطة | `lint` |
 | 2026-11-12 | `docs/feature-map.md` | خريطة الميزات — الجرد الكامل بالمقدار، مرجع مرحلة التصميم والثيم | مراجعة يدوية مقابل الشيفرة |
+| 2026-11-12 | `docs/per-app-rule.md` | مواصفة قاعدة الحجب الخاصة بالعنصر (نافذة متكرّرة / رصيد مسموح) — قرارات سلوكية، بلا تنفيذ | مراجعة المستخدم للقرارات التسعة |
 
 **الملفات التي عُدِّلت لا حُذفت** (تطهير نصي): `README.md`، `docs/SECURITY.md`، `docs/spec.md`،
 `docs/install-ar.md`، `docs/install-en.md`، `docs/site-activation-ar.md`، `docs/site-activation-en.md`،

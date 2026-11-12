@@ -536,6 +536,25 @@ guess with a timer, the tile starts the 15-minute lock on a tap, and the duratio
 picker lives in the app where the user can see what they are choosing.
 
 
+## 11. مواصفة «قاعدة الحجب الخاصة بالعنصر»
+
+`docs/per-app-rule.md` — the behaviour spec for a per-item rule, **written but not
+implemented**: an element in the blocklist may carry either a **recurring window** (days
++ from/to) or an **allowance** (a daily budget). Outside the rule the element behaves
+as it does today; inside it, it is blocked.
+
+Nine decisions are settled in the document — among them: the rule cannot be changed or
+removed before its first scheduled period ends, and `enabled = false` does not cancel
+it; the rule forces the block **even when the user has turned protection off**; the
+three-minute escape **consumes the allowance** and is capped by what is left; the old
+per-item limit knobs are **unified into** the allowance; the notification fires when
+the restriction **lifts**, not when it starts; the same model applies to websites; and
+the rule applies to the **app as a whole**, not to a slice inside it.
+
+This is a specification, not a change: no code was touched.
+
+---
+
 ## 10. خريطة الميزات
 
 `docs/feature-map.md` — the inventory every feature, by category, taken **from the code**
