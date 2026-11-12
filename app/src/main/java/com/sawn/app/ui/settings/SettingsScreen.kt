@@ -61,6 +61,7 @@ import com.sawn.app.ui.SettingsControls
 import com.sawn.app.ui.VerifyPinDialog
 import com.sawn.app.ui.dawnBackground
 import com.sawn.app.ui.theme.SawnPalette
+import com.sawn.app.update.SigningCertificates
 import com.sawn.app.util.LocaleUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -462,26 +463,14 @@ private fun AboutCard() {
     LaunchedEffect(Unit) {
         fingerprint = withContext(Dispatchers.Default) {
             runCatching {
-                val info = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    context.packageManager.getPackageInfo(
-                        context.packageName,
-                        android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES,
-                    )
-                        .signingInfo
-                        ?.signingCertificateHistory
-                        ?.firstOrNull()
-                        ?.toByteArray()
-                        ?: return@runCatching null
-                } else {
-                    @Suppress("DEPRECATION")
-                    context.packageManager.getPackageInfo(
-                        context.packageName,
-                        android.content.pm.PackageManager.GET_SIGNATURES,
-                    ).signatures?.firstOrNull()?.toByteArray()
-                        ?: return@runCatching null
-                }
+                // One reader for the certificates: the updater compares with the same
+                // lineage the About card shows, so the two can never disagree.
+                val certificate = SigningCertificates.installedCurrentCertificate(
+                    context.packageManager,
+                    context.packageName,
+                ) ?: return@runCatching null
                 MessageDigest.getInstance("SHA-256")
-                    .digest(info)
+                    .digest(certificate)
                     .joinToString(":") { "%02X".format(it) }
             }.getOrNull()
         }

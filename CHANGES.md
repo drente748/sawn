@@ -396,7 +396,7 @@ test; the view model now calls it.
 | Suite | What it covers |
 |---|---|
 | `ApkSignaturePolicyTest` (Kotest, `:core:domain`) | Our key / a foreign key / unsigned / a rotated key in both directions / a look-alike prefix / an unreadable lineage / the fingerprint format |
-| `UpdateInstallerSignatureTest` (Robolectric, `:app`) | The real `verifyApkSignature` against a faked package manager: ours accepted, a foreign key refused, unsigned refused, an unreadable archive refused, and refused when *our* certificate cannot be read |
+| `UpdateInstallerSignatureTest` (Robolectric, `:app`) | The real `verifyApkSignature` against a faked package manager: ours accepted, a foreign key refused, unsigned refused, an unreadable archive refused, a corrupt archive refused without throwing, and refused when *our* certificate cannot be read |
 | `GuardHealthPolicyTest` (Kotest, `:core:domain`) | The grace period, the four states, and the bound on the self-heal |
 | `GuardHealthWorkerTest` (JUnit, `:app`) | The cadence: the strict check every 2-3 minutes, the ordinary one every 15-30 |
 | `GuardHealthNotifierTest` (Robolectric, `:app`) | The notice is ongoing, high priority, and opens the accessibility settings; it is cleared when the service is back |
@@ -425,7 +425,8 @@ developer's job).
 
 **New (`:core:domain`)** — `update/ApkSignaturePolicy.kt`, `system/GuardHealthPolicy.kt`
 
-**New (`:app`)** — `update/ApkSigningCertificates.kt`
+**New (`:app`)** — `update/SigningCertificates.kt` (the one reader of the signing
+certificates: the archive, the installed app, and the modern/legacy API split)
 
 **New (tests)** — `core/domain/.../update/ApkSignaturePolicyTest.kt`,
 `core/domain/.../system/GuardHealthPolicyTest.kt`,
@@ -436,11 +437,32 @@ developer's job).
 `app/src/test/.../system/GuardHealthWorkerTest.kt`
 
 **Changed** — `UpdateInstaller`, `GuardHealthWorker`, `GuardHealthNotifier`,
-`AppBlockAccessibilityService`, `SawnViewModel`, `LockdownPolicy`,
+`AppBlockAccessibilityService`, `SawnViewModel`, `SettingsScreen` (the About card now
+uses the shared certificate reader), `LockdownPolicy`,
 `LockdownPolicyPropertyTest`, both `strings.xml`, `CHANGES.md`, `README.md`,
 `docs/SECURITY.md`, `docs/device-testing.md`.
 
 **Not touched** — `docs/BlockingFeatureEvaluation.md` (an unrelated working document
-that was already in the tree as an untracked file).
+that was already in the tree as an untracked file). Every other document **was**
+updated, `docs/device-testing.md` included — it now carries the manual scenario for a
+re-signed APK.
+
+## 8.8 مراجعة بعد المراجعة الأولى
+
+Four points came back from a review of the first pass. Three were real and are fixed
+here; the fourth was a misreading.
+
+| Point | Verdict | What changed |
+|---|---|---|
+| `verifyApkSignature` had no internal try/catch | **Real** | Both certificate reads are wrapped now: a corrupt or truncated archive is **refused**, not thrown at the caller. A new test drives a garbage file through it. |
+| `docs/device-testing.md` "not touched" | **Not true** | It was updated in the first pass — the manual scenario for a re-signed APK is in section 19. The "Not touched" line above refers only to `docs/BlockingFeatureEvaluation.md`. |
+| `NOTIF_ACCESSIBILITY` was private | **Real** | It is `internal` now, and the test addresses the notice by its id instead of by "the only notification posted". |
+| `SettingsScreen.kt` read the certificates on its own | **Real** | One reader now: `SigningCertificates`. The updater and the About card cannot disagree about how a certificate is read. |
+
+The unification also fixed a small bug in the About card: the signing history is ordered
+**oldest → newest**, so the card was showing the *oldest* key of the lineage — the one a
+key rotation replaced. It now shows the certificate that signed this build, which is the
+one the published fingerprint refers to.
+
 
 

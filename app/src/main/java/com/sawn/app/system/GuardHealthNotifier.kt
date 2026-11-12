@@ -22,7 +22,9 @@ import com.sawn.app.R
 object GuardHealthNotifier {
 
     private const val CHANNEL_ID = "sawn_guard_health"
-    private const val NOTIF_ACCESSIBILITY = 1002
+
+    /** The id of the standing "accessibility stopped" notice (visible to the tests). */
+    internal const val NOTIF_ACCESSIBILITY = 1002
     private const val NOTIF_ADMIN = 1003
     private const val NOTIF_VPN = 1004
     private const val NOTIF_NUDGE = 1005

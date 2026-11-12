@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.Signature
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -80,6 +81,37 @@ class UpdateInstallerSignatureTest {
         installOurApp(ourKey)
         shadowPackageManager.setPackageArchiveInfo(apkFile().absolutePath, PackageInfo())
         assertFalse(UpdateInstaller.verifyApkSignature(context, apkFile()))
+    }
+
+    /**
+     * A corrupt archive must be *refused*, not thrown at the caller: the reader may
+     * fail in ways the caller cannot predict (a truncated download, a file that is not
+     * an APK at all), and the only answer to "I cannot read it" is "no".
+     */
+    @Test
+    fun aCorruptArchiveIsRefusedWithoutThrowing() {
+        installOurApp(ourKey)
+        val corrupt = File(context.cacheDir, "updates/corrupt.apk").apply {
+            parentFile?.mkdirs()
+            writeText("this is not an apk")
+        }
+        assertFalse(UpdateInstaller.verifyApkSignature(context, corrupt))
+    }
+
+    /**
+     * The About card and the updater must read the certificates the same way — one
+     * reader, so the fingerprint the user compares with ours is the key that signed
+     * this build.
+     */
+    @Test
+    fun theCurrentCertificateIsTheOneTheAppIsSignedWith() {
+        installOurApp(ourKey)
+        val certificate = SigningCertificates.installedCurrentCertificate(
+            context.packageManager,
+            context.packageName,
+        )
+        assertNotNull(certificate)
+        assertTrue(certificate!!.contentEquals(ourKey))
     }
 
     /** The installed package, as the system knows it. */

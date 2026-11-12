@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,19 +30,21 @@ class GuardHealthNotifierTest {
 
     private val context: Application = RuntimeEnvironment.getApplication()
 
-    private fun postedNotifications(): List<Notification> =
-        shadowOf(
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager,
-        ).allNotifications
+    private fun notificationManager(): NotificationManager =
+        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+    private fun accessibilityNotice(): Notification? =
+        shadowOf(notificationManager()).getNotification(GuardHealthNotifier.NOTIF_ACCESSIBILITY)
 
     @Test
     fun theAccessibilityNoticeIsOngoingAndHighPriority() {
         GuardHealthNotifier.notifyAccessibilityDown(context)
 
-        val notification = postedNotifications().single()
+        val notification = accessibilityNotice()
+        assertNotNull("the notice must be posted", notification)
         assertTrue(
             "the notice must not be swipeable away",
-            notification.flags and Notification.FLAG_ONGOING_EVENT != 0,
+            notification!!.flags and Notification.FLAG_ONGOING_EVENT != 0,
         )
         assertEquals(NotificationCompat.PRIORITY_HIGH, notification.priority)
     }
@@ -50,8 +53,7 @@ class GuardHealthNotifierTest {
     fun tappingTheAccessibilityNoticeOpensTheAccessibilitySettings() {
         GuardHealthNotifier.notifyAccessibilityDown(context)
 
-        val notification = postedNotifications().single()
-        val contentIntent = notification.contentIntent
+        val contentIntent = accessibilityNotice()!!.contentIntent
         assertNotNull("the notice must carry a tap target", contentIntent)
         val saved = shadowOf(contentIntent).savedIntent
         assertEquals(Settings.ACTION_ACCESSIBILITY_SETTINGS, saved.action)
@@ -62,9 +64,9 @@ class GuardHealthNotifierTest {
         GuardHealthNotifier.notifyAccessibilityDown(context)
         GuardHealthNotifier.clearAccessibility(context)
 
-        assertTrue(
+        assertNull(
             "a healthy service must leave no standing notice",
-            postedNotifications().none { it.flags and Notification.FLAG_ONGOING_EVENT != 0 },
+            accessibilityNotice(),
         )
     }
 }
