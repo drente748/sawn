@@ -39,7 +39,7 @@ If they match, the file is intact, and it is the same file the app offers under 
 
 ## Uninstall the old build first
 
-If you have Warden 1.x — **uninstall it, then install Sawn**. Warden and Sawn are different packages (`com.sawn.app`), and Sawn will need permissions granted fresh. Your 1.x data is not migrated (Sawn starts clean).
+If you have version 1.x of the previous app — **uninstall it, then install Sawn**. The two are different packages (the new one is `com.sawn.app`), and Sawn will need permissions granted fresh. Your 1.x data is not migrated (Sawn starts clean).
 
 ## Protection does not stop
 

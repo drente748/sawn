@@ -10,13 +10,18 @@
 local.properties
 .env.toolchain
 *.keystore
+*.jks
 !debug.keystore
 /app/build/
 /app/release/
 /release/
 *.apk
+*.aab
 core/*/build/
 .superpowers/
 .kotlin/
 build-*.log
 *.log
+
+# A working document, not part of the project: kept local, never pushed.
+docs/BlockingFeatureEvaluation.md

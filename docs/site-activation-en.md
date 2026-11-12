@@ -33,4 +33,4 @@
 - Every step is "skippable" except (2)(3) — protection won't start without them (clear message).
 - Play Protect won't disappear — guide the user, don't hide it.
 - No mandatory internet; lists are local; list updates are manual and optional.
-- 2.0 starts clean — no migration from Warden 1.x.
+- 2.0 starts clean — no migration from version 1.x.

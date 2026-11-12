@@ -57,7 +57,7 @@ cleared, and it ends by itself when its timer expires. A live lock is restored a
 ## Project structure
 
 ```text
-warden/
+sawn/
 ├── app/                     # Compose UI, services (VPN / Accessibility / DeviceAdmin /
 │                            #   boot / QS tile / workers), ViewModels, Hilt
 ├── core/
@@ -93,7 +93,7 @@ warden/
 - [x] Boot/update restore: `BootRestorePolicy` + `BootReceiver` + `KeepAliveWorker` +
       `GuardHealthWorker`
 - [x] Encrypted-free, PIN-gated management sections; local profile; AR/EN with RTL
-- [x] Optional in-app update check against a free GitHub Pages manifest, with SHA-256,
+- [x] Optional in-app update check against a GitHub Pages manifest, with SHA-256,
       package/version **and APK signature** verification before the Android installer
       opens — the signature is compared with the installed app's own signing lineage, so
       a forged or unsigned APK never reaches the installer
@@ -152,7 +152,7 @@ the address is compiled in. Details: [`docs/update-hosting.md`](docs/update-host
 | [`docs/setup.md`](docs/setup.md) | Local toolchain setup |
 | [`docs/device-testing.md`](docs/device-testing.md) | On-device test plan |
 | [`docs/feature-organization.html`](docs/feature-organization.html) | Design exploration: how the features could be grouped and ordered (open in a browser) |
-| [`docs/update-hosting.md`](docs/update-hosting.md) | Free update hosting (GitHub Pages/Releases) |
+| [`docs/update-hosting.md`](docs/update-hosting.md) | Update hosting (GitHub Pages/Releases) |
 | [`scripts/setup-update-hosting.ps1`](scripts/setup-update-hosting.ps1) | One-time setup of Actions secrets + GitHub Pages (publishes nothing) |
 | [`scripts/verify-release.ps1`](scripts/verify-release.ps1) | Release gate: signing certificate, version, and manifest URL inside the APK |
 | [`scripts/audit_release.py`](scripts/audit_release.py) | Pre-release audit: secrets, string parity, XML, doc links, version ladder |
@@ -165,4 +165,4 @@ Built APKs are kept out of git in `release/` (ignored).
 
 ## License
 
-Code: see repository license. Cairo font: SIL Open Font License 1.1 (`app/licenses/Cairo-OFL.txt`).
+Cairo font: SIL Open Font License 1.1 (`app/licenses/Cairo-OFL.txt`).

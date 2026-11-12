@@ -6,13 +6,12 @@ package com.sawn.domain.update
  * Pure Kotlin on purpose: the rule that decides whether a file is trustworthy must be
  * unit-testable without a device, a network, or a real APK.
  *
- * The threat (from the SuvMusic audit, "Unsigned APK installed by updater (RCE)"): the
- * update channel is the weakest link. A SHA-256 in a manifest proves the file matches
- * *the manifest*; it does not prove the file was signed by *us*. If the manifest is
- * replaced — or served from a compromised page — an attacker-supplied APK with our
- * package name would pass the checksum. Android's installer would then refuse it (the
- * signature does not match the installed app), but the user is one tap away from
- * uninstalling the real app first — and then the forged APK installs cleanly.
+ * The threat: the update channel is the weakest link. A SHA-256 in a manifest proves the
+ * file matches *the manifest*; it does not prove the file was signed by *us*. If the
+ * manifest is replaced — or served from a compromised page — an attacker-supplied APK
+ * with our package name would pass the checksum. Android's installer would then refuse
+ * it (the signature does not match the installed app), but the user is one tap away
+ * from uninstalling the real app first — and then the forged APK installs cleanly.
  *
  * So the signature is checked **before** the installer is ever opened, not by it.
  */

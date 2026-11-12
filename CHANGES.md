@@ -376,21 +376,6 @@ No test reads the wall clock: the "now" is always an explicit parameter.
 the pure policy (it was inline in the view model) so the property has something to
 test; the view model now calls it.
 
-## 8.4 المصادر
-
-| Source | What was taken from it |
-|---|---|
-| `suvojeet-sengupta/SuvMusic` — `docs/SECURITY_AND_STABILITY_AUDIT.md` | The shape of the hole it documents ("Unsigned APK installed by updater (RCE)") and its recommendation: check the signature *before* prompting the install, not by the installer. |
-| DEV Community — "Building a Robust In-App Update Channel for Sideloaded Android Apps" | The order of operations used literally in `UpdateInstaller`: download → recompute the hash → confirm the signing certificate against the known lineage (`GET_SIGNING_CERTIFICATES`) → only then open the installer. |
-| `wdchocopie/split-sideloader` — `core/sign/ApkSignatures.kt` | Reading the signing certificate from an APK **without installing it**, and treating key rotation (the certificate history) as a first-class case. |
-| `Bodo121/S22-Updater` | The shape of the failure: "checks package and signing compatibility, then opens the installer" — and the rule that the failure is reported to the user without exposing anything sensitive. |
-| Stack Overflow — "Accessibility service of specific android device keeps doing malfunctioning" | The three-part recovery strategy: battery-optimisation exemption, the service bound as a foreground service, and `WorkManager` as the periodic watchdog. |
-| `luqijun9/AccessibilityManager` | The keep-alive technique: a periodic check (tightened here to 2-3 minutes in strict mode) and a short delay before restarting, so a failing restart does not become a loop. |
-| `agents-io/PokeClaw` — commit `233c951` | The "process-young grace": report `CONNECTING`, not `DEGRADED`, for the first 30 seconds of a process's life — and the `am force-stop` limit on Pixel, now documented in `SECURITY.md`. |
-| `kotest/kotest` — `PROPERTY-TESTING-REFERENCE.md` | `checkAll` + `Arb` + shrinking: a failing property shrinks to the smallest input that breaks it. |
-| `skills.rest` — "kotest-testing" | The `kotest-property` dependency and the practice of stating an invariant over an input space rather than over examples. |
-| `skillsmp.com` — "property-based-testing Agent Skill" | The placement rule: property-based testing belongs on the pure domain module, where it is fast and needs no device. |
-
 ## 8.5 الاختبارات الجديدة
 
 | Suite | What it covers |
@@ -446,6 +431,32 @@ uses the shared certificate reader), `LockdownPolicy`,
 that was already in the tree as an untracked file). Every other document **was**
 updated, `docs/device-testing.md` included — it now carries the manual scenario for a
 re-signed APK.
+
+## 8.9 تطهير الهوية
+
+A separate branch (`feat/identity-purge`) removed the old identity and the leftovers
+from the repository. Nothing about the app's behaviour changed: no code path was
+touched, only text, two dead files, and dead imports.
+
+| Removed | Why |
+|---|---|
+| `LICENSE` | The project is not open source, and it carries no licence text |
+| `scripts/repoint_hosting.py` | A one-shot migration that already ran (every replacement now maps a string to itself), unreferenced, and it carried the old name |
+| `CHANGES.md` §8.4 "المصادر" | The whole credits table — external repositories are not part of this project's record |
+| 73 unused imports in 17 Kotlin files | Imports with no remaining reference (the `getValue`/`setValue` operator imports were kept — `by` needs them) |
+
+Text that carried the old name was rewritten rather than deleted where the sentence had
+to keep its meaning: the install guides now say "the previous app", the changelog says
+"the previous name", and the About card in the settings reads the signing certificate
+through the same reader the updater uses.
+
+The `verify-release.ps1` stale-hosting check kept its diagnostic but no longer names
+the old hosting: it now matches *any* GitHub Pages manifest URL, so it still catches a
+build that points at an earlier host.
+
+No policy, privacy, about, description, or licence text was written. The files that
+were **not** touched are listed in `PROGRESS.md` §6, with the reason for each.
+
 
 ## 8.8 مراجعة بعد المراجعة الأولى
 

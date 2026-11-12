@@ -1,4 +1,4 @@
-# استضافة التحديثات المجانية لصَوْن
+# استضافة التحديثات لصَوْن
 
 يستضيف التطبيق بيان التحديثات على **GitHub Pages**، وملفات APK على **GitHub Releases**، ويُنشر كلٌّ منهما تلقائياً عبر **GitHub Actions**. لا يحتاج التطبيق إلى اتصال بالخادم إلا حين يختار المستخدم «تحقّق من وجود تحديث» في الإعدادات. رابط البيان يُضمَّن وقت البناء في `BuildConfig.UPDATE_MANIFEST_URL`؛ إذا تُرك فارغًا تبقى ميزة التحديث معطّلة.
 
@@ -91,7 +91,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-update-hosting.ps1 -Versi
      ```
      احتفظ بالسر الأصلي في مكان آمن؛ فقده يمنع تحديث التطبيقات المثبتة.
    - `SAWN_STORE_PASSWORD`: كلمة مرور المخزن.
-   - `SAWN_KEY_ALIAS`: اسم المفتاح (`warden`).
+   - `SAWN_KEY_ALIAS`: اسم المفتاح (كما هو في `local.properties`).
    - `SAWN_KEY_PASSWORD`: كلمة مرور المفتاح.
    - `SAWN_SIGNING_CERT_SHA256`: البصمة الموثّقة أعلاه.
 4. تحقّق من أن شهادة keystore هي الشهادة نفسها المستخدمة لتوقيع APK الذي ثبّته المستخدمون. **لا تغيّر المفتاح.**
@@ -173,7 +173,7 @@ $env:SAWN_UPDATE_MANIFEST_URL = "https://drente748.github.io/sawn-releases/updat
 {
   "versionCode": 31,
   "versionName": "2.2.0",
-  "apkUrl": "https://github.com/drente748/sawn-releases/releases/download/v2.2.0/app-release.apk",
+  "apkUrl": "https://<your-host>/app-release.apk",
   "sha256": "<64 lowercase hexadecimal characters>",
   "changelog": "ملاحظات الإصدار مستخرجة من docs/CHANGELOG.md",
   "mandatory": false

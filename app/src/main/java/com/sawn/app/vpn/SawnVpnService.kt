@@ -14,7 +14,6 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
-import androidx.core.content.ContextCompat
 import com.sawn.app.MainActivity
 import com.sawn.app.R
 import com.sawn.app.SawnApp

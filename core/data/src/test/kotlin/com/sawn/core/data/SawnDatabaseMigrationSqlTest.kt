@@ -1,6 +1,5 @@
 package com.sawn.core.data
 
-import androidx.room.migration.Migration
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper

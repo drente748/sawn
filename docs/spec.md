@@ -2,7 +2,7 @@
 
 ## Goal
 
-A free, open-source Android app that does everything
+An Android app that does everything
 [AppBlock](https://play.google.com/store/apps/details?id=cz.mobilesoft.appblock) does — block
 apps and websites, on schedules and other conditions, with strict/PIN protection and usage
 stats — and more, with a stronger privacy posture (local-only, no accounts, auditable).

@@ -12,7 +12,7 @@ This document is the threat model and the measures in place.
 - The only outbound requests are explicit, user-triggered HTTPS downloads of public adult-
   domain lists from their GitHub sources. They send no account, device, or browsing data.
   There is no automatic background list download.
-- Every permission's use is visible in this open-source code and justified below.
+- Every permission's use is justified below.
 
 ## Threat model
 

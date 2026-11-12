@@ -8,9 +8,6 @@ import com.sawn.domain.block.BlockDecision
 import com.sawn.domain.block.BlockSource
 import com.sawn.domain.block.BlockingEngineType
 import com.sawn.domain.block.DefaultBlockCoordinator
-import com.sawn.domain.block.ProtectionLevel
-import com.sawn.domain.block.ProtectionPolicy
-import kotlinx.coroutines.flow.first
 
 /**
  * The Android side of the coordinator: it knows which engines are actually running and

@@ -158,7 +158,7 @@ if ($found) {
     # Say which hosting the build actually points at, if it points at one. A stale
     # URL from an earlier owner is the failure mode that silently disables every
     # update check, so it deserves to be named rather than merely reported missing.
-    $stale = [regex]::Match($dexText, "https://[a-z0-9.\-]+\.github\.io/warden/updates/manifest\.json")
+    $stale = [regex]::Match($dexText, "https://[a-z0-9.\-]+\.github\.io/[a-z0-9\-]+/updates/manifest\.json")
     if ($stale.Success) {
         Write-Host "        this build points at: $($stale.Value)"
         Write-Host "        it was built before the hosting moved; rebuild it."
