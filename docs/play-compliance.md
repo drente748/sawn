@@ -114,7 +114,7 @@ protection hook ("BIND_DEVICE_ADMIN" with an empty admin policy set).
 |---|---|
 | Is the app a browser? | No |
 | Does the app monetize or have ads? | No |
-| Is this app directed to children? | No — tools for the adult user; parental mode exists for parents managing a child's device |
+| Is this app directed to children? | No — it is a tool for the adult user |
 | Does the app use accessibility API? | Yes — declaration above |
 | Does the app use VPN? | Yes — declaration above |
 | Does the app host remote code? | No — TF Lite model is bundled in assets; no code ever fetched at runtime |

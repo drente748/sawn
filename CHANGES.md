@@ -536,6 +536,36 @@ guess with a timer, the tile starts the 15-minute lock on a tap, and the duratio
 picker lives in the app where the user can see what they are choosing.
 
 
+## 14. إلغاء وضع وليّ الأمر مؤقتاً
+
+The parental mode is **out of the product for now**: no second parent PIN, no locked
+management sections, no weekly report for a parent to read.
+
+What made the decision easy is that three gaps were found while reviewing it, and none
+of them has a cheap fix:
+
+- **It did not stop protection from being switched off.** `SettingsStore.disableProtection()`
+  refuses only for a live time lock or strict mode — it never consults the parental mode,
+  so the protection switch on the home screen switched everything off and the mode meant
+  nothing.
+- **The parent could not read the report.** Every management section is behind the parent
+  PIN, so the weekly report could not be opened to be shared.
+- **The device admin could be deactivated from the system settings**, which ends the mode
+  entirely.
+
+What is kept: the **weekly report** itself, as a plain local summary of the user's own
+week («شارك أسبوعك»), because it works, it is private, and it is useful to the person
+using the app — it was never a parental feature, only a child of it.
+
+Documentation updated: `feature-map.md` (the rule, the surfaces, the path index, the
+"what does not exist" list), `per-app-rule.md`, `play-compliance.md` (the children
+answer), and `privacy.md`.
+
+The code removal — `ParentalModePolicy`, the parent PIN, the gate branch, the parental
+screen and its route — is part of the implementation batch and has not started.
+
+---
+
 ## 13. قرارات المنتج في الحجب (بلا كود)
 
 The product decisions that came out of the blocking section, and the documentation
