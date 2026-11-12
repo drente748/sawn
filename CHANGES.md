@@ -536,6 +536,25 @@ guess with a timer, the tile starts the 15-minute lock on a tap, and the duratio
 picker lives in the app where the user can see what they are choosing.
 
 
+## 10. خريطة الميزات
+
+`docs/feature-map.md` — the inventory every feature, by category, taken **from the code**
+rather than from memory: the two blocking engines and their lists, the 14 in-app
+features, the six social platforms, the schedules and conditions, the four locks, the
+tools, the progress data, the external surfaces (two tiles, the widget, the
+notifications, the boot restore, the update channel), what is stored, and what each
+permission buys.
+
+Each entry carries the file it lives in, the states it can be in, and the surface the
+interface has to show — so the design and theme phase has one reference instead of
+guessing from the screens.
+
+It also lists what **does not exist** (no account, no subscription, no ads, no cloud
+sync, no tracking), so nothing gets designed around a feature that is not there, and
+five open questions that the design phase has to answer.
+
+---
+
 ## 8.8 مراجعة بعد المراجعة الأولى
 
 Four points came back from a review of the first pass. Three were real and are fixed

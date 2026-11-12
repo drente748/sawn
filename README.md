@@ -146,6 +146,7 @@ the address is compiled in. Details: [`docs/update-hosting.md`](docs/update-host
 |---|---|
 | [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | Development workflow, conventions, release checklist |
 | [`docs/spec.md`](docs/spec.md) | Architecture, data model, privacy model |
+| [`docs/feature-map.md`](docs/feature-map.md) | Every feature, by category, with its states and surfaces — the reference for the UI and theme |
 | [`docs/privacy.md`](docs/privacy.md) | What is stored, what leaves the device |
 | [`docs/play-compliance.md`](docs/play-compliance.md) | Play policy mapping |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Threat model, known limits |
