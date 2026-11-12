@@ -6,8 +6,8 @@
 
 | | |
 |---|---|
-| الفرع | `feat/identity-purge` (من `feat/optional-vpn`) |
-| آخر commit | يُحدَّث بعد كل مهمة — راجع `git log -1 --oneline` |
+| الفرع | `feat/identity-purge` (من `feat/optional-vpn`) — على GitHub |
+| آخر commit | `bbe1d89` — تطهير الهوية (هذا الملف نفسه في نفس الـ commit) |
 | الإصدار | 2.2.0 / `versionCode 31` (لم يتغيّر) |
 | المرحلة | ما بعد «الأمان والموثوقية» — لا تنظيف سلوكي |
 | البناء | `./gradlew test :app:compileDebugKotlin :app:lintDebug --offline` |
@@ -27,9 +27,10 @@
 
 ## 3. قيد العمل / التالي
 
-- [ ] **مراجعة بشرية مطلوبة** (§6): اسم مفتاح التوقيع في `local.properties` ما زال بالاسم القديم
+- [x] **تطهير الهوية** منجزة (`bbe1d89`) — ما عدا البنود التي تحتاج قراراً بشرياً في §6
 - [ ] Decision مطلوب: هل تُحذف روابط `github.io` (قناة التحديث) من التوثيق؟ (§6)
 - [ ] Decision مطلوب: هل تُحذف عبارات «مجاني» عن المنتج من `privacy.md` / `play-compliance.md`؟ (§6)
+- [ ] Decision مطلوب: تغيير اسم مفتاح التوقيع (`local.properties`) — يحتاج إعادة توليد الـ keystore
 
 ## 4. سجل المراحل
 
@@ -40,7 +41,7 @@
 | 3 | توثيق التحقق | `feat/optional-vpn` (`14f2cd8`) | مكتملة |
 | 4 | الأمان والموثوقية: توقيع APK + مراقب الوصول + ثوابت Properties | `feat/optional-vpn` (`27a787a`) | مكتملة |
 | 5 | مراجعة: قارئ شهادات واحد + `verifyApkSignature` لا يرمي | `feat/optional-vpn` (`c2d16d0`) | مكتملة |
-| 6 | **تطهير الهوية + سياسة النظافة** | `feat/identity-purge` | **قيد التنفيذ** |
+| 6 | **تطهير الهوية + سياسة النظافة** | `feat/identity-purge` (`bbe1d89`) | **مكتملة** |
 
 ## 5. الديون التقنية
 
