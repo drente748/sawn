@@ -451,6 +451,7 @@
     <string name="update_failed">Could not complete update: %1$s</string>
     <string name="update_host_not_configured">Update hosting is not configured yet. Set SAWN_UPDATE_MANIFEST_URL and rebuild the app.</string>
     <string name="update_install_permission_missing">Permission to install apps from this source was not granted.</string>
+    <string name="update_signature_failed">Signature verification failed — the update was not installed.</string>
     <string name="widget_open">Open</string>
     <string name="widget_streak_format">%1$s days</string>
 

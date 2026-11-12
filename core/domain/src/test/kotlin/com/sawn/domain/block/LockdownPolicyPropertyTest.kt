@@ -77,6 +77,59 @@ class LockdownPolicyPropertyTest : StringSpec({
                 (minutes * 60_000L)
         }
     }
+
+    /**
+     * INVARIANT 1 — a live lock is never shortened.
+     *
+     * If this broke, the user could shorten the very lock they set for themselves, and
+     * every promise the time lock makes would be worthless. The property is stated over
+     * *every* candidate deadline: an accepted write is always strictly later than the
+     * deadline that is already running.
+     */
+    "a live lock is never shortened, whatever the candidate deadline" {
+        checkAll(
+            Arb.long(1_000L, 1_000_000L),
+            Arb.long(0L, 2_000_000L),
+        ) { now, candidate ->
+            val currentUntil = now + 10_000L
+            val accepted = LockdownPolicy.mayApplyLockdown(currentUntil, candidate, now)
+            if (accepted) {
+                (candidate > currentUntil) shouldBe true
+            } else {
+                (candidate <= currentUntil) shouldBe true
+            }
+        }
+    }
+
+    /**
+     * INVARIANT 2 — an extension is cumulative.
+     *
+     * The duration is added to the time that is *left*, not to the moment the user
+     * pressed the button: extending a lock by an hour must never eat into the hours
+     * that were already paid for. The extension is also accepted by the store.
+     */
+    "an extension adds to the time that is left" {
+        checkAll(
+            Arb.long(1_000L, 1_000_000L),
+            Arb.long(1_000L, 86_400_000L),
+        ) { now, duration ->
+            val currentUntil = now + 10_000L
+            val extended = LockdownPolicy.extend(currentUntil, duration, now)
+            extended shouldBe currentUntil + duration
+            LockdownPolicy.mayApplyLockdown(currentUntil, extended, now) shouldBe true
+        }
+    }
+
+    /** An expired lock has no time left, so the extension starts from now. */
+    "an extension of an expired lock starts from now" {
+        checkAll(
+            Arb.long(0L, 10_000L),
+            Arb.long(1_000L, 86_400_000L),
+        ) { now, duration ->
+            LockdownPolicy.extend(currentUntil = 0L, durationMs = duration, now = now) shouldBe
+                (now + duration)
+        }
+    }
 })
 
 /** Twelve months, expressed in minutes — the longest duration the policy accepts. */

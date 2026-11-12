@@ -272,3 +272,175 @@ the `androidx.biometric` dependency that only it used.
 `:core:domain` / `:core:data` build files.
 
 **Docs** — `README.md`, `docs/spec.md`, `docs/SECURITY.md`, `docs/privacy.md`.
+
+---
+
+# 8. الفئة الأولى — الأمان والموثوقية
+
+Three gaps closed on top of the optional-VPN branch. None of them is a new feature:
+this is the *ground* — the part that has to be solid before anything else is built on
+it.
+
+## 8.1 The updater verifies the signature itself
+
+**The gap.** `UpdateInstaller` checked the manifest's SHA-256, the package name and the
+version code — but not the **signature**. A SHA-256 proves the file matches *the
+manifest*; it does not prove the file was signed by *us*. If the manifest is replaced,
+or served from a compromised page, an APK carrying our package name and a higher
+version code passes the checksum. Android's installer would then refuse it (the
+signature does not match the installed app) — but only until the user uninstalls the
+real app first, and then the forged APK installs cleanly. That is the "unsigned APK
+installed by updater (RCE)" hole.
+
+**What changed.**
+
+| Where | What |
+|---|---|
+| `core/domain/.../update/ApkSignaturePolicy.kt` (new) | The verdict, as pure Kotlin: `ACCEPTED` / `UNSIGNED` / `FOREIGN_KEY` / `UNREADABLE` |
+| `app/.../update/UpdateInstaller.kt` | `verifyApkSignature(context, apkFile)`, called **before** any installer call |
+| `app/.../update/ApkSigningCertificates.kt` (new) | The API 28+ certificate reader, kept apart so Android 8 still links |
+| `app/src/main/res/values{,-ar}/strings.xml` | «فشل التحقق من توقيع التحديث — تم إلغاء التثبيت» |
+
+- The archive's certificates are read through
+  `getPackageArchiveInfo(..., GET_SIGNING_CERTIFICATES)` and compared, as SHA-256, with
+  the **installed app's own signing lineage**
+  (`getPackageInfo(...).signingInfo.signingCertificateHistory`).
+- The candidate is accepted when it shares **any** fingerprint with our lineage — the
+  same rule Android's own installer applies, and the reason a key rotation keeps
+  working instead of bricking the updater for everybody on the old key.
+- The order is fixed: checksum → package → version → **signature** → installer. A file
+  that is not ours never reaches `PackageInstaller` / `ACTION_VIEW`.
+- The log line carries the **verdict only** (`verdict=FOREIGN_KEY`) — never the
+  certificate, never the file.
+
+**Why the anchor is the installed app, not a compiled-in hash.** A fingerprint baked into
+`BuildConfig` or a string resource lives inside the very file an attacker would
+repackage. The installed app's signature is held by the system, out of reach.
+
+**API levels.** `android.content.pm.SigningInfo` does not exist below API 28, so it
+lives in its own class and is only ever touched on a system that has it; below API 28
+the legacy `GET_SIGNATURES` array is read instead (there is no lineage to read there —
+key rotation does not exist on Android 8 either).
+
+## 8.2 The accessibility watchdog comes back on its own
+
+**The gap.** The watchdog noticed a dead protection, but slowly, silently, and it could
+not tell "the user revoked the permission" from "the OEM killed the service".
+
+**What changed.**
+
+- **A grace period of 30 seconds** (`GuardHealthPolicy.PROCESS_GRACE_MS`). The system
+  binds the accessibility service a moment after the process is alive; a check landing
+  in that window would report a protection that is merely waking up. The process age
+  comes from `Process.getStartUptimeMillis()` — recorded by the system, so it is exact
+  and immune to clock changes.
+- **The strict check runs every 3 minutes** and the ordinary one every 15
+  (`GuardHealthWorker.STRICT_INTERVAL_MINUTES` / `PERIODIC_INTERVAL_MINUTES`). The fast
+  one is a self-rescheduling one-time request, because WorkManager refuses a periodic
+  interval below 15 minutes; it now runs the *same* health check, not just a timer, and
+  it is started when strict mode is switched on.
+- **A bounded self-heal.** The watchdog asks the system to rebind the service
+  (`startService` on the accessibility component — the only route available without
+  `WRITE_SECURE_SETTINGS`), at most `GuardHealthPolicy.MAX_SELF_HEAL_ATTEMPTS` (3)
+  times, with `BackoffPolicy.EXPONENTIAL`. The attempt count travels with the request
+  (`StrictGuardHealthWorker.ATTEMPT_KEY`), so the fast chain cannot loop for ever.
+- **An ongoing notice.** The notification is `PRIORITY_HIGH` + `setOngoing(true)` (it
+  cannot be swiped away), and its tap opens `Settings.ACTION_ACCESSIBILITY_SETTINGS`
+  directly — the next tap gets the service back on.
+- **`AppBlockAccessibilityService.connected`** — a `StateFlow` that says whether the
+  service is *bound*, not merely permitted. "Permitted but not bound" is the state an
+  OEM leaves behind after killing the service, and it is the one that can be healed.
+
+**The honest limit.** On some devices (Pixel + `am force-stop`) the
+`accessibility_enabled` setting itself is cleared, so no app can revive the service —
+the user must re-enable it. That is an Android limitation, not an app bug, and it is now
+written down in `docs/SECURITY.md`.
+
+## 8.3 The invariants, as properties
+
+The three rules that must never break are now *properties*, checked over thousands of
+generated inputs instead of a handful of examples.
+
+| Rule | Why it matters if it breaks |
+|---|---|
+| `LockdownPolicy`: a live lock is never shortened | The user could shorten the very lock they set for themselves |
+| `LockdownPolicy`: an extension is cumulative | The duration is added to the time that is *left*, not to the moment of the press |
+| `ScheduleEvaluator`: every minute inside the window is active | The blocking would silently stop in the middle of the window the user set |
+| `ScheduleEvaluator`: a window crossing midnight belongs to two days | The small hours of the next day would be unprotected |
+| `DomainMatcher`: a subdomain of a blocked domain is blocked | The blocklist would not cover the site it names |
+| `DomainMatcher`: a domain that merely shares the suffix is not blocked | The blocklist would block innocent sites |
+
+No test reads the wall clock: the "now" is always an explicit parameter.
+
+`LockdownPolicy.extend(currentUntil, durationMs, now)` moved the extension rule into
+the pure policy (it was inline in the view model) so the property has something to
+test; the view model now calls it.
+
+## 8.4 المصادر
+
+| Source | What was taken from it |
+|---|---|
+| `suvojeet-sengupta/SuvMusic` — `docs/SECURITY_AND_STABILITY_AUDIT.md` | The shape of the hole it documents ("Unsigned APK installed by updater (RCE)") and its recommendation: check the signature *before* prompting the install, not by the installer. |
+| DEV Community — "Building a Robust In-App Update Channel for Sideloaded Android Apps" | The order of operations used literally in `UpdateInstaller`: download → recompute the hash → confirm the signing certificate against the known lineage (`GET_SIGNING_CERTIFICATES`) → only then open the installer. |
+| `wdchocopie/split-sideloader` — `core/sign/ApkSignatures.kt` | Reading the signing certificate from an APK **without installing it**, and treating key rotation (the certificate history) as a first-class case. |
+| `Bodo121/S22-Updater` | The shape of the failure: "checks package and signing compatibility, then opens the installer" — and the rule that the failure is reported to the user without exposing anything sensitive. |
+| Stack Overflow — "Accessibility service of specific android device keeps doing malfunctioning" | The three-part recovery strategy: battery-optimisation exemption, the service bound as a foreground service, and `WorkManager` as the periodic watchdog. |
+| `luqijun9/AccessibilityManager` | The keep-alive technique: a periodic check (tightened here to 2-3 minutes in strict mode) and a short delay before restarting, so a failing restart does not become a loop. |
+| `agents-io/PokeClaw` — commit `233c951` | The "process-young grace": report `CONNECTING`, not `DEGRADED`, for the first 30 seconds of a process's life — and the `am force-stop` limit on Pixel, now documented in `SECURITY.md`. |
+| `kotest/kotest` — `PROPERTY-TESTING-REFERENCE.md` | `checkAll` + `Arb` + shrinking: a failing property shrinks to the smallest input that breaks it. |
+| `skills.rest` — "kotest-testing" | The `kotest-property` dependency and the practice of stating an invariant over an input space rather than over examples. |
+| `skillsmp.com` — "property-based-testing Agent Skill" | The placement rule: property-based testing belongs on the pure domain module, where it is fast and needs no device. |
+
+## 8.5 الاختبارات الجديدة
+
+| Suite | What it covers |
+|---|---|
+| `ApkSignaturePolicyTest` (Kotest, `:core:domain`) | Our key / a foreign key / unsigned / a rotated key in both directions / a look-alike prefix / an unreadable lineage / the fingerprint format |
+| `UpdateInstallerSignatureTest` (Robolectric, `:app`) | The real `verifyApkSignature` against a faked package manager: ours accepted, a foreign key refused, unsigned refused, an unreadable archive refused, and refused when *our* certificate cannot be read |
+| `GuardHealthPolicyTest` (Kotest, `:core:domain`) | The grace period, the four states, and the bound on the self-heal |
+| `GuardHealthWorkerTest` (JUnit, `:app`) | The cadence: the strict check every 2-3 minutes, the ordinary one every 15-30 |
+| `GuardHealthNotifierTest` (Robolectric, `:app`) | The notice is ongoing, high priority, and opens the accessibility settings; it is cleared when the service is back |
+| `LockdownPolicyPropertyTest` (extended) | **Invariant 1** a live lock is never shortened; **Invariant 2** an extension is cumulative |
+| `ScheduleEvaluatorPropertyTest` (new) | **Invariant 1** every minute inside a window is active; **Invariant 2** a window crossing midnight belongs to two days |
+| `DomainMatcherPropertyTest` (new) | **Invariant 1** a subdomain is blocked; **Invariant 2** a domain that only shares the suffix is not |
+
+The app-level signature test runs on API 26 — the only Robolectric system image
+available offline — so it exercises the legacy certificate path. The key-rotation
+rule lives in `ApkSignaturePolicyTest`, where the lineage is compared directly.
+
+## 8.6 التحقق
+
+| Command | Result |
+|---|---|
+| `./gradlew test` | **BUILD SUCCESSFUL** — 320 tests in `:core:domain`, 34 in `:core:data`, 88 in `:app`; 0 failures |
+| `./gradlew :app:compileDebugKotlin` | **BUILD SUCCESSFUL** |
+| `./gradlew :app:compileReleaseKotlin` | **BUILD SUCCESSFUL** |
+| `./gradlew :app:lintDebug` | **1 error, 52 warnings** — the *same* pre-existing error as before this work (`ImageScreeningOrchestrator.kt`, `capture()` needs API 30). **No finding mentions any file added or changed here.** |
+
+Not run, and why: `assembleRelease` / `bundleRelease` (forbidden by the task — no APK or
+AAB was produced, and no signing happened), `connectedAndroidTest` (needs a device; the
+developer's job).
+
+## 8.7 الملفات
+
+**New (`:core:domain`)** — `update/ApkSignaturePolicy.kt`, `system/GuardHealthPolicy.kt`
+
+**New (`:app`)** — `update/ApkSigningCertificates.kt`
+
+**New (tests)** — `core/domain/.../update/ApkSignaturePolicyTest.kt`,
+`core/domain/.../system/GuardHealthPolicyTest.kt`,
+`core/domain/.../block/ScheduleEvaluatorPropertyTest.kt`,
+`core/domain/.../block/DomainMatcherPropertyTest.kt`,
+`app/src/test/.../update/UpdateInstallerSignatureTest.kt`,
+`app/src/test/.../system/GuardHealthNotifierTest.kt`,
+`app/src/test/.../system/GuardHealthWorkerTest.kt`
+
+**Changed** — `UpdateInstaller`, `GuardHealthWorker`, `GuardHealthNotifier`,
+`AppBlockAccessibilityService`, `SawnViewModel`, `LockdownPolicy`,
+`LockdownPolicyPropertyTest`, both `strings.xml`, `CHANGES.md`, `README.md`,
+`docs/SECURITY.md`, `docs/device-testing.md`.
+
+**Not touched** — `docs/BlockingFeatureEvaluation.md` (an unrelated working document
+that was already in the tree as an untracked file).
+
+

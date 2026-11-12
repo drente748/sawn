@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sawn.domain.block.BlockingPolicy
 import com.sawn.domain.block.BlockingEngineType
+import com.sawn.domain.block.LockdownPolicy
 import com.sawn.domain.block.ProtectionLevel
 import com.sawn.domain.block.ProtectionMode
 import com.sawn.domain.block.ProtectionPolicy
@@ -389,7 +390,7 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
         val currentUntil = container.settings.lockdownUntil.first()
         // A live lock only ever grows: the chosen duration is added to the time that is left,
         // so no choice in the UI can shorten or clear it.
-        val endsAt = if (currentUntil > now) currentUntil + durationMs else now + durationMs
+        val endsAt = LockdownPolicy.extend(currentUntil, durationMs, now)
         onResult(container.settings.setLockdownUntil(endsAt))
     }
 
@@ -630,10 +631,18 @@ class SawnViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Strict mode needs a PIN; the store enforces that atomically with the write. */
     suspend fun setStrictMode(enabled: Boolean): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
+        val applied = runCatching {
             if (enabled) container.settings.enableStrictMode(container.settings.trustedNow())
             else container.settings.setStrictMode(false)
         }.getOrDefault(false)
+        // The fast watchdog belongs to strict mode: it looks for a dead protection
+        // every few minutes instead of every quarter of an hour.
+        if (enabled) {
+            com.sawn.app.system.GuardHealthWorker.scheduleStrict(getApplication())
+        } else {
+            com.sawn.app.system.GuardHealthWorker.cancelStrict(getApplication())
+        }
+        applied
     }
 
     // --- PIN ---

@@ -2,8 +2,14 @@ package com.sawn.app.update
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.content.pm.Signature
 import android.net.Uri
+import android.util.Log
 import androidx.core.content.FileProvider
+import com.sawn.app.R
+import com.sawn.domain.update.ApkSignaturePolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -19,6 +25,7 @@ sealed interface InstallUpdateResult {
 object UpdateInstaller {
     private const val MAX_APK_BYTES = 200L * 1024 * 1024
     private const val APKS_DIR = "updates"
+    private const val TAG = "SawnUpdate"
 
     suspend fun downloadAndVerify(context: Context, info: UpdateInfo): InstallUpdateResult =
         withContext(Dispatchers.IO) {
@@ -78,6 +85,12 @@ object UpdateInstaller {
                     packageInfo.versionCode.toLong()
                 }
                 if (apkVersionCode != info.versionCode.toLong()) throw SecurityException("APK version does not match manifest")
+                // The signature is checked *before* the installer is ever opened: a file
+                // that is not ours must never reach the point where the user could
+                // install it over the real app.
+                if (!verifyApkSignature(context, temporary)) {
+                    throw SecurityException(context.getString(R.string.update_signature_failed))
+                }
                 val installedPackageInfo = if (android.os.Build.VERSION.SDK_INT >= 33) {
                     context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
                 } else {
@@ -101,6 +114,105 @@ object UpdateInstaller {
             } finally {
                 connection?.disconnect()
             }
+        }
+
+    /**
+     * Whether [apkFile] is signed by a key in *our* signing lineage.
+     *
+     * The reference is the installed app's own signing certificates, read through the
+     * package manager — not a hash compiled into the app. That matters for two reasons:
+     *
+     *  - **Key rotation.** An install signed with an old key must still be able to
+     *    update to a build signed with the new key, so the comparison is against the
+     *    whole certificate *history* of both sides, not the current signer alone. This is
+     *    the same rule Android's own installer applies.
+     *  - **The anchor cannot be forged by editing the app.** A fingerprint baked into
+     *    `BuildConfig` or a string resource lives inside the very file an attacker would
+     *    repackage. The installed app's signature is held by the system, out of reach.
+     *
+     * The APK is only *read* here — never installed — so a forged file cannot do any
+     * harm at this point.
+     */
+    fun verifyApkSignature(context: Context, apkFile: File): Boolean {
+        val packageManager = context.packageManager
+        val candidate = archiveFingerprints(packageManager, apkFile)
+        val ours = installedFingerprints(packageManager, context.packageName)
+        val verdict = ApkSignaturePolicy.verify(candidate, ours)
+        // Only the verdict is written down — never the certificate, never the file.
+        if (verdict != ApkSignaturePolicy.Verdict.ACCEPTED) {
+            Log.w(TAG, "Update refused: apk signature verdict=$verdict")
+        }
+        return verdict == ApkSignaturePolicy.Verdict.ACCEPTED
+    }
+
+    /**
+     * The SHA-256 fingerprints of every certificate the archive is signed with.
+     *
+     * Empty when the archive carries no signature, or when it cannot be parsed at all —
+     * both cases refuse the file.
+     */
+    private fun archiveFingerprints(packageManager: PackageManager, apkFile: File): Set<String> {
+        val info = if (android.os.Build.VERSION.SDK_INT >= 33) {
+            packageManager.getPackageArchiveInfo(
+                apkFile.absolutePath,
+                PackageManager.PackageInfoFlags.of(signingFlags().toLong()),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageArchiveInfo(apkFile.absolutePath, signingFlags())
+        } ?: return emptySet()
+        return packageFingerprints(info)
+    }
+
+    /** The SHA-256 fingerprints of every certificate the installed package carries. */
+    private fun installedFingerprints(packageManager: PackageManager, packageName: String): Set<String> {
+        val info = if (android.os.Build.VERSION.SDK_INT >= 33) {
+            packageManager.getPackageInfo(
+                packageName,
+                PackageManager.PackageInfoFlags.of(signingFlags().toLong()),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageInfo(packageName, signingFlags())
+        } ?: return emptySet()
+        return packageFingerprints(info)
+    }
+
+    /**
+     * The fingerprints of a package's signing certificates.
+     *
+     * On API 28+ this is the whole *lineage* — the current signer plus every key it
+     * superseded — which is what makes a key-rotation upgrade work. Below API 28 the
+     * lineage does not exist yet, so only the current signer is available.
+     */
+    @Suppress("DEPRECATION")
+    private fun packageFingerprints(info: PackageInfo): Set<String> =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            ApkSigningCertificates.fingerprints(info)
+        } else {
+            legacyFingerprints(info.signatures)
+        }
+
+    /** The certificates of Android 8 and 9's predecessor API: the current signer only. */
+    private fun legacyFingerprints(signatures: Array<Signature>?): Set<String> {
+        if (signatures == null) return emptySet()
+        return signatures
+            .mapNotNull { it?.toByteArray() }
+            .mapTo(mutableSetOf()) { ApkSignaturePolicy.fingerprint(it) }
+    }
+
+    /**
+     * The flags that make the package manager return the signing certificates.
+     *
+     * `GET_SIGNING_CERTIFICATES` — the flag that also carries the lineage — arrived in
+     * API 28. Below it the legacy flag is the only way to read the certificate at all.
+     */
+    @Suppress("DEPRECATION")
+    private fun signingFlags(): Int =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_SIGNATURES
         }
 
     fun install(context: Context, packageUri: Uri) {

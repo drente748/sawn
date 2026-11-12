@@ -132,13 +132,27 @@ This document is the threat model and the measures in place.
 - **Adult list refresh** is manual and trusts the maintained upstream sources over HTTPS. It
   validates formats and sizes but does not yet verify a signed manifest or prevent rollback.
 - **Update channel**: the manifest is served from GitHub Pages and the APK from GitHub Releases.
-  SHA-256 detects a corrupted or substituted file, and Android additionally verifies the APK
-  signature against the key that signed the installed copy — so a hostile APK signed by another
-  key cannot install over the app. What SHA-256 is *not* is an independent signature: if both
-  hosting surfaces were compromised at once, a manifest and APK that agree with each other would
-  still pass. The release key therefore stays out of GitHub and in Actions secrets only. The
-  check is manual and the whole channel is inert until `SAWN_UPDATE_MANIFEST_URL` is baked into
-  a build; there is no automatic check on app start.
+  SHA-256 detects a corrupted or substituted file. Sawn then verifies the APK **signature
+  itself, before the system installer is ever opened**: the downloaded file's signing
+  certificates are compared against the signing lineage of the *installed* copy of the app
+  (the whole history, so a planned key rotation keeps working). An unsigned file, or one
+  signed by another key, is refused with "فشل التحقق من توقيع التحديث — تم إلغاء التثبيت" and
+  never reaches the installer. The anchor is the installed app's own certificate rather than a
+  hash compiled into the app, because a hash inside the APK is exactly what an attacker
+  repackages. What SHA-256 is *not* is an independent signature: if both hosting surfaces
+  were compromised at once, a manifest and APK that agree with each other would still pass.
+  The release key therefore stays out of GitHub and in Actions secrets only. The check is
+  manual and the whole channel is inert until `SAWN_UPDATE_MANIFEST_URL` is baked into a
+  build; there is no automatic check on app start.
+- **On some devices a force-stopped accessibility service cannot be revived by the app.** On
+  Pixel devices, `am force-stop` clears the `accessibility_enabled` setting itself, so the
+  system no longer considers the service enabled and no app — Sawn included — can bring it
+  back programmatically; the user has to re-enable it in Settings → Accessibility. This is a
+  limitation of Android, not a bug in the app. What Sawn can do, it does: it notices the loss
+  within minutes (every 3 minutes while a time lock or strict mode holds, every 15 minutes
+  otherwise), asks the system to rebind the service a bounded number of times with
+  exponential backoff, and posts an ongoing notice whose tap opens the accessibility settings
+  directly.
 - **Strict mode** locks Sawn's own disable paths (switch, tile, early focus exit, in-app
   admin disable), not Android's system Settings. Deactivating device admin or force-stopping
   the app from the OS remains possible — the deliberate emergency exit.

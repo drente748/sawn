@@ -53,6 +53,17 @@ object LockdownPolicy {
      */
     fun mayApplyLockdown(currentUntil: Long, newUntil: Long, now: Long): Boolean =
         if (!isActive(currentUntil, now)) true else newUntil > currentUntil
+
+    /**
+     * The deadline a duration extends a lock to.
+     *
+     * A live lock only ever grows: the duration is added to the time that is *left*, so
+     * no choice in the interface can shorten it — extending by an hour adds an hour to
+     * what remains, not to the moment the user pressed the button. An expired lock
+     * starts from [now] instead.
+     */
+    fun extend(currentUntil: Long, durationMs: Long, now: Long): Long =
+        if (isActive(currentUntil, now)) currentUntil + durationMs else now + durationMs
 }
 
 /**

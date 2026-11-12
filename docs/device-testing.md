@@ -205,6 +205,10 @@ a dump of the app home screen to confirm the new signal does not leak there.
   **not** “you already have the latest version” (before 2.2.0 that message appeared while the
   update was still pending).
 - Cancel the system install. ✅ The app must not report the update as installed.
+- Serve an APK that is **not** signed with the release key (a re-signed copy with the same
+  package name and a higher `versionCode`). ✅ The app must refuse it before the installer
+  opens and say **«فشل التحقق من توقيع التحديث — تم إلغاء التثبيت»**. The Android installer
+  must not appear at all — the check happens in Sawn, not in the installer.
 
 ### 20. Automatic updates (new in 2.2.0)
 - **Settings → Privacy & support → Sawn updates** must show three switches, **all on by default**:

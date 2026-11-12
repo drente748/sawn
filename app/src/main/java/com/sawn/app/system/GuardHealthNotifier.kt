@@ -30,7 +30,7 @@ object GuardHealthNotifier {
     /** إشعار نية صامت (صباحي/مسائي). */
     fun notifyNudge(context: Context, message: String) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        ensureChannel(nm)
+        ensureChannel(context, nm)
         val openApp = PendingIntent.getActivity(
             context, 4, Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -59,6 +59,10 @@ object GuardHealthNotifier {
             text = context.getString(R.string.guard_health_text),
             actionLabel = context.getString(R.string.guard_health_fix),
             action = settings,
+            // Tapping the notification itself must go to the fix, not to the app: the
+            // whole point of an ongoing "protection stopped" notice is that the next
+            // tap gets the service back on.
+            contentAction = settings,
         )
     }
 
@@ -101,9 +105,10 @@ object GuardHealthNotifier {
         text: String,
         actionLabel: String,
         action: PendingIntent,
+        contentAction: PendingIntent? = null,
     ) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        ensureChannel(nm)
+        ensureChannel(context, nm)
         val openApp = PendingIntent.getActivity(
             context, 0, Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -115,7 +120,7 @@ object GuardHealthNotifier {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ERROR)
-            .setContentIntent(openApp)
+            .setContentIntent(contentAction ?: openApp)
             .addAction(0, actionLabel, action)
             .setOngoing(true) // cannot be swiped away — only fixing the loss clears it
             .setAutoCancel(false)
@@ -142,20 +147,17 @@ object GuardHealthNotifier {
         runCatching { nm.cancel(id) }
     }
 
-    private fun ensureChannel(nm: NotificationManager) {
+    private fun ensureChannel(context: Context, nm: NotificationManager) {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            contextString(R.string.guard_health_channel),
+            context.getString(R.string.guard_health_channel),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = contextString(R.string.guard_health_channel_desc)
+            description = context.getString(R.string.guard_health_channel_desc)
             setShowBadge(true)
         }
         runCatching { nm.createNotificationChannel(channel) }
     }
-
-    private fun contextString(resId: Int) =
-        com.sawn.app.SawnApp.instance.getString(resId)
 
     /** Indirection so the notifier doesn't import PermissionsHelper directly (test seam). */
     object PermissionsHelperAccessibility {

@@ -448,6 +448,7 @@
     <string name="update_failed">تعذّر إكمال التحديث: %1$s</string>
     <string name="update_host_not_configured">لم تُربط الاستضافة بعد. أعد بناء التطبيق بعد إعداد رابط manifest عبر SAWN_UPDATE_MANIFEST_URL.</string>
     <string name="update_install_permission_missing">لم يُمنح الإذن بتثبيت تطبيقات من هذا المصدر.</string>
+    <string name="update_signature_failed">فشل التحقق من توقيع التحديث — تم إلغاء التثبيت</string>
     <string name="widget_open">افتح</string>
     <string name="widget_streak_format">%1$s يوماً</string>
 

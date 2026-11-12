@@ -30,6 +30,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -423,11 +426,13 @@ class AppBlockAccessibilityService : AccessibilityService() {
         // The user (or the OS) just disconnected our eyes. Real-time signal: post a
         // notification *now* so the loss is never silent. The periodic worker is the
         // backstop for crashes that skip this callback.
+        _connected.value = false
         runCatching { GuardHealthNotifier.notifyAccessibilityDown(this) }
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        _connected.value = false
         scope.cancel()
         urlMonitor.destroy()
         browserEngine.destroy()
@@ -442,7 +447,28 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    private companion object {
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        _connected.value = true
+    }
+
+    companion object {
+        /**
+         * Whether the service is currently bound and receiving events.
+         *
+         * The permission being granted is not the same as the service being alive: an OEM
+         * can kill the service while the setting still says "enabled". The watchdog needs
+         * this to tell "the user revoked it" from "the system killed it" — the first needs
+         * the user, the second can be healed.
+         */
+        private val _connected = MutableStateFlow(false)
+
+        /** True while the accessibility service is bound and working. */
+        val connectedFlow: StateFlow<Boolean> = _connected.asStateFlow()
+
+        /** True while the accessibility service is bound and working. */
+        val connected: Boolean get() = _connected.value
+
         const val TAG = "SawnA11y"
         const val SCAN_THROTTLE_MS = 400L
         const val CACHE_TTL_MS = 2000L

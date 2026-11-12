@@ -93,8 +93,10 @@ warden/
 - [x] Boot/update restore: `BootRestorePolicy` + `BootReceiver` + `KeepAliveWorker` +
       `GuardHealthWorker`
 - [x] Encrypted-free, PIN-gated management sections; local profile; AR/EN with RTL
-- [x] Optional in-app update check against a free GitHub Pages manifest, with SHA-256 and
-      package/version verification before the Android installer opens
+- [x] Optional in-app update check against a free GitHub Pages manifest, with SHA-256,
+      package/version **and APK signature** verification before the Android installer
+      opens — the signature is compared with the installed app's own signing lineage, so
+      a forged or unsigned APK never reaches the installer
 - [x] Automatic updates (on by default): periodic manifest check, background download and
       verification, and a "ready to install" notification that opens the system installer on
       the already-verified file. Android always requires the user's own tap to install — no
