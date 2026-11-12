@@ -301,6 +301,20 @@
     <string name="tile_sub_blocking">الحجب يعمل</string>
     <string name="tile_sub_off">مطفأ</string>
 
+    <!-- القفل الفوري (حماية فورية) -->
+    <string name="tile_lockdown_label">صَوْن — حماية فورية</string>
+    <string name="tile_lockdown_sub_active">مقفل</string>
+    <string name="tile_lockdown_sub_idle">اضغط للقفل</string>
+    <string name="panic_title">حماية فورية</string>
+    <string name="panic_idle_hint">يحجب كل التطبيقات وكل المواقع للمدة التي تختارها. لا يمكن إلغاؤه ولا تقصيره قبل انتهاء الوقت.</string>
+    <string name="panic_start_minutes">%1$d دقيقة</string>
+    <string name="panic_locked_until">مقفل حتى %1$s</string>
+    <string name="panic_remaining">بقي %1$s</string>
+    <string name="panic_extend">تمديد %1$d دقيقة</string>
+    <string name="panic_add_tile">أضف إلى الإعدادات السريعة</string>
+    <string name="home_feature_panic_lock">حماية فورية</string>
+    <string name="home_feature_panic_lock_detail">احجب كل شيء لفترة — لا يمكن التراجع</string>
+
     <!-- شاشات الاعتراض -->
     <string name="intercept_hold_to_leave">اضغط مطوّلاً</string>
     <string name="intercept_this_app">هذا التطبيق</string>

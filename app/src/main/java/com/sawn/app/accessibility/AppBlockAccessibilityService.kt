@@ -19,6 +19,7 @@ import com.sawn.domain.feature.UiNode
 import com.sawn.domain.feature.FeatureWallPolicy
 import com.sawn.app.ui.intercept.InterceptActivity
 import com.sawn.app.system.GuardHealthNotifier
+import com.sawn.app.system.EmergencyLockdownEnforcer
 import com.sawn.app.util.CriticalApps
 import com.sawn.app.sawnContainer
 import kotlinx.coroutines.CancellationException
@@ -153,6 +154,15 @@ class AppBlockAccessibilityService : AccessibilityService() {
         interceptedSocialKey = null
         // Never lock the user out of their own phone (launcher, settings, dialer, us).
         if (CriticalApps.isCritical(this, pkg)) return
+        // The panic lock: everything is blocked, and nothing else gets a say. The
+        // system essentials stay reachable — a lock that blocked the phone app or the
+        // keyboard would strand the user instead of protecting them.
+        if (EmergencyLockdownEnforcer.isPanicActive()) {
+            if (!EmergencyLockdownEnforcer.isEssential(this, pkg) && isForeground(pkg)) {
+                launchIntercept(InterceptActivity.KIND_BLOCK, -1L, null, null, pkg)
+            }
+            return
+        }
         evaluate(pkg)
     }
 
@@ -446,6 +456,13 @@ class AppBlockAccessibilityService : AccessibilityService() {
     @Volatile private var isServiceCrashing = false
 
     override fun onInterrupt() {}
+
+    override fun onCreate() {
+        super.onCreate()
+        // The panic lock is read on the hot path (an accessibility event), so the
+        // session is cached here and kept current by a collector.
+        EmergencyLockdownEnforcer.watch(sawnContainer.settings, scope)
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()

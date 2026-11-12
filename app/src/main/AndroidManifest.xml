@@ -148,9 +148,20 @@
             </intent-filter>
         </service>
 
+        <!-- The panic tile: one tap in the shade starts a full lockdown. -->
+        <service
+            android:name=".tile.SawnLockdownTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_lockdown"
+            android:label="@string/tile_lockdown_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- FileProvider: shares the downloaded update APK with the system installer.
-             Required for in-app updates (Android 7+). Scoped to the app's cache dir. -->
-        <provider
+             Required for in-app updates (Android 7+). Scoped to the app's cache dir. -->        <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
             android:exported="false"

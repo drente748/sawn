@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockClock
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.Checkbox
@@ -101,6 +102,7 @@ fun HomeScreen(
     onOpenAccountability: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
     onOpenParentMode: () -> Unit = {},
+    onOpenLockdown: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -556,6 +558,14 @@ fun HomeScreen(
             stringResource(R.string.home_section_lock_hint),
         )
         SettingsControls.LockdownCard(vm = vm)
+
+        // The panic lock: one tap to a full lockdown that cannot be undone.
+        ManageTile(
+            icon = Icons.Filled.LockClock,
+            title = stringResource(R.string.home_feature_panic_lock),
+            detail = stringResource(R.string.home_feature_panic_lock_detail),
+            onClick = onOpenLockdown,
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ManageTile(

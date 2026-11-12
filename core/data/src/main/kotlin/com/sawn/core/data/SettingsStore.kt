@@ -20,6 +20,7 @@ import com.sawn.domain.feature.BlockJournal
 import com.sawn.domain.feature.DeepFocusState
 import com.sawn.domain.feature.JournalSnapshot
 import com.sawn.domain.feature.ShieldPreset
+import com.sawn.domain.lockdown.LockdownSession
 import com.sawn.domain.repo.ProtectedDaysRepository
 import com.sawn.domain.security.PinLockoutPolicy
 import com.sawn.domain.update.PendingUpdate
@@ -102,6 +103,9 @@ class SettingsStore(
         val LOCKDOWN_UNTIL = longPreferencesKey("lockdown_until")
         val LOCKDOWN_ELAPSED_END = longPreferencesKey("lockdown_elapsed_end")
         val LOCKDOWN_BOOT_AT_START = intPreferencesKey("lockdown_boot_at_start")
+        // جلسة القفل الفوري — واحدة فقط، كـ JSON. لا Room ولا ترحيل: القفل شيء قصير
+        // العمر، وكل ما يجب أن ينجو من إعادة التشغيل هو الجلسة نفسها.
+        val EMERGENCY_LOCKDOWN_SESSION = stringPreferencesKey("emergency_lockdown_session")
         // سجل محلي لعدد المحاولات المصدودة يومياً — لا يغادر الجهاز.
         val BLOCK_LOG = stringPreferencesKey("block_log")
         val BLOCK_TOTAL = intPreferencesKey("block_total")
@@ -868,6 +872,29 @@ class SettingsStore(
                 p[Keys.LOCKDOWN_BOOT_AT_START] = -1
             }
         }
+    }
+
+    // --- القفل الفوري (panic lock) ------------------------------------------------
+    /**
+     * The live emergency lockdown, if any.
+     *
+     * One session at a time, stored as JSON — no Room table and no migration: a
+     * lockdown is a short-lived thing, and the session is the only thing that has to
+     * survive a reboot.
+     */
+    val emergencyLockdownSession: Flow<LockdownSession?> =
+        context.dataStore.data
+            .map { LockdownSessionCodec.decode(it[Keys.EMERGENCY_LOCKDOWN_SESSION]) }
+            .distinctUntilChanged()
+
+    suspend fun saveLockdownSession(session: LockdownSession) {
+        context.dataStore.edit { p ->
+            p[Keys.EMERGENCY_LOCKDOWN_SESSION] = LockdownSessionCodec.encode(session)
+        }
+    }
+
+    suspend fun clearLockdownSession() {
+        context.dataStore.edit { p -> p.remove(Keys.EMERGENCY_LOCKDOWN_SESSION) }
     }
 
     // --- Clock-tamper defense (Tempo's lastSeen high-water mark) ---

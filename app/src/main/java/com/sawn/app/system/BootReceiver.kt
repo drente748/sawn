@@ -40,6 +40,20 @@ class BootReceiver : BroadcastReceiver() {
                 // return, otherwise a stopped-then-restarted install keeps a stale anchor.
                 if (boot) settings.reanchorLockdown()
 
+                // The panic lock has to survive the reboot: the session is re-anchored to
+                // the monotonic clock and its timer re-armed, so the lock ends on time
+                // and not a second late.
+                val panicSession = settings.emergencyLockdownSession.first()
+                if (panicSession != null) {
+                    val remainingMinutes =
+                        ((panicSession.wallEndsAt - settings.trustedNow()).coerceAtLeast(0L) + 59_999L) / 60_000L
+                    if (remainingMinutes > 0L) {
+                        EmergencyLockdownWorker.schedule(context, remainingMinutes.toInt())
+                    } else {
+                        settings.clearLockdownSession()
+                    }
+                }
+
                 val lockdownActive = settings.isLockdownActiveNow()
                 val filterActive = container.blockEngine.isBlockingActiveNow()
                 val decision = BootRestorePolicy.decide(
@@ -49,6 +63,9 @@ class BootReceiver : BroadcastReceiver() {
                         filterActive = filterActive,
                         // In the light mode there is no DNS filter to restart.
                         vpnEnabled = settings.protectionSnapshot().vpnEnabled,
+                        // A live panic lock demands the full stack back.
+                        panicLockdownActive = panicSession != null &&
+                            panicSession.wallEndsAt > settings.trustedNow(),
                     ),
                 )
 

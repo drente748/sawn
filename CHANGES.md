@@ -469,6 +469,72 @@ Five debts carried over from the earlier rounds, closed on the same branch.
 | 4 | The project policy lived outside the repository | `AGENTS.md` now sits in the repository root: the project's identity, the module boundaries, the clean-state policy, the verification commands, and what this workflow may not do. |
 | 5 | The `v2.2.0` tag pointed one commit behind the released `main` | The tag moved from `2ae3d41` to `c14bc46` — the state `main` was in when the release went out. The difference between the two is a single documentation file, so the published APK stays reproducible from the tag; the GitHub release stays attached, and the `sha256` in the published manifest still matches the APK asset. |
 
+## 9. القفل الفوري (Emergency Lockdown) + زر الذعر
+
+A button in the app and a Quick Settings tile that start a **full** lockdown — every app,
+every browser, every site — for 15, 30 or 60 minutes. The lock cannot be cancelled and
+cannot be shortened before its timer ends, and it comes back after a reboot.
+
+### 9.1 `:core:domain` — the rule, pure
+
+| File | What it holds |
+|---|---|
+| `lockdown/LockdownSession.kt` | The session: `id`, `startedAt`, `endsAt`, `durationMinutes`, `reason`, plus the boot count and the wall deadline that survive a reboot |
+| `lockdown/EmergencyLockdown.kt` | `start`, `canCancel`, `extend`, `isActive`, `remainingMillis` |
+
+The rule is one-sided, and that is the whole feature:
+
+- `canCancel` returns **false**, always. The person who pressed the button must not be
+  the person able to undo it.
+- `extend` only ever moves the deadline **later**, and grows the recorded duration with
+  it — so `endsAt - startedAt == durationMinutes * 60_000` holds at every moment.
+- The deadline is a **monotonic** clock reading (`SystemClock.elapsedRealtime()`), not
+  wall time: moving the system clock must not shorten the lock. A monotonic clock
+  resets at every boot, so the session also carries the wall deadline and the boot
+  count, and the app re-anchors the session on the next start.
+
+`EmergencyLockdownTest` proves all of it as properties (Kotest): the session ends
+exactly when it says; the lock can never be cancelled; extending never shortens it.
+
+### 9.2 `:core:data` — one session, no migration
+
+`SettingsStore` gained `emergencyLockdownSession` (a `Flow<LockdownSession?>`),
+`saveLockdownSession` and `clearLockdownSession`. The session is stored as **JSON** in
+DataStore — one key, no Room table and no migration: a lockdown is a short-lived thing,
+and the session is the only thing that has to survive a reboot.
+
+### 9.3 `:app` — the enforcement
+
+- **`EmergencyLockdownWorker`** — a one-time `WorkManager` request armed with the
+  session's duration. WorkManager keeps it across a reboot, so the lock ends on time
+  even if the device was off: a lock that could be ended by unplugging the phone would
+  not be a lock.
+- **`EmergencyLockdownEnforcer`** — one place that starts, extends and reads the lock.
+  The engines read it from a hot path (a DNS packet, an accessibility event), so the
+  session is cached in a volatile field and kept current by a collector.
+- **`SawnVpnService`** — under the lock every host is blocked except the device's own
+  (`mtalk.google.com` and friends); the blocklist is irrelevant while the lock runs.
+- **`AppBlockAccessibilityService`** — under the lock every app is blocked, except the
+  system essentials: phone, messages, camera, keyboard, NFC, TalkBack, and everything
+  `CriticalApps` already protects.
+- **`BootRestorePolicy`** — a live panic lock outranks every other flag (exactly like a
+  time lock) and demands the full stack back; the boot receiver re-anchors the session
+  and re-arms the timer.
+- **`SawnLockdownTileService`** — a tap in the shade starts the 15-minute lock; the
+  tile shows `STATE_ACTIVE` while it runs. The tile can only *start* a lock.
+- **`EmergencyLockdownScreen` / `EmergencyLockdownViewModel` / `AddToHomeButton`** — the
+  screen: three durations to start with, one button to extend, and **no cancel button
+  anywhere**, because there is no cancel.
+
+### 9.4 انحراف عن المواصفة
+
+The specification asked for a **long press** on the tile to start a 30-minute lock.
+Android does not deliver a long press to a `TileService` as a separate event — the
+system calls `onStartListening()` when the panel opens, and there is no `onLongClick`
+to hook — so the long press cannot be told apart from a tap reliably. Rather than
+guess with a timer, the tile starts the 15-minute lock on a tap, and the duration
+picker lives in the app where the user can see what they are choosing.
+
 
 ## 8.8 مراجعة بعد المراجعة الأولى
 

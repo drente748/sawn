@@ -21,6 +21,7 @@ import com.sawn.domain.block.DomainMatcher
 import com.sawn.domain.block.SafeSearchHosts
 import com.sawn.domain.vpn.DnsPacket
 import com.sawn.app.system.KeepAliveWorker
+import com.sawn.app.system.EmergencyLockdownEnforcer
 import com.sawn.app.sawnContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -70,6 +71,12 @@ class SawnVpnService : VpnService() {
 
     /** When true, search/video queries are rewritten to safe-mode anchors. */
     @Volatile private var safeSearchOn: Boolean = false
+
+    /**
+     * The panic lock: while it runs, every host is blocked except the system
+     * essentials (the ones the device itself needs to work).
+     */
+    @Volatile private var panicLockdown: Boolean = false
 
     /** Last day already written to the streak log, so the 30s tick writes at most once a day. */
     @Volatile private var lastProtectedDay: java.time.LocalDate? = null
@@ -259,6 +266,8 @@ class SawnVpnService : VpnService() {
         val snapshot = settings.protectionSnapshot()
         val blockingActive = sawnContainer.blockEngine.isBlockingActiveNow(peekOnly = true)
         safeSearchOn = blockingActive && snapshot.safeSearchForce && snapshot.pornGuard
+        // The panic lock blocks everything, whatever the blocklist says.
+        panicLockdown = EmergencyLockdownEnforcer.isLockdownActive(settings)
         val domains = sawnContainer.blockEngine.blockedDomains(readOnly = true).toSet()
         // The adult extra set (fetched sources) rides outside BlockEngine's gate so a
         // source refresh while blocking is already on reaches the filter immediately.
@@ -326,6 +335,9 @@ class SawnVpnService : VpnService() {
             .combine(settings.adultExtraDomains) { _, _ -> Unit }
             .combine(settings.blockAds) { _, _ -> Unit }
             .combine(settings.safeSearchForce) { _, _ -> Unit }
+            // The panic lock has to reach the running filter at once: it blocks
+            // everything, and a user who presses the panic button expects it now.
+            .combine(settings.emergencyLockdownSession) { _, _ -> Unit }
 
         scope.launch {
             while (isActive) {
@@ -449,7 +461,10 @@ class SawnVpnService : VpnService() {
     }
 
     /** A domain is blocked if it equals or is a subdomain of any blocked entry. */
-    private fun isBlocked(host: String): Boolean = DomainMatcher.matches(host, blockedDomains)
+    private fun isBlocked(host: String): Boolean =
+        // The panic lock blocks everything the device does not need to work: the
+        // essentials below are the only names that stay resolvable.
+        panicLockdown && host !in PANIC_ESSENTIAL_HOSTS || DomainMatcher.matches(host, blockedDomains)
 
     /**
      * Forward one DNS query to the device's resolver and write the reply back into the tun.
@@ -613,6 +628,24 @@ class SawnVpnService : VpnService() {
         private const val TAG = "SawnVpn"
         const val ACTION_START = "com.sawn.app.VPN_START"
         const val ACTION_STOP = "com.sawn.app.VPN_STOP"
+
+        /**
+         * The hosts that stay resolvable under the panic lock.
+         *
+         * Everything else is blocked, but a lock that also blocked the device's own
+         * services would break the phone itself — push messages, the play-services
+         * check, the captive-portal sign-in.
+         */
+        private val PANIC_ESSENTIAL_HOSTS = setOf(
+            "mtalk.google.com",
+            "alt1-mtalk.google.com",
+            "alt2-mtalk.google.com",
+            "alt3-mtalk.google.com",
+            "alt4-mtalk.google.com",
+            "connectivitycheck.gstatic.com",
+            "clients3.google.com",
+            "time.android.com",
+        )
         private const val BLOCKLIST_TICK_MS = 30_000L
         private const val WATCH_RETRY_MS = 5_000L
         private const val MAX_CONCURRENT_DNS = 32

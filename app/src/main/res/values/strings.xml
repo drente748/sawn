@@ -303,6 +303,20 @@
     <string name="tile_sub_blocking">Blocking is on</string>
     <string name="tile_sub_off">Off</string>
 
+    <!-- Emergency lockdown (panic lock) -->
+    <string name="tile_lockdown_label">Sawn — Panic</string>
+    <string name="tile_lockdown_sub_active">Locked</string>
+    <string name="tile_lockdown_sub_idle">Tap to lock</string>
+    <string name="panic_title">Emergency lockdown</string>
+    <string name="panic_idle_hint">Blocks every app and every site for the time you choose. It cannot be cancelled or shortened before the timer ends.</string>
+    <string name="panic_start_minutes">%1$d min</string>
+    <string name="panic_locked_until">Locked until %1$s</string>
+    <string name="panic_remaining">%1$s left</string>
+    <string name="panic_extend">Extend %1$d min</string>
+    <string name="panic_add_tile">Add to Quick Settings</string>
+    <string name="home_feature_panic_lock">Emergency lockdown</string>
+    <string name="home_feature_panic_lock_detail">Block everything for a while — it cannot be undone</string>
+
     <!-- شاشات الاعتراض -->
     <string name="intercept_hold_to_leave">Hold to leave</string>
     <string name="intercept_this_app">this app</string>

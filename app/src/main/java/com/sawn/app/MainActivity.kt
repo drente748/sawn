@@ -33,6 +33,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -49,6 +51,8 @@ import com.sawn.app.ui.AccountabilityScreen
 import com.sawn.app.ui.BackupScreen
 import com.sawn.app.ui.ParentModeScreen
 import com.sawn.app.ui.UrgeSosScreen
+import com.sawn.app.ui.lockdown.EmergencyLockdownScreen
+import com.sawn.app.ui.lockdown.EmergencyLockdownViewModel
 import com.sawn.app.ui.onboarding.OnboardingHost
 import com.sawn.app.ui.SchedulesScreen
 import com.sawn.app.ui.SetupScreen
@@ -73,6 +77,15 @@ class MainActivity : AppCompatActivity() {
         setContent {
             SawnTheme {
                 val vm: SawnViewModel = viewModel()
+                // The emergency lockdown: the store is injected, so the screen and the
+                // engines read the same session through the same code.
+                val lockdownVm: EmergencyLockdownViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer {
+                            EmergencyLockdownViewModel(application, sawnContainer.settings)
+                        }
+                    },
+                )
 
                 var pendingAfterNotification by remember { mutableStateOf<(() -> Unit)?>(null) }
                 val notifPermLauncher = rememberLauncherForActivityResult(
@@ -200,6 +213,7 @@ class MainActivity : AppCompatActivity() {
 
                 SawnScaffold(
                     vm = vm,
+                    lockdownVm = lockdownVm,
                     onToggleBlocking = { enabled, onSettled -> toggleBlocking(enabled, onSettled) },
                     onStartFocus = ::startFocus,
                     onCancelFocus = ::cancelFocus,
@@ -212,6 +226,7 @@ class MainActivity : AppCompatActivity() {
 @Composable
 private fun SawnScaffold(
     vm: SawnViewModel,
+    lockdownVm: EmergencyLockdownViewModel,
     onToggleBlocking: (Boolean, (Boolean) -> Unit) -> Unit,
     onStartFocus: (Int, Boolean) -> Unit,
     onCancelFocus: () -> Unit,
@@ -337,7 +352,11 @@ private fun SawnScaffold(
                     onOpenAccountability = { navController.navigate("accountability") },
                     onOpenBackup = { navController.navigate("backup") },
                     onOpenParentMode = { navController.navigate("parent_mode") },
+                    onOpenLockdown = { navController.navigate("lockdown") },
                 )
+            }
+            composable("lockdown") {
+                EmergencyLockdownScreen(lockdownVm)
             }
             composable("setup") {
                 SetupScreen(

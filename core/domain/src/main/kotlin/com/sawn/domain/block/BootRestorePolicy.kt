@@ -16,6 +16,11 @@ data class BootRestoreState(
      * demands the full stack back.
      */
     val vpnEnabled: Boolean = true,
+    /**
+     * A live panic lock: it blocks everything, so it demands the full stack back —
+     * and it outranks the stop flag, exactly like a time lock does.
+     */
+    val panicLockdownActive: Boolean = false,
 )
 
 /**
@@ -39,6 +44,14 @@ data class BootRestoreDecision(
 object BootRestorePolicy {
 
     fun decide(state: BootRestoreState): BootRestoreDecision = when {
+        // The panic lock was written by the user in a moment they could not be trusted
+        // with their own decision. It outranks every flag and comes back whole.
+        state.panicLockdownActive -> BootRestoreDecision(
+            reassertCoreFlags = true,
+            startFilter = true,
+            recordProtectedDay = true,
+            warnMissingAdmin = true,
+        )
         // The lock was written by the user's past self. It wins over every other flag and
         // is restored whole, so a reboot can never quietly weaken it. That includes the
         // DNS engine: the lock demands the full stack, not just the light one.

@@ -24,6 +24,8 @@
 - [x] تدخّل تلقائي للتحديثات + **التحقق من توقيع APK قبل فتح المثبّت**
 - [x] مراقب الحماية: فحص صارم كل 3 دقائق، فترة سماح 30 ثانية، self-heal محدود، إشعار دائم
 - [x] اختبارات الثوابت كـ properties (Kotest): القفل، الجداول، حدود النطاقات
+- [x] **القفل الفوري (Panic)**: زر في الرئيسية + بلاطة إعدادات سريعة، حجب كامل 15/30/60
+      دقيقة، لا يُلغى ولا يُقصَّر، يعود بعد إعادة التشغيل
 
 ## 3. قيد العمل / التالي
 
@@ -44,6 +46,7 @@
 | 5 | مراجعة: قارئ شهادات واحد + `verifyApkSignature` لا يرمي | `feat/optional-vpn` (`c2d16d0`) | مكتملة |
 | 6 | **تطهير الهوية + سياسة النظافة** | `feat/identity-purge` (`bbe1d89`) | **مكتملة** |
 | 7 | **إغلاق الديون المعلّقة** (حارس API، ثوابت المولّد، LICENSE، AGENTS.md، الوسم) | `feat/identity-purge` | **مكتملة** |
+| 8 | **القفل الفوري (Panic Button) + Emergency Lockdown** | `feat/optional-vpn` | **قيد التحقق** |
 
 ## 5. الديون التقنية
 
@@ -53,6 +56,9 @@
 | 2 | مسار توقيع API 28+ غير مُختبَر على جهاز | متوسط | صورة Robolectric المتاحة بلا اتصال هي API 26 فقط؛ القاعدة مغطّاة في `:core:domain` |
 | 3 | `GuardHealthWorker.doWork()` غير مُختبَر end-to-end | منخفض | `androidx.work:work-testing` غير متاح بلا اتصال؛ القرار مُغطّى بـ`GuardHealthPolicy` |
 | 4 | `release/Sawn-2.2.0.apk` (artifact مُتجاهَل) يحوي الاسم القديم داخل الـ dex | منخفض | يُعاد بناؤه عند الإصدار؛ ليس ملفاً متتبَّعاً |
+| 5 | `EmergencyLockdownWorker.doWork()` غير مُختبَر end-to-end | منخفض | `work-testing` غير متاح بلا اتصال؛ أثر العامل (`endLockdown`) مُختبَر مباشرة |
+| 6 | `qsTile.state` غير قابل للاختبار تحت Robolectric | منخفض | لا يوجد ربط بنظام الإعدادات السريعة في Robolectric، فاختبار البلاطة يتحقق من *الجلسة* التي تُشغّل الحالة |
+| 7 | ضغط طويل على بلاطة القفل | منخفض | أندرويد لا يسلّم الضغط الطويل لخدمة البلاطة كحدث مستقل (لا `onLongClick`) — التفصيل في `CHANGES.md` §9.4 |
 
 ## 6. المهام المعلّقة (تحتاج قراراً بشرياً)
 
@@ -69,9 +75,9 @@
 
 | التاريخ | الأمر | النتيجة |
 |---|---|---|
-| 2026-11-12 | `./gradlew test` | BUILD SUCCESSFUL — 320 + 34 + 92، صفر فشل |
+| 2026-11-12 | `./gradlew test` | BUILD SUCCESSFUL — 325 (`:core:domain`) + 34 (`:core:data`) + 53×2 (`:app`)، صفر فشل |
 | 2026-11-12 | `./gradlew :app:compileDebugKotlin` | BUILD SUCCESSFUL |
-| 2026-11-12 | `./gradlew :app:lintDebug` | **0 أخطاء** (كان خطأ واحداً سابقاً) — `ImageScreeningOrchestrator` مُغلق |
+| 2026-11-12 | `./gradlew :app:lintDebug` | **0 أخطاء** (كان خطأ واحداً سابقاً) |
 | 2026-11-12 | `git grep -in <الاسم القديم>` | لا نتيجة في الملفات المتتبَّعة |
 | 2026-11-12 | `git grep -inE <أسماء المستودعات الخارجية>` | لا نتيجة |
 | 2026-11-12 | `git grep -n "github.com" -- docs README.md` | لا نتيجة |
@@ -93,6 +99,10 @@
 | 2026-11-12 | `scripts/repoint_hosting.py` | نص لمرة واحدة نُفِّذ بالفعل (كل استبدالاته تبديل نفسها) وغير مُشار إليه، ويحمل الاسم القديم | `git grep repoint_hosting` → لا نتيجة |
 | 2026-11-12 | `CHANGES.md` §8.4 «المصادر» | قسم كامل بحقوق الاستشهاد بمستودعات خارجية | `git grep` → لا نتيجة للأسماء |
 | 2026-11-12 | 73 استيراداً ميتاً في 17 ملف Kotlin | استيرادات لم يبقَ لها مرجع | `./gradlew test` نظيف |
+| 2026-11-12 | `core/domain/.../lockdown/` (3 ملفات) | `:core:domain` كان بلا مجلد `lockdown` | اختبار الخصائص |
+| 2026-11-12 | `app/.../system/EmergencyLockdownWorker.kt`، `.../EmergencyLockdownEnforcer.kt`، `.../tile/SawnLockdownTileService.kt`، `.../ui/lockdown/` (3 ملفات) | القفل الفوري | `./gradlew test` |
+| 2026-11-12 | `core/data/.../LockdownSessionCodec.kt` | ترميز الجلسة كـ JSON | اختبار المتجر |
+| 2026-11-12 | `app/src/main/res/drawable/ic_lockdown.xml` | أيقونة البلاطة | `lint` |
 
 **الملفات التي عُدِّلت لا حُذفت** (تطهير نصي): `README.md`، `docs/SECURITY.md`، `docs/spec.md`،
 `docs/install-ar.md`، `docs/install-en.md`، `docs/site-activation-ar.md`، `docs/site-activation-en.md`،
