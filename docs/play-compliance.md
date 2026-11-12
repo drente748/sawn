@@ -57,10 +57,7 @@ Sawn uses the AccessibilityService API to:
 1. Detect when a user-blocked app is brought to the foreground to show a
    full-screen intercept (hard block or mindful pause), and to read the address
    bar in supported browsers to filter adult websites that bypass DNS filtering.
-2. Optionally capture a transient screenshot of the foreground window to classify
-   NSFW content locally (on-device ML, no image leaves the device), discarding it
-   immediately after classification.
-Data collected: none. No screen text or images are stored or transmitted.
+Data collected: none. No screen text or images are read, stored or transmitted.
 This use is a core part of a digital-wellbeing blocker and cannot be implemented
 with a less privileged API.
 ```

@@ -11,48 +11,12 @@ these once on your device.
 
 ## Must-verify on hardware
 
-### 1. In-app feed detection (highest priority — signals need tuning)
-The `viewId` signals in `FeatureCatalog.kt` are best-effort guesses; real app versions may
-differ. Each feature has three signal classes:
-- `viewIdContains` — ids that exist only on the blocked screen.
-- `selectedViewIdContains` — always-present tab bar items (`clips_tab`, `search_tab`,
-  `shorts_`, `reels_`, `ngs_*_icon_container`) that count **only while selected**. Never
-  move these into the unconditional list: the app home screen would be blocked.
-- `textContains` — visible text/content-description fallback.
-
-For each feed you care about:
-- Enable it in **Blocklist → Block in-app feeds**.
-- Open the real app and navigate to the feed (e.g. Instagram → Reels).
-- ✅ Expect the "off-limits" screen **after** Sawn presses BACK once (navigateAwayTo).
-
-**Mandatory false-positive checks — every case must NOT block:**
-- Instagram/Facebook home feed, with the Reels/Search tabs visible but not selected.
-- YouTube Home and Subscriptions, including a horizontal **Shorts shelf** (the `reel_recycler`
-  id appears there, which is why it is no longer an unconditional Shorts signal).
-- Snapchat camera/home with the Spotlight/Community icons visible but not selected.
-- Facebook home feed showing a "View reels" card (generic CTA, not the Reels viewer), and
-  the Facebook bottom bar with the Reels tab visible but not selected.
-- Any launcher/system surface after BACK exits the blocked app. The wall must still appear
-  on the launcher (it explains the block), but must **not** cover another user app the user
-  switched to during the settle delay — including a call, the dialer, emergency, or Settings.
-- TikTok: the toggle is labelled **TikTok Feed** and intentionally covers both For You and
-  Following (they share the same recycler). Confirm both feeds block and that profile/inbox
-  do not.
-
-The service now also receives click/long-click/focus/selected view events, so a tab change
-must be detected without waiting for the next content change. If a tab press is missed,
-capture a dump showing whether the tab node reports `selected="true"`.
-
-**To capture the real signals** (with the phone connected):
-```bash
-adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
-# open the feed first, then run the dump; grep the resource-ids and selected state:
-grep -oE 'resource-id="[^"]*"|selected="[^"]*"' ui.xml | sort -u
-```
-Add a screen-exclusive id fragment (e.g. `clips_viewer`) to `viewIdContains`; add a tab id
-to `selectedViewIdContains` only if it is also `selected="true"` on the blocked screen.
-Do this per app; expect to revisit when apps update. If a feed is not detected, also capture
-a dump of the app home screen to confirm the new signal does not leak there.
+### 1. ~~In-app feed detection~~ — removed from the product
+The per-feed blocking (Reels, Shorts, TikTok feed…) and the on-screen content inspection
+that went with it are no longer part of Sawn. The service no longer reads screen text
+and takes no screenshots, so there is nothing to tune here: the app blocks whole apps
+and whole sites, by name. The section number is kept so the rest of the plan keeps its
+references.
 
 ### 2. Quick Settings tile
 - Pull down the shade → edit (pencil) → drag the **Sawn** tile into the active set.
@@ -135,20 +99,10 @@ a dump of the app home screen to confirm the new signal does not leak there.
 - Switch Wi-Fi ↔ mobile data while blocking. ✅ DNS filtering must continue after the network
   change; note any failure and the Android version/device.
 
-### 13. Social media protection
-- In **Blocklist → Social media adult content**, enable Social Guard and keep all six platforms
-  selected (if every switch is off, the screen correctly reports no selected apps).
-- Reddit: open a known 18+ community or a post carrying an NSFW/18+ badge. ✅ Sawn's social
-  intercept appears and names Reddit; open **r/NoFap** or **r/programming**. ✅ No intercept.
-- Search inside a supported app for an explicit term. ✅ The search surface is intercepted;
-  searching "sex education" must not trigger it.
-- Toggle one platform off, leave and re-enter that app on an NSFW screen. ✅ It is not
-  intercepted, while a still-enabled platform remains covered.
-- In a supported app, open the **sensitive-content settings** screen. ✅ It is intercepted when
-  protection is on; confirm the built-in filter guidance is readable under "Strengthen the
-  apps' own filters".
-- Set the device language to Arabic (if available) and open NSFW content with an Arabic
-  warning. ✅ The Arabic warning is detected.
+### 13. ~~Social media protection~~ — removed from the product
+The in-app social content detector is gone with the rest of the in-app blocking, so
+there is nothing to verify here. The section number is kept so the rest of the plan keeps
+its references.
 
 ### 14. One-tap protection and the recents swipe (new in 1.2.0)
 - On the home screen tap «الحماية» once. ✅ It switches on within a couple of seconds — no
@@ -169,15 +123,10 @@ a dump of the app home screen to confirm the new signal does not leak there.
   longer — check the escalation counter.
 - On the PIN screen, Back must never skip verification.
 
-### 16. On-device image screening (Android 11+)
-- Enable Social Guard for one app and scroll a feed of unlabeled suggestive images with no NSFW
-  badge and no warning text. ✅ The intercept appears within a second or two. Before 1.2.0 this
-  never fired at all: the accessibility config did not declare the screenshot capability, so
-  every capture died on a `SecurityException` and the verdict silently came back negative.
-- Scroll for ten minutes. ✅ No jank and no heat spike — screening is capped at one capture per
-  750 ms and at most four regions per capture, on a lowest-priority thread.
-- On Android 8–10 the image path must stay silent (it is API 30+ only) while text detection keeps
-  working.
+### 16. ~~On-device image screening~~ — removed from the product
+The on-device NSFW image screening is gone, together with every screenshot the app took.
+There is nothing to verify here; the section number is kept so the rest of the plan
+keeps its references.
 
 ### 17. Dark mode and Arabic layout
 - Toggle the system theme in Sawn and on an intercept screen. ✅ Both palettes stay readable,
@@ -228,8 +177,7 @@ a dump of the app home screen to confirm the new signal does not leak there.
   **«الإصدار X جاهز للتثبيت»** with an *Install now* button, plus the real release notes.
 
 ## Report back
-Note which feeds detected correctly (and paste any `resource-id`s that need adding), whether
-DoH bypassed the block in your browser, and anything that didn't behave — those become the
-next fixes. For social protection, also report the app version and the exact warning label
-shown, since those are the signals Sawn relies on. For image screening, report roughly how
-long an unlabeled image took to get intercepted, since latency there is the tuning knob.
+Note whether a blocked app was intercepted, whether DoH bypassed the block in your
+browser, and anything that didn't behave — those become the next fixes. If a site slipped
+through, note the app it was opened in and the address you saw, so the engine's reach
+can be judged.

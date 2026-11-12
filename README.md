@@ -1,9 +1,9 @@
 # Sawn 2.2.0
 
 **صَوْن (Sawn) — a local, account-free, tracking-free Android blocker.** Blocks websites (via an
-on-device DNS filter), apps, adult content, ads/trackers, and the endless scroll (Reels/Shorts
-only), with schedules, focus sessions, strict mode, a time lock, and a streak rebuilt from a
-single source of truth. Arabic-first with full English; Latin digits everywhere.
+on-device DNS filter) and apps, with schedules, focus sessions, strict mode, a time lock, and a
+streak rebuilt from a single source of truth. Arabic-first with full English; Latin digits
+everywhere.
 
 > **Distribution:** side-loaded APK, later a Google Play listing. Install guides:
 > [`docs/install-ar.md`](docs/install-ar.md) · [`docs/install-en.md`](docs/install-en.md).
@@ -31,20 +31,24 @@ switch — because they are two different promises:
 
 | Mode | What runs | What it covers | Cost |
 |------|-----------|----------------|------|
-| **Full protection** | DNS filter + accessibility (browsers and apps) | Blocked sites are stopped **everywhere**, including inside other apps | More battery; needs the VPN connection permission |
-| **Light protection** | Accessibility only | Blocked sites are still stopped **in the browser** | No VPN permission; far less battery |
+| **Advanced** | DNS filter + accessibility (browsers and apps) | Blocked sites are stopped **everywhere**, including inside other apps | More battery; needs the VPN connection permission |
+| **Normal** | Accessibility only | Blocked sites are still stopped **in the browser** | No VPN permission; far less battery |
 
 A badge on the home screen always says which one is actually running right now, so the
 app never claims more protection than it delivers.
 
-**What light mode cannot do:** it reads the browser's own address bar, so it cannot see a
-page opened *inside* another app (a WebView), and it cannot stop a lookup that never
+**What the normal mode cannot do:** it reads the browser's own address bar, so it cannot
+see a page opened *inside* another app (a WebView), and it cannot stop a lookup that never
 reaches an address bar. It also cannot enforce SafeSearch or DoH blocking, which are DNS
-features. The full mode has no such gap.
+features. The advanced mode has no such gap.
 
-The badge, the modes, and the fact that a **live time lock forces the full stack back**
-are all covered by unit tests — see [`docs/SECURITY.md`](docs/SECURITY.md) for the full
-list of limits.
+The DNS filter is the user's choice **even while a lock is running**: a time lock or the
+panic lock cannot switch it off for them, and strict mode is the one setting that demands
+the advanced mode — the user chooses strict mode deliberately, behind a PIN.
+
+The badge, the modes, and the fact that a **live time lock keeps the app-level blocking
+on** are all covered by unit tests — see [`docs/SECURITY.md`](docs/SECURITY.md) for the
+full list of limits.
 
 ### Time lock
 

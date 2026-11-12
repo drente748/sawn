@@ -22,7 +22,7 @@
 1. **Allow restricted settings (Android 13+, sideload)**:
    - **App info** → **⋮** menu → **Allow restricted settings**.
    - Return to the wizard — "Done ✓" celebrates.
-2. **Accessibility** (required) — app blocking + Reels/Shorts. Button → `Settings.ACTION_ACCESSIBILITY_SETTINGS` + periodic check.
+2. **Accessibility** (required) — app blocking, plus the browser address bar in the normal mode. Button → `Settings.ACTION_ACCESSIBILITY_SETTINGS` + periodic check.
 3. **Sawn local network (VPN)** (required) — DNS-only, never inspects visits. `VpnService.prepare` + "sees nothing".
 4. **Notifications** (POST_NOTIFICATIONS) — so "protection running" reaches you.
 5. **Battery exemption** (recommended) — direct request → single system dialog; if denied: OEM links + "you can skip".

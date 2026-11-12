@@ -12,8 +12,9 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
 1. **Local-first.** No Sawn servers, accounts, analytics, or ad SDKs. The VPN never proxies
    browsing traffic off-device; it only filters forwarded DNS. The sole network exception is
    a user-triggered HTTPS refresh of public adult-domain lists, with no identifiers sent.
-   Accessibility inspects bounded on-screen labels in memory to block apps/feeds and detect
-   adult URLs; it stores and transmits nothing.
+   Accessibility reads the foreground package name, and the browser's address bar in the
+   normal mode. It never reads on-screen content: no labels, no screenshots, no image
+   classification. It stores and transmits nothing.
 2. **Auditable.** Every permission's use is visible in code and documented in
    [SECURITY.md](SECURITY.md). This matters because a blocker asks for VPN + accessibility,
    exactly the permissions malware wants.
@@ -72,9 +73,11 @@ The rules live in `ProtectionPolicy` and are unit-tested without a device. The A
 side only supplies facts (`SawnBlockCoordinatorEnv`): which engines are running, and which
 domains the blocklist holds.
 
-**Two named modes, not a toggle.** `ProtectionMode.FULL` (DNS + accessibility) and
-`ProtectionMode.LIGHT` (accessibility only) are the settings the user picks. The light mode
-never starts the VPN, so the connection permission is never requested at all.
+**Two named modes, not a toggle.** `ProtectionMode.FULL` (DNS + accessibility) — *advanced* —
+and `ProtectionMode.LIGHT` (accessibility only) — *normal* — are the settings the user picks.
+The normal mode never starts the VPN, so the connection permission is never requested at all.
+Strict mode demands the advanced mode; the time lock and the panic lock keep the app-level
+blocking on but leave the DNS layer to the user.
 
 ### Key files
 - `vpn/SawnVpnService.kt` — establishes a local TUN, routes only DNS into it, and either
@@ -84,9 +87,7 @@ never starts the VPN, so the connection permission is never requested at all.
 - `vpn/DnsPacket.kt` — minimal IPv4/UDP/DNS parsing + response building. Deliberately handles
   the common case; TCP-DNS/IPv6/EDNS remain follow-ups.
 - `accessibility/AppBlockAccessibilityService.kt` — on `TYPE_WINDOW_STATE_CHANGED`, checks the
-  package against the engine and launches the intercept screen. While a social app is in front,
-  `feature/SocialContentDetector.kt` checks one bounded node scan for NSFW labels, known adult
-  Reddit communities, and explicit search fields. `BrowserUrlMonitor` also scans bounded
+  package against the engine and launches the intercept screen. `BrowserUrlMonitor` also scans bounded
   browser nodes for adult hosts that bypassed DNS.
 - `accessibility/BrowserBlockingEngine.kt` — the browser engine: reads the address bar of a
   known browser and blocks what the blocklist forbids. A **focused** bar means the user is
@@ -166,8 +167,8 @@ Destructive fallback is limited to downgrades in development; real upgrades migr
    focus, grants, limits, and strict-mode combinations.
 4. `DomainMatcher` / `PinLockoutPolicy` / `AdultListFetcher` parsing — suffix boundaries,
    malformed hosts, clock/boot transitions, and hostile response shapes.
-5. `SocialContentDetector` — adult community/badge/search signals, Arabic and full-width
-   text, recovery subreddits, educational searches, and the node budget.
+5. `EmergencyLockdown` / `LockdownPolicy` — the lock invariants: it cannot be cancelled, it
+   cannot be shortened, and its deadline survives a reboot and a changed system clock.
 6. Instrumented: VPN establish + sinkhole a known domain, network changes, revocation, and
    process death on an emulator or device.
 

@@ -536,6 +536,26 @@ guess with a timer, the tile starts the 15-minute lock on a tap, and the duratio
 picker lives in the app where the user can see what they are choosing.
 
 
+## 13. قرارات المنتج في الحجب (بلا كود)
+
+The product decisions that came out of the blocking section, and the documentation
+updated to match them. **No code was touched** — the implementation is the next step.
+
+| Decision | Consequence |
+|---|---|
+| **Everything in-app is removed** | The 14 in-app features (Reels, Shorts, TikTok feed…), the social content detector (6 platforms) and the on-device NSFW image screening are all out of the product. The app now reads **no** screen content at all — no labels, no screenshots, no image classification. The privacy promise gets simpler and stronger, the app gets faster, and the TFLite model goes with it. |
+| **The modes are renamed** | «كامل/خفيف» → **«متقدّم/عادي»** (9 strings, the badge, the onboarding). |
+| **The DNS filter is the user's choice, even under a lock** | The time lock and the panic lock keep the **app-level** blocking on; they no longer force the DNS layer on, and switching it off is allowed with a warning. `forceLockdownCore`'s forced `VPN_ENABLED` goes with them. |
+| **Strict mode is the one exception** | Strict mode demands the advanced mode and its key is PIN-gated — it is a deliberate choice behind a PIN, not a temporary lock. |
+| **The honest promise of a lock** | «this app stays blocked», not «every site stays blocked». The panic lock's text is corrected to match. |
+
+The documentation updated: `feature-map.md`, `browser-engine.md`, `dns-engine.md`,
+`per-app-rule.md`, `README.md`, `SECURITY.md`, `spec.md`, `privacy.md`,
+`play-compliance.md`, `device-testing.md`, `site-activation-{ar,en}.md`, and a banner on
+the design-exploration HTML.
+
+---
+
 ## 12. مواصفة محرك المتصفحات في الوضع الخفيف + فلترة DNS
 
 Two more behaviour specs, written but not implemented.

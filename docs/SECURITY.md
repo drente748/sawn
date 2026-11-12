@@ -32,21 +32,13 @@ This document is the threat model and the measures in place.
   (captured from the active network). A public fallback resolver is used only when Android
   exposes no usable system resolver. Sawn never reads, stores, or transmits your browsing.
   Queried domains are **never logged**.
-- **AccessibilityService** — reads the foreground package name (to block apps) and, for
-  in-app feed and social-media protection, scans on-screen view-ids/labels of the current app.
-  Social detection additionally checks whether a search field contains an explicit term. It
-  **never logs, stores, or transmits screen content or queries**, makes an in-memory
-  block/allow decision, and discards the text. On Android 11+ it can additionally take a
-  **transient window screenshot** for on-device adult-image screening: it runs only for
-  platforms the user switched on, is throttled to one capture per 750 ms, classifies at most
-  4 candidate regions per capture with a bundled TFLite model, and the pixels are released
-  immediately — nothing is written to storage and no image leaves the device. Below Android
-  11 the service takes no screenshots at all.
-  In the **light protection mode** it additionally reads the **address bar of a known
-  browser** (Chrome, Firefox, Samsung Internet, Edge, Brave, DuckDuckGo, Opera and a
-  long tail of others) to block the sites the user listed. The reading is in-memory only,
-  it is never stored or logged, and the walk is capped at 80 nodes and never enters a
-  WebView — so it cannot read page content.
+- **AccessibilityService** — reads the foreground package name, and nothing else of the
+  screen: no view-ids, no labels, no screenshots, no on-device image classification.
+  In the **normal protection mode** it reads the **address bar of a known browser**
+  (Chrome, Firefox, Samsung Internet, Edge, Brave, DuckDuckGo, Opera and a long tail of
+  others) to block the sites the user listed. The reading is in-memory only, it is never
+  stored or logged, the walk is capped at 80 nodes, and it never enters a WebView — so it
+  cannot read page content.
   Critical apps (launcher, settings, dialer, phone, Sawn itself) are never intercepted, so
   you can't be locked out of your own device.
 - **DeviceAdmin** — declares **no enforcement policies**; active-admin status alone provides
@@ -88,25 +80,31 @@ This document is the threat model and the measures in place.
 
 ## Known limitations (honest)
 
-- **Light protection mode has real gaps.** Without the DNS filter, the browser engine can
+- **The normal protection mode has real gaps.** Without the DNS filter, the browser engine can
   only act on what a browser *shows in its address bar*. That means:
   - A page opened **inside another app** (a WebView — many apps open links that way) is
     **not** blocked. The engine never enters a WebView, on purpose: it cannot block there
     anyway, and reading page content would mean reading far more than the address bar.
-  - **SafeSearch** and **DoH blocking** are DNS features. They do not work in the light
-    mode; they need the full mode.
+  - **SafeSearch** and **DoH blocking** are DNS features. They do not work in the normal
+    mode; they need the advanced mode.
   - A browser that does not expose its address bar to accessibility services is not covered.
     The list of known browsers is long (see `BrowserRegistry`), but a browser that ships
     tomorrow is not in it until it is added.
-  - The full mode has **none** of these gaps — that is what it is for. The home-screen
+  - The advanced mode has **none** of these gaps — that is what it is for. The home-screen
     badge says which mode is actually running, so a user is never misled about it.
 - **The browser engine is a race the user can lose.** It reacts to a window event and
   reads the bar a moment later. A page that loads and redirects within that window may not
-  be caught. The full mode (DNS) does not have this gap: it acts before any page is drawn.
-- **Accessibility is a powerful permission.** In the light mode it is the *only* engine, so
+  be caught. The advanced mode (DNS) does not have this gap: it acts before any page is drawn.
+- **Accessibility is a powerful permission.** In the normal mode it is the *only* engine, so
   the app's protection depends on a permission that can also be abused by malware. This is
-  the trade the light mode makes, and the reason the full mode is the default for upgraded
-  installs.
+  the trade the normal mode makes, and the reason the advanced mode is the default for
+  upgraded installs.
+- **The DNS filter stays the user's choice, even under a lock.** A time lock and the panic
+  lock keep the *app-level* blocking on — the app you locked stays blocked — but they do not
+  force the DNS layer on, and switching it off is allowed (with a warning). Strict mode is
+  the one setting that demands the advanced mode: the user turns it on deliberately, behind
+  a PIN. So the honest promise of a lock is *"this app stays blocked"*, not *"every site on
+  the device stays blocked"*.
 - **DNS-over-HTTPS/TLS** can bypass the DNS sinkhole. Sawn optionally sinkholes known DoH
   resolver hostnames (Settings → Block DNS-over-HTTPS) to close the common case, but clients
   with hardcoded resolver IPs can still slip through.
@@ -122,13 +120,10 @@ This document is the threat model and the measures in place.
 - **Ad/tracker filtering** is a bundled, curated host list. It cannot remove sponsored content
   served by the same first-party domain as the page, and there is no automatic remote ad-list
   subscription.
-- **Social-media protection** combines a text/label detector with on-device image screening on
-  Android 11+. Screening runs only after the text path finds nothing, samples at most four
-  regions per capture at one capture per 750 ms, and a coarse MobileNet — so unlabelled media can
-  still be missed, and a stylised or partial image can be missed silently. Below Android 11 the
-  image path is absent and only the text detector applies. App updates may rename the view ids and
-  warning text it relies on, and it covers native apps only; social sites opened in a browser are
-  outside this layer.
+- **No in-app content inspection.** Sawn does not read the screen, classify images, or
+  look for adult content inside an app. It blocks the apps the user named, and the sites
+  those apps would open are outside its reach — which is the honest limit of blocking by
+  name.
 - **Adult list refresh** is manual and trusts the maintained upstream sources over HTTPS. It
   validates formats and sizes but does not yet verify a signed manifest or prevent rollback.
 - **Update channel**: the manifest is served from GitHub Pages and the APK from GitHub Releases.
@@ -167,9 +162,9 @@ mismatch between them and this file is the usual cause of a policy rejection.
 
 | What must be declared | What this build actually does |
 |---|---|
-| **AccessibilityService use** (`isAccessibilityTool = false`, plus a purpose statement and a prominent in-app disclosure) | Reads the foreground package and window content to enforce the user's own block rules, and on Android 11+ captures a transient window screenshot for local NSFW classification. It also issues BACK/HOME — and, for a per-feature "navigate away" rule, one `ACTION_CLICK` — inside the blocked app. That last part is the highest-risk item under the rule against autonomously initiating actions in other apps, so state it plainly instead of implying the service is a disability aid. |
+| **AccessibilityService use** (`isAccessibilityTool = false`, plus a purpose statement and a prominent in-app disclosure) | Reads the foreground package name to enforce the user's own block rules, and the address bar of a known browser in the normal mode. It takes no screenshot and reads no on-screen text. It issues BACK/HOME inside a blocked app to leave the blocked page. That is the highest-risk item under the rule against autonomously initiating actions in other apps, so state it plainly instead of implying the service is a disability aid. |
 | **`specialUse` foreground service** | Local DNS filter only; the `<property>` subtype string in the manifest is the first thing a reviewer reads. |
-| **Data safety form** | Nothing collected, nothing shared, no advertising or analytics SDK. The screenshot exists only in memory and is never persisted or transmitted — say so in the privacy policy too. |
+| **Data safety form** | Nothing collected, nothing shared, no advertising or analytics SDK. Nothing is read from the screen at all — say so in the privacy policy too. |
 | **Sensitive permissions / access** | `PACKAGE_USAGE_STATS` (screen time), notification access (suppressing notifications of blocked apps), device admin (uninstall lock), VPN. Each needs a one-line user-facing justification that matches this document. |
 | **Privacy policy URL** | Must state on-device processing, no backend, and that adult-list downloads are user-triggered. |
 | **Backup and transfer** | Handled in code: `allowBackup="false"` **and** `dataExtractionRules` closing both cloud backup and device-to-device transfer, so a PIN hash cannot travel to a new phone. |
