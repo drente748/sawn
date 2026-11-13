@@ -43,8 +43,8 @@ reaches an address bar. It also cannot enforce SafeSearch or DoH blocking, which
 features. The advanced mode has no such gap.
 
 The DNS filter is the user's choice **even while a lock is running**: a time lock or the
-panic lock cannot switch it off for them. The strict mode is gone: the locks themselves now
-ask for the PIN, and the panic lock switches the advanced mode on when it can.
+panic lock cannot switch it off for them. The locks ask for the PIN when they are switched on,
+and the panic lock switches the advanced mode on when it can.
 
 The badge, the modes, and the fact that a **live time lock keeps the app-level blocking
 on** are all covered by unit tests — see [`docs/SECURITY.md`](docs/SECURITY.md) for the
@@ -107,7 +107,6 @@ sawn/
       app can install silently.
 - [x] Plan B fully wired: night guard (PIN unlock), trigger analyzer with an hourly chart,
       accountability partner, encrypted `.sawnbak` backup (AES-256-GCM, real export/import),
-      parent mode with a separate parent PIN that locks management
 - [ ] Year heatmap, biometric unlock
 - [x] Home-screen widget (2×2): protected-day streak + protection state, refreshed
   whenever protection state changes

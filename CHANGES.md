@@ -555,8 +555,14 @@ Two consequences the implementation has to handle:
   while `SAWNBAK3:` (and older) still import — the old schedules field is ignored, not
   rejected.
 
-Updated: `feature-map.md`, `spec.md`, `SECURITY.md`, `device-testing.md`,
-`per-app-rule.md` and `README.md`.
+**No trace in the product documentation.** The product docs now describe the final
+product only — the schedules, the in-app blocking, the parental mode and the strict mode
+are simply absent from them, with no "removed" markers. The record of what was removed
+stays where a record belongs: `CHANGES.md` and `PROGRESS.md`.
+
+Updated: `feature-map.md` (the whole §2, the §9 list, the §3 locks), `spec.md`,
+`SECURITY.md`, `device-testing.md` (the removed sections are gone and the plan is
+renumbered to 14 sections), `per-app-rule.md` and `README.md`.
 
 ---
 

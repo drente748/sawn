@@ -13,8 +13,8 @@ stats — and more, with a stronger privacy posture (local-only, no accounts, au
    browsing traffic off-device; it only filters forwarded DNS. The sole network exception is
    a user-triggered HTTPS refresh of public adult-domain lists, with no identifiers sent.
    Accessibility reads the foreground package name, and the browser's address bar in the
-   normal mode. It never reads on-screen content: no labels, no screenshots, no image
-   classification. It stores and transmits nothing.
+   normal mode. It never reads on-screen content: no labels, no screenshots. It stores and
+   transmits nothing.
 2. **Auditable.** Every permission's use is visible in code and documented in
    [SECURITY.md](SECURITY.md). This matters because a blocker asks for VPN + accessibility,
    exactly the permissions malware wants.
@@ -98,7 +98,6 @@ lock switches the advanced mode on when the VPN permission is already granted.
 - `accessibility/BlockOverlayController.kt` — shows the block notice over the browser with a
   `TYPE_ACCESSIBILITY_OVERLAY` window. No `SYSTEM_ALERT_WINDOW` permission is needed, because
   an overlay drawn by the accessibility service belongs to it.
-- `feature/SocialPlatform.kt` — supported social packages, per-platform coverage copy, and
   built-in filter guidance. Settings persist independently per platform.
 - `block/BlockEngine.kt` — the single source of truth for
   "is blocking active now, and for what?". Combines the master switch, active
@@ -120,8 +119,6 @@ the browser engine calls `coordinator.evaluateDomain(host)`.
 A lock asks for the PIN when it is switched on, and switches the uninstall protection on
 with it; a strict focus session keeps its own extra friction.
 
-## ~~Schedules~~ — removed from the product
-The schedules (and `ScheduleEvaluator`) are gone; the master switch is the only gate left.
 
 ## Data model migrations
 Room is at `version = 5` with `exportSchema = true`; the generated schemas live in
@@ -136,7 +133,6 @@ Destructive fallback is limited to downgrades in development; real upgrades migr
 ## Roadmap detail (parity + beyond)
 
 ### Parity with AppBlock
-- **Full schedule editor**: removed with the schedules.
 - **Conditions engine**: extend `BlockEngine` with pluggable `Condition`s — time (done),
   Wi-Fi SSID, location geofence, app launch-count, daily usage-limit.
 - **Lock enforcement** (implemented): while a lock is on, lock the in-app master
@@ -176,10 +172,6 @@ Destructive fallback is limited to downgrades in development; real upgrades migr
   fallback covering only visible browser text.
 - The bundled ad/tracker list does not remove first-party sponsored content, and updates are
   manual.
-- Social media protection sees accessibility text and view identifiers, not pixels. Unlabelled
-  photos/videos, private messages used as a bypass, and app-version changes to view ids can
-  escape detection; users should also enable each platform's built-in sensitive-content
-  filters. It covers native apps, not social sites inside a browser.
 - A lock enforces the in-app disable paths, tile, focus cancellation, and in-app
   device-admin disable. Android still allows deactivating device admin from system Settings;
   that is the deliberate emergency exit, not a bypass inside Sawn.

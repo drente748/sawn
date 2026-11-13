@@ -33,7 +33,7 @@ This document is the threat model and the measures in place.
   exposes no usable system resolver. Sawn never reads, stores, or transmits your browsing.
   Queried domains are **never logged**.
 - **AccessibilityService** — reads the foreground package name, and nothing else of the
-  screen: no view-ids, no labels, no screenshots, no on-device image classification.
+  screen: no view-ids, no labels, no screenshots.
   In the **normal protection mode** it reads the **address bar of a known browser**
   (Chrome, Firefox, Samsung Internet, Edge, Brave, DuckDuckGo, Opera and a long tail of
   others) to block the sites the user listed. The reading is in-memory only, it is never
@@ -119,10 +119,8 @@ This document is the threat model and the measures in place.
 - **Ad/tracker filtering** is a bundled, curated host list. It cannot remove sponsored content
   served by the same first-party domain as the page, and there is no automatic remote ad-list
   subscription.
-- **No in-app content inspection.** Sawn does not read the screen, classify images, or
-  look for adult content inside an app. It blocks the apps the user named, and the sites
-  those apps would open are outside its reach — which is the honest limit of blocking by
-  name.
+- **No screen reading.** Sawn reads the foreground package name, and the browser's address
+  bar in the normal mode. Nothing else on the screen is read — no labels, no screenshots.
 - **Adult list refresh** is manual and trusts the maintained upstream sources over HTTPS. It
   validates formats and sizes but does not yet verify a signed manifest or prevent rollback.
 - **Update channel**: the manifest is served from GitHub Pages and the APK from GitHub Releases.
@@ -147,12 +145,6 @@ This document is the threat model and the measures in place.
   otherwise), asks the system to rebind the service a bounded number of times with
   exponential backoff, and posts an ongoing notice whose tap opens the accessibility settings
   directly.
-- **~~Strict mode~~ — removed from the product.** The locks now ask for the PIN themselves
-  when they are switched on, and the uninstall protection is switched on with them, so the
-  impulsive-disable gap it covered is covered by the locks instead.
-- The PIN is not yet bound to the hardware Keystore/StrongBox — planned as defense-in-depth
-  against offline extraction on rooted devices (the salted 310k-PBKDF2 hash + no-backup is the
-  current protection).
 
 ## Play Store submission checklist
 
