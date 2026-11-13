@@ -52,7 +52,7 @@ This document is the threat model and the measures in place.
 - **PIN**: `PBKDF2WithHmacSHA256`, 310,000 iterations, per-PIN `SecureRandom` salt; stored as
   hash only. Compounding lockout after 5 failures (30s → 1h) uses elapsed-realtime within a
   boot, so advancing the wall clock does not shorten it. Constant-time comparison. Settings,
-  blocklist, schedules, app/feed management, and disable paths are PIN-gated.
+  blocklist, app management, and disable paths are PIN-gated.
 - **Screen protection**: `FLAG_SECURE` on the PIN pad (release builds) blocks
   screenshots/recording; `filterTouchesWhenObscured` + `setHideOverlayWindows` are applied
   to the *dialog window itself* and the host activity (the dialog's context is a
@@ -111,7 +111,7 @@ This document is the threat model and the measures in place.
   filter, but only IPv4 DNS packets are terminated inside the tunnel. IPv6-only resolvers may
   therefore fail rather than resolve.
 - **Clock changes**: `SettingsStore.trustedNow()` keeps a monotonic high-water mark, so
-  rolling the clock back cannot make schedules or focus sessions end sooner. A rollback can
+  rolling the clock back cannot make a focus session or a lock end sooner. A rollback can
   make a focus session last longer (the VPN keeps blocking) until the wall clock catches up;
   moving the clock forward can end sessions early. PIN lockout additionally uses elapsed
   realtime during the current boot; after a reboot it retains a wall-clock remainder because

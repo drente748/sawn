@@ -4,7 +4,7 @@
 
 An Android app that does everything
 [AppBlock](https://play.google.com/store/apps/details?id=cz.mobilesoft.appblock) does — block
-apps and websites, on schedules and other conditions, with strict/PIN protection and usage
+apps and websites, with locks, focus sessions and PIN protection, and usage
 stats — and more, with a stronger privacy posture (local-only, no accounts, auditable).
 
 ## Non-negotiable principles
@@ -100,13 +100,13 @@ lock switches the advanced mode on when the VPN permission is already granted.
   an overlay drawn by the accessibility service belongs to it.
 - `feature/SocialPlatform.kt` — supported social packages, per-platform coverage copy, and
   built-in filter guidance. Settings persist independently per platform.
-- `block/BlockEngine.kt` + `block/ScheduleEvaluator.kt` — the single source of truth for
+- `block/BlockEngine.kt` — the single source of truth for
   "is blocking active now, and for what?". Combines the master switch, active
-  schedules, per-item domains, adult/SafeSearch settings, optional DoH blocking, and the
+  per-item domains, adult/SafeSearch settings, optional DoH blocking, and the
   bundled ad/tracker list.
 - `block/DomainMatcher.kt` — exact/parent-domain suffix matching in time proportional to the
   host's label count, not the size of the blocklist, plus hostname validation.
-- `data/` — Room (`BlockedItem`, `Schedule`, `AccessGrant`, `ProtectedDayEntity`) + DataStore
+- `data/` — Room (`BlockedItem`, `AccessGrant`, `ProtectedDayEntity`) + DataStore
   settings.
 - `security/PinHasher.kt` — PBKDF2-HMAC-SHA256, salted; PIN never stored in plaintext.
 - `security/PinLockoutPolicy.kt` — pure elapsed/wall-clock lockout policy.
@@ -114,15 +114,14 @@ lock switches the advanced mode on when the VPN permission is already granted.
   valid list on failure.
 
 ### Blocking decision
-`isBlockingActiveNow = focusEndsAt > trustedNow || (masterEnabled && (alwaysOn || anyEnabledScheduleNow()))`.
+`isBlockingActiveNow = focusEndsAt > trustedNow || masterEnabled` (plus the locks, which force it).
 The VPN calls `blockedDomains()`; the accessibility service calls `decideForPackage(pkg)`;
 the browser engine calls `coordinator.evaluateDomain(host)`.
 A lock asks for the PIN when it is switched on, and switches the uninstall protection on
 with it; a strict focus session keeps its own extra friction.
 
-## Schedules
-`Schedule` = name + `daysMask` (bit0=Mon…bit6=Sun) + start/end minute-of-day. Windows wrap
-past midnight when `end <= start`. `ScheduleEvaluator` is pure and unit-testable.
+## ~~Schedules~~ — removed from the product
+The schedules (and `ScheduleEvaluator`) are gone; the master switch is the only gate left.
 
 ## Data model migrations
 Room is at `version = 5` with `exportSchema = true`; the generated schemas live in
@@ -137,15 +136,14 @@ Destructive fallback is limited to downgrades in development; real upgrades migr
 ## Roadmap detail (parity + beyond)
 
 ### Parity with AppBlock
-- **Full schedule editor**: multiple windows/day, per-day times, assign specific items to a
-  profile (currently schedules gate the whole list).
+- **Full schedule editor**: removed with the schedules.
 - **Conditions engine**: extend `BlockEngine` with pluggable `Condition`s — time (done),
   Wi-Fi SSID, location geofence, app launch-count, daily usage-limit.
 - **Lock enforcement** (implemented): while a lock is on, lock the in-app master
   switch, the Quick Settings tile, early focus exit, and in-app device-admin disable; require
   a PIN. Android's own device-admin deactivation remains the documented
   emergency exit.
-- **PIN lock** (implemented): gates settings, blocklist, schedules, app/feed management, and
+- **PIN lock** (implemented): gates settings, blocklist, app management, and
   disable paths; includes a compounding clock-tamper-resistant lockout.
 - **Adult-content and ad/tracker blocking** (implemented): offline curated host sets, optional
   Porn Guard/SafeSearch/browser fallback, and a manual validated adult-list refresh.
@@ -161,9 +159,9 @@ Destructive fallback is limited to downgrades in development; real upgrades migr
 - On-device "why did I open this?" journaling to build awareness, fully local.
 
 ## Testing priorities
-1. `ScheduleEvaluator` — pure logic, cover midnight-wrap and day boundaries.
+1. `EmergencyLockdown` / `LockdownPolicy` — the lock invariants (no cancel, no shorten, clock-proof).
 2. `DnsPacket` — parse/build round-trips against captured DNS packets.
-3. `BlockingPolicy` / `StrictPolicy` / `AccessController` — decision tables across schedules,
+3. `BlockingPolicy` / `AccessController` — decision tables across the master switch,
    focus, grants, limits, and lock combinations.
 4. `DomainMatcher` / `PinLockoutPolicy` / `AdultListFetcher` parsing — suffix boundaries,
    malformed hosts, clock/boot transitions, and hostile response shapes.

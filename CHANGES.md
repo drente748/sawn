@@ -536,6 +536,30 @@ guess with a timer, the tile starts the 15-minute lock on a tap, and the duratio
 picker lives in the app where the user can see what they are choosing.
 
 
+## 17. إلغاء الجداول بالكامل
+
+The schedules are **out of the product**, and with them «Always on» — the master switch is
+now the only gate: on means always protected, off means unprotected except for what the
+locks and the per-item rules force.
+
+What the removal takes with it: `Schedule` (the Room entity and its table), the
+`schedules` repository flow, `ScheduleEvaluator` and its two test suites, the
+`/schedules` route with its editor, and the schedule part of the backup file.
+
+Two consequences the implementation has to handle:
+
+- **Room**: dropping the `schedules` table needs a **targeted migration (v5 → v6)**, not a
+  destructive one — the streak and the blocklist must survive. The schema export is
+  updated with it.
+- **Backup format**: the schedules leave the archive, so the format goes to `SAWNBAK4:`
+  while `SAWNBAK3:` (and older) still import — the old schedules field is ignored, not
+  rejected.
+
+Updated: `feature-map.md`, `spec.md`, `SECURITY.md`, `device-testing.md`,
+`per-app-rule.md` and `README.md`.
+
+---
+
 ## 16. قرارات §2: الجداول ونموذج الطبقات
 
 The scheduling section, decided. **No code was touched.**

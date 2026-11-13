@@ -1,7 +1,7 @@
 # Sawn 2.2.0
 
 **صَوْن (Sawn) — a local, account-free, tracking-free Android blocker.** Blocks websites (via an
-on-device DNS filter) and apps, with schedules, focus sessions, a time lock, a panic lock, and a
+on-device DNS filter) and apps, with focus sessions, a time lock, a panic lock, and a
 streak rebuilt from a single source of truth. Arabic-first with full English; Latin digits
 everywhere.
 
@@ -65,7 +65,7 @@ sawn/
 ├── app/                     # Compose UI, services (VPN / Accessibility / DeviceAdmin /
 │                            #   boot / QS tile / workers), ViewModels, Hilt
 ├── core/
-│   ├── domain/              # Pure Kotlin (no Android): policies, schedules, backup
+│   ├── domain/              # Pure Kotlin (no Android): policies, locks, backup
 │   │                        #   codec, feature detectors — fully unit-tested
 │   └── data/                # Room (streak source of truth) + DataStore repos,
 │                            #   exported schemas in core/data/schemas/
@@ -77,7 +77,7 @@ sawn/
 
 ## Modules
 
-- `:core:domain` — pure Kotlin, no Android: day/streak policy, schedules, lock policy, backup
+- `:core:domain` — pure Kotlin, no Android: day/streak policy, lock policy, backup
   codec, feature detectors, and the `BlockCoordinator` that decides what is protecting the
   user right now. Fully unit-tested (JUnit 4 + Kotest).
 - `:core:data` — Room (`protected_days` is the streak source of truth) + DataStore repositories

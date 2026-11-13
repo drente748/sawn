@@ -51,7 +51,7 @@ kept here for the record only, not as a promise:
 - ✅ Home shows "Strict lock on"; the master switch cannot be turned off.
 - ✅ The tile opens Sawn instead of turning protection off.
 - Start a focus session with strict unchecked. ✅ It is stored strict and there is no early exit.
-- ✅ Blocklist, Schedules, app picker, and feed blocking all ask for the PIN when one exists,
+- ✅ Blocklist, app picker and the other management screens all ask for the PIN when one exists,
   and no management controls flash before the lock screen appears.
 - ✅ Turning strict mode off requires unlocking Settings with the PIN.
 - ✅ Remove PIN is disabled while strict mode is on.
@@ -62,11 +62,10 @@ kept here for the record only, not as a promise:
 - With blocking on, reboot the phone.
 - ✅ The DNS filter should re-arm automatically (BootReceiver).
 
-### 7. Schedule / focus filter refresh
-- Block `example.com`. Make sure there is **no schedule** (with no schedule, blocking is
-  always active and a schedule boundary is invisible). Turn protection ON and keep the VPN
-  running, then create a schedule that starts one minute from now and covers that site.
-- ✅ At the start time, the site must fail to load within 30 seconds without toggling Sawn.
+### 7. ~~Schedule / focus filter refresh~~ — schedules removed
+The schedules are gone from the product; the focus session is the only time-based rule left.
+The section is kept for the numbering.
+
 - Start and cancel a focus session. ✅ The same domain must become blocked/unblocked immediately.
 
 ### 8. Timed access expiry
