@@ -63,8 +63,8 @@ kept here for the record only, not as a promise:
 - ✅ The DNS filter should re-arm automatically (BootReceiver).
 
 ### 7. Schedule / focus filter refresh
-- Block `example.com`. In **Settings → Always on**, turn **Always on OFF** (otherwise blocking
-  is always active and a schedule boundary is invisible). Turn protection ON and keep the VPN
+- Block `example.com`. Make sure there is **no schedule** (with no schedule, blocking is
+  always active and a schedule boundary is invisible). Turn protection ON and keep the VPN
   running, then create a schedule that starts one minute from now and covers that site.
 - ✅ At the start time, the site must fail to load within 30 seconds without toggling Sawn.
 - Start and cancel a focus session. ✅ The same domain must become blocked/unblocked immediately.

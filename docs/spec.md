@@ -101,7 +101,7 @@ lock switches the advanced mode on when the VPN permission is already granted.
 - `feature/SocialPlatform.kt` — supported social packages, per-platform coverage copy, and
   built-in filter guidance. Settings persist independently per platform.
 - `block/BlockEngine.kt` + `block/ScheduleEvaluator.kt` — the single source of truth for
-  "is blocking active now, and for what?". Combines the master switch, always-on flag, active
+  "is blocking active now, and for what?". Combines the master switch, active
   schedules, per-item domains, adult/SafeSearch settings, optional DoH blocking, and the
   bundled ad/tracker list.
 - `block/DomainMatcher.kt` — exact/parent-domain suffix matching in time proportional to the

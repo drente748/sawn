@@ -536,6 +536,22 @@ guess with a timer, the tile starts the 15-minute lock on a tap, and the duratio
 picker lives in the app where the user can see what they are choosing.
 
 
+## 16. قرارات §2: الجداول ونموذج الطبقات
+
+The scheduling section, decided. **No code was touched.**
+
+| Decision | Consequence |
+|---|---|
+| **"Always on" is removed** | It cancelled the schedules entirely — the two could never coexist, and the app had to promise both. One rule replaces it: **no schedules means always protected**. |
+| **Three layers, no contradiction** | The gate (when: master switch + any active schedule) · the content (what: the blocklist + the per-item rules) · the overrides (what forces the block: the locks, the per-item rule, deep focus). The overrides always win over the gate. |
+| **A lock suspends the schedules, it does not cancel them** | During a lock the protection is always on whatever the schedule says — and the app says so: «أثناء القفل: الحماية دائمة مهما كان الجدول». The schedule is the plan for the rest of the day and resumes when the lock ends. |
+| **The schedules stay global** | The per-item rule is the per-item mechanism; two mechanisms for the same thing would be one too many. |
+| **The per-item rule survives the master switch** | It forces the block for its own app even with the protection off — so the interface has to say it: «الحماية مطفأة · ٣ تطبيقات مقفلة بقواعدك». |
+
+Updated: `feature-map.md` (§2), `per-app-rule.md`, `spec.md` and `device-testing.md`.
+
+---
+
 ## 15. قرارات الأقفال + إلغاء وضع الانضباط
 
 The lock section, decided. **No code was touched.**
